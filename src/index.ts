@@ -1,3 +1,5 @@
+export { threeKingdoms, threeKingdomsPresentation } from './boards/three-kingdoms.ts';
+export type { BoardPresentation, GroupStyle, Label, SquareStyle } from './boards/presentation.ts';
 export { createEngine } from './engine/engine.ts';
 export type { Engine } from './engine/engine.ts';
 export type { NewGameOptions } from './engine/setup.ts';
