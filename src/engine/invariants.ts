@@ -1,0 +1,136 @@
+import type { Context } from '../context.ts';
+import { HOTEL_LEVEL } from '../types.ts';
+import type { GameState, PlayerId } from '../types.ts';
+import { findPlayer, topPending } from './queries.ts';
+
+export function checkInvariants(ctx: Context, s: GameState): string[] {
+  const problems: string[] = [];
+  const isActive = (id: PlayerId) => {
+    const player = findPlayer(s, id);
+    return !!player && !player.bankrupt;
+  };
+
+  for (const player of s.players) {
+    if (!Number.isInteger(player.cash) || player.cash < 0) {
+      problems.push(`${player.id} holds an invalid cash amount (${player.cash}).`);
+    }
+    if (player.position < 0 || player.position >= ctx.size) {
+      problems.push(`${player.id} is off the board.`);
+    }
+    if (player.inJail && player.position !== ctx.jailIndex) {
+      problems.push(`${player.id} is jailed away from the jail square.`);
+    }
+    if (player.bankrupt && (player.cash !== 0 || player.jailCards.length > 0 || player.inJail)) {
+      problems.push(`Bankrupt player ${player.id} still holds assets.`);
+    }
+  }
+
+  let houses = 0;
+  let hotels = 0;
+  for (const sq of ctx.propertyOrder) {
+    const state = s.properties[sq.id];
+    if (!state) {
+      problems.push(`Property ${sq.id} has no state.`);
+      continue;
+    }
+    if (state.owner !== null && !isActive(state.owner)) {
+      problems.push(`${sq.id} is owned by ${state.owner}, who is not in the game.`);
+    }
+    if (state.mortgaged && state.owner === null) problems.push(`${sq.id} is mortgaged but unowned.`);
+    if (!Number.isInteger(state.level) || state.level < 0 || state.level > HOTEL_LEVEL) {
+      problems.push(`${sq.id} has an invalid building level (${state.level}).`);
+    }
+    if (sq.kind !== 'street' && state.level !== 0) problems.push(`${sq.id} cannot hold buildings.`);
+    if (state.level === HOTEL_LEVEL) hotels += 1;
+    else houses += state.level;
+  }
+
+  for (const [group, streets] of ctx.groups) {
+    const states = streets.map((st) => s.properties[st.id]);
+    const levels = states.map((state) => state.level);
+    if (levels.every((level) => level === 0)) continue;
+    const owner = states[0].owner;
+    if (owner === null || states.some((state) => state.owner !== owner)) {
+      problems.push(`Group ${group} has buildings without a single owner.`);
+    }
+    if (states.some((state) => state.mortgaged)) {
+      problems.push(`Group ${group} has buildings alongside a mortgage.`);
+    }
+    if (Math.max(...levels) - Math.min(...levels) > 1) {
+      problems.push(`Group ${group} is built unevenly (${levels.join(', ')}).`);
+    }
+  }
+
+  if (s.bank.houses < 0 || s.bank.hotels < 0) problems.push('The bank holds a negative building supply.');
+  if (s.bank.houses + houses !== ctx.board.economy.houses) {
+    problems.push(`House count is off: ${s.bank.houses} in the bank, ${houses} on the board.`);
+  }
+  if (s.bank.hotels + hotels !== ctx.board.economy.hotels) {
+    problems.push(`Hotel count is off: ${s.bank.hotels} in the bank, ${hotels} on the board.`);
+  }
+
+  for (const [deckId, definitions] of ctx.cards) {
+    const located = [...(s.decks[deckId] ?? [])];
+    for (const player of s.players) {
+      for (const held of player.jailCards) {
+        if (held.deck !== deckId) continue;
+        located.push(held.card);
+        if (definitions.get(held.card)?.effect.type !== 'jailFree') {
+          problems.push(`${player.id} holds ${held.card}, which is not a card to keep.`);
+        }
+      }
+    }
+    const expected = [...definitions.keys()].sort();
+    if (located.sort().join('|') !== expected.join('|')) {
+      problems.push(`Deck ${deckId} has lost or duplicated cards.`);
+    }
+  }
+
+  const alive = s.players.filter((p) => !p.bankrupt);
+  if (s.winner !== null) {
+    if (alive.length !== 1 || alive[0].id !== s.winner) problems.push('The winner is not the last player standing.');
+    if (s.pending.length > 0 || s.auctionQueue.length > 0) problems.push('A finished game has open decisions.');
+    return problems;
+  }
+  if (alive.length < 2) problems.push('The game should be over.');
+  if (!isActive(s.turn.player)) problems.push(`The turn belongs to ${s.turn.player}, who is not in the game.`);
+  if (s.turn.doubles >= ctx.rules.doublesToJail) problems.push('The doubles count was not reset.');
+
+  for (const item of s.pending) {
+    const involved: PlayerId[] = [];
+    switch (item.kind) {
+      case 'buy':
+      case 'mortgageTransfer':
+        involved.push(item.player);
+        break;
+      case 'debt':
+        involved.push(item.debtor);
+        if (item.creditor !== null) involved.push(item.creditor);
+        if (item.amount <= 0) problems.push('A pending debt has no amount.');
+        break;
+      case 'trade':
+        involved.push(item.offer.from, item.offer.to);
+        break;
+      case 'auction':
+        involved.push(...item.bidders);
+        if (s.properties[item.property].owner !== null) problems.push(`${item.property} is being auctioned but is owned.`);
+        break;
+      case 'buildingAuction':
+        involved.push(...item.bidders);
+        if (!item.bidders.includes(item.highBidder)) problems.push('The high bidder left a building auction.');
+        break;
+    }
+    for (const id of involved) {
+      if (!isActive(id)) problems.push(`An open ${item.kind} decision involves ${id}, who is not in the game.`);
+    }
+  }
+
+  const top = topPending(s);
+  if (top?.kind === 'debt' && (findPlayer(s, top.debtor)?.cash ?? 0) >= top.amount) {
+    problems.push('A payable debt was left unsettled.');
+  }
+  for (const id of s.auctionQueue) {
+    if (s.properties[id].owner !== null) problems.push(`${id} is queued for auction but is owned.`);
+  }
+  return problems;
+}

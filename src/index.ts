@@ -1,0 +1,9 @@
+export { createEngine } from './engine/engine.ts';
+export type { Engine } from './engine/engine.ts';
+export type { NewGameOptions } from './engine/setup.ts';
+export { DEFAULT_RULES } from './rules.ts';
+export { chooseRandomAction } from './sim/random-agent.ts';
+export { simulateGame } from './sim/simulate.ts';
+export type { SimulationOptions, SimulationResult } from './sim/simulate.ts';
+export { HOTEL_LEVEL, MAX_HOUSES } from './types.ts';
+export type * from './types.ts';
