@@ -86,7 +86,7 @@ export function legalActions(ctx: Context, s: GameState, playerId: PlayerId): Le
       .filter(
         (sq) =>
           placementError(ctx, s, playerId, sq.id) === null &&
-          buildingKindAt(s.properties[sq.id].level) === top.building,
+          buildingKindAt(ctx, s.properties[sq.id].level) === top.building,
       )
       .map((sq) => ({ property: sq.id, min: Math.max(top.highBid + 1, sq.buildingCost) }))
       .filter((target) => target.min <= player.cash);

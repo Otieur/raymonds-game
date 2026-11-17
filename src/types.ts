@@ -106,6 +106,22 @@ export interface RuleConfig {
   groupRentMultiplier: number;
   nearestTransitRentMultiplier: number;
   buildingShortageAuction: boolean;
+  /** Title deeds dealt to each player at setup; each is paid for at its printed price. */
+  startingDeeds: number;
+  /** Houses every street in a group needs before one of them can take a hotel (1 to MAX_HOUSES). */
+  housesBeforeHotel: number;
+  /**
+   * End the game when this many players have gone bankrupt and rank the rest by net worth.
+   * `null` plays on until one player is left.
+   */
+  endAfterBankruptcies: number | null;
+}
+
+/** A player's place at the end of a game, best first. */
+export interface Standing {
+  player: PlayerId;
+  netWorth: number;
+  cash: number;
 }
 
 export interface HeldJailCard {
@@ -290,7 +306,12 @@ export type GameEvent =
   | { type: 'TRADE_REJECTED'; offer: TradeOffer }
   | { type: 'TRADE_CANCELLED'; offer: TradeOffer }
   | { type: 'BANKRUPT'; player: PlayerId; creditor: PlayerId | null }
-  | { type: 'GAME_OVER'; winner: PlayerId };
+  | {
+      type: 'GAME_OVER';
+      winner: PlayerId;
+      reason: 'lastPlayer' | 'bankruptcyLimit';
+      standings: Standing[];
+    };
 
 export type ErrorCode =
   | 'INVALID_ACTION'

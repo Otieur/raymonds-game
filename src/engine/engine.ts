@@ -10,6 +10,7 @@ import type {
   PlayerId,
   RuleConfig,
   RuleError,
+  Standing,
 } from '../types.ts';
 import { concludeAuctionIfDone, doBid, doBuy, doDecline, doPass, startAuction } from './auctions.ts';
 import { doDeclareBankruptcy } from './bankruptcy.ts';
@@ -19,7 +20,7 @@ import { awaiting, legalActions } from './legal.ts';
 import { transfer } from './money.ts';
 import { doMortgage, doSettleTransfer, doUnmortgage } from './mortgage.ts';
 import { runResume } from './movement.ts';
-import { mustPlayer, topPending } from './queries.ts';
+import { mustPlayer, netWorth, standings, topPending } from './queries.ts';
 import type { Run } from './run.ts';
 import { newGame } from './setup.ts';
 import type { NewGameOptions } from './setup.ts';
@@ -36,6 +37,10 @@ export interface Engine {
   legalActions(state: GameState, player: PlayerId): LegalAction[];
   awaiting(state: GameState): PlayerId[];
   checkInvariants(state: GameState): string[];
+  /** Cash plus property and buildings, valued as the short game counts them. */
+  netWorth(state: GameState, player: PlayerId): number;
+  /** Players still in the game, richest first. */
+  standings(state: GameState): Standing[];
 }
 
 function execute(run: Run, action: Action): void {
@@ -130,5 +135,7 @@ export function createEngine(board: BoardDefinition, rules: Partial<RuleConfig> 
     legalActions: (state, player) => legalActions(ctx, state, player),
     awaiting: (state) => awaiting(state),
     checkInvariants: (state) => checkInvariants(ctx, state),
+    netWorth: (state, player) => netWorth(ctx, state, player),
+    standings: (state) => standings(ctx, state),
   };
 }

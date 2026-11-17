@@ -1,5 +1,5 @@
 import type { Context } from '../context.ts';
-import { HOTEL_LEVEL, MAX_HOUSES } from '../types.ts';
+import { HOTEL_LEVEL } from '../types.ts';
 import type { GameState, GroupId, PlayerId, PropertyId, RuleError, StreetSquare } from '../types.ts';
 import { transfer } from './money.ts';
 import {
@@ -7,10 +7,14 @@ import {
   bankSupply,
   buildDemand,
   buildingKindAt,
+  buildingStep,
   canRaiseFunds,
   groupStreets,
+  isBuildingLevel,
   mustPlayer,
+  nextLevel,
   placementError,
+  previousLevel,
   resaleValue,
 } from './queries.ts';
 import { fail } from './run.ts';
@@ -28,7 +32,7 @@ export function checkBuild(
   const blocked = placementError(ctx, s, playerId, propertyId);
   if (blocked) return blocked;
   const sq = ctx.properties.get(propertyId) as StreetSquare;
-  const kind = buildingKindAt(s.properties[propertyId].level);
+  const kind = buildingKindAt(ctx, s.properties[propertyId].level);
   if (bankSupply(s, kind) < 1) return fail('BANK_SUPPLY', `The bank has no ${kind}s left.`);
   if (mustPlayer(s, playerId).cash < sq.buildingCost) {
     return fail('INSUFFICIENT_CASH', `A building on ${sq.name} costs ${sq.buildingCost}.`);
@@ -39,7 +43,7 @@ export function checkBuild(
 export function doBuild(run: Run, playerId: PlayerId, propertyId: PropertyId): void {
   const { ctx, s } = run;
   const sq = ctx.properties.get(propertyId) as StreetSquare;
-  const kind = buildingKindAt(s.properties[propertyId].level);
+  const kind = buildingKindAt(ctx, s.properties[propertyId].level);
 
   if (ctx.rules.buildingShortageAuction) {
     const rivals = activePlayers(s)
@@ -74,13 +78,14 @@ export function doBuild(run: Run, playerId: PlayerId, propertyId: PropertyId): v
 export function placeBuilding(run: Run, playerId: PlayerId, propertyId: PropertyId, price: number): void {
   const state = run.s.properties[propertyId];
   transfer(run, playerId, null, price, 'building');
-  state.level += 1;
-  if (state.level === HOTEL_LEVEL) {
+  const next = nextLevel(run.ctx, state.level);
+  if (next === HOTEL_LEVEL) {
     run.s.bank.hotels -= 1;
-    run.s.bank.houses += MAX_HOUSES;
+    run.s.bank.houses += state.level;
   } else {
     run.s.bank.houses -= 1;
   }
+  state.level = next;
   run.events.push({ type: 'BUILT', player: playerId, property: propertyId, level: state.level, cost: price });
 }
 
@@ -121,10 +126,11 @@ function planSale(
     }
     group = sq.group;
     const target = levels[id];
-    if (!Number.isInteger(target) || target < 0 || target > state.level) {
-      return { error: fail('INVALID_ACTION', `Target level for ${sq.name} must be 0 to ${state.level}.`) };
+    const sold = buildingStep(ctx, state.level) - buildingStep(ctx, target);
+    if (!isBuildingLevel(ctx, target) || sold < 0) {
+      return { error: fail('INVALID_ACTION', `${target} is not a level ${sq.name} can be sold down to.`) };
     }
-    refund += (state.level - target) * resaleValue(ctx, sq);
+    refund += sold * resaleValue(ctx, sq);
   }
 
   const streets = groupStreets(ctx, group as GroupId);
@@ -133,7 +139,8 @@ function planSale(
   if (after.every((level, i) => level === before[i])) {
     return { error: fail('NO_BUILDINGS', 'There is nothing to sell.') };
   }
-  if (Math.max(...after) - Math.min(...after) > 1) {
+  const steps = after.map((level) => buildingStep(ctx, level));
+  if (Math.max(...steps) - Math.min(...steps) > 1) {
     return { error: fail('UNEVEN_BUILD', 'Buildings must be sold evenly across the group.') };
   }
   const housesReturned = housesOn(before) - housesOn(after);
@@ -192,7 +199,7 @@ function singleStep(
   if (!sq) return { error: fail('UNKNOWN_PROPERTY', `Unknown property "${propertyId}".`) };
   const level = s.properties[propertyId].level;
   if (level === 0) return { error: fail('NO_BUILDINGS', `${sq.name} has no buildings.`) };
-  return { levels: { [propertyId]: level - 1 } };
+  return { levels: { [propertyId]: previousLevel(ctx, level) } };
 }
 
 export function checkSellBuilding(

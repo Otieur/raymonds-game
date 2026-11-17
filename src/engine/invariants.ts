@@ -1,7 +1,7 @@
 import type { Context } from '../context.ts';
 import { HOTEL_LEVEL } from '../types.ts';
 import type { GameState, PlayerId } from '../types.ts';
-import { findPlayer, topPending } from './queries.ts';
+import { buildingStep, findPlayer, isBuildingLevel, standings, topPending } from './queries.ts';
 
 export function checkInvariants(ctx: Context, s: GameState): string[] {
   const problems: string[] = [];
@@ -37,7 +37,7 @@ export function checkInvariants(ctx: Context, s: GameState): string[] {
       problems.push(`${sq.id} is owned by ${state.owner}, who is not in the game.`);
     }
     if (state.mortgaged && state.owner === null) problems.push(`${sq.id} is mortgaged but unowned.`);
-    if (!Number.isInteger(state.level) || state.level < 0 || state.level > HOTEL_LEVEL) {
+    if (!isBuildingLevel(ctx, state.level)) {
       problems.push(`${sq.id} has an invalid building level (${state.level}).`);
     }
     if (sq.kind !== 'street' && state.level !== 0) problems.push(`${sq.id} cannot hold buildings.`);
@@ -56,7 +56,8 @@ export function checkInvariants(ctx: Context, s: GameState): string[] {
     if (states.some((state) => state.mortgaged)) {
       problems.push(`Group ${group} has buildings alongside a mortgage.`);
     }
-    if (Math.max(...levels) - Math.min(...levels) > 1) {
+    const steps = levels.map((level) => buildingStep(ctx, level));
+    if (Math.max(...steps) - Math.min(...steps) > 1) {
       problems.push(`Group ${group} is built unevenly (${levels.join(', ')}).`);
     }
   }
@@ -87,12 +88,19 @@ export function checkInvariants(ctx: Context, s: GameState): string[] {
   }
 
   const alive = s.players.filter((p) => !p.bankrupt);
+  const limit = ctx.rules.endAfterBankruptcies;
+  const limitReached = limit !== null && s.players.length - alive.length >= limit;
   if (s.winner !== null) {
-    if (alive.length !== 1 || alive[0].id !== s.winner) problems.push('The winner is not the last player standing.');
+    if (!alive.some((p) => p.id === s.winner)) problems.push('The winner is not still in the game.');
+    if (alive.length !== 1 && !limitReached) problems.push('The game ended while it should go on.');
+    if (alive.length > 1 && standings(ctx, s)[0].player !== s.winner) {
+      problems.push('The winner is not the richest remaining player.');
+    }
     if (s.pending.length > 0 || s.auctionQueue.length > 0) problems.push('A finished game has open decisions.');
     return problems;
   }
   if (alive.length < 2) problems.push('The game should be over.');
+  if (limitReached) problems.push('The bankruptcy limit was reached but the game goes on.');
   if (!isActive(s.turn.player)) problems.push(`The turn belongs to ${s.turn.player}, who is not in the game.`);
   if (s.turn.doubles >= ctx.rules.doublesToJail) problems.push('The doubles count was not reset.');
 

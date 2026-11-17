@@ -4,10 +4,12 @@ import type { GameState, PlayerId, PropertySquare, RuleError } from '../types.ts
 import { transfer } from './money.ts';
 import {
   activePlayers,
+  buildingStep,
   liquidationValue,
   mustPlayer,
   ownedProperties,
   resaleValue,
+  standings,
   topPending,
 } from './queries.ts';
 import { fail } from './run.ts';
@@ -58,17 +60,33 @@ function dropPendingFor(s: GameState, gone: PlayerId): void {
   });
 }
 
+function endGame(run: Run, reason: 'lastPlayer' | 'bankruptcyLimit'): void {
+  const { ctx, s } = run;
+  const ranking = standings(ctx, s);
+  s.winner = ranking[0].player;
+  s.pending = [];
+  s.auctionQueue = [];
+  run.events.push({ type: 'GAME_OVER', winner: s.winner, reason, standings: ranking });
+}
+
 export function bankrupt(run: Run, debtorId: PlayerId, creditor: PlayerId | null): void {
   const { ctx, s } = run;
   const debtor = mustPlayer(s, debtorId);
   const owned = ownedProperties(ctx, s, debtorId);
 
+  const playersLeft = activePlayers(s).length - 1;
+  const bankruptcies = s.players.filter((p) => p.bankrupt).length + 1;
+  const limit = ctx.rules.endAfterBankruptcies;
+  const endsByLimit = playersLeft > 1 && limit !== null && bankruptcies >= limit;
+  // When this bankruptcy ends the game, a rival creditor takes the buildings as they stand.
+  const keepBuildings = endsByLimit && creditor !== null;
+
   let refund = 0;
   for (const sq of owned) {
-    if (sq.kind !== 'street') continue;
+    if (sq.kind !== 'street' || keepBuildings) continue;
     const state = s.properties[sq.id];
     if (state.level === 0) continue;
-    refund += state.level * resaleValue(ctx, sq);
+    refund += buildingStep(ctx, state.level) * resaleValue(ctx, sq);
     if (state.level === HOTEL_LEVEL) s.bank.hotels += 1;
     else s.bank.houses += state.level;
     state.level = 0;
@@ -101,12 +119,12 @@ export function bankrupt(run: Run, debtorId: PlayerId, creditor: PlayerId | null
   debtor.jailRolls = 0;
   dropPendingFor(s, debtorId);
 
-  const remaining = activePlayers(s);
-  if (remaining.length === 1) {
-    s.winner = remaining[0].id;
-    s.pending = [];
-    s.auctionQueue = [];
-    run.events.push({ type: 'GAME_OVER', winner: remaining[0].id });
+  if (activePlayers(s).length === 1) {
+    endGame(run, 'lastPlayer');
+    return;
+  }
+  if (endsByLimit) {
+    endGame(run, 'bankruptcyLimit');
     return;
   }
 

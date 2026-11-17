@@ -83,7 +83,7 @@ export function checkBid(
     }
     const blocked = placementError(ctx, s, action.player, target);
     if (blocked) return blocked;
-    if (buildingKindAt(s.properties[target].level) !== top.building) {
+    if (buildingKindAt(ctx, s.properties[target].level) !== top.building) {
       return fail('INVALID_ACTION', `That street cannot take a ${top.building} right now.`);
     }
     const sq = ctx.properties.get(target) as StreetSquare;

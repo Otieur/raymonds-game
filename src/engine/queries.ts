@@ -1,5 +1,5 @@
 import type { Context } from '../context.ts';
-import { HOTEL_LEVEL, MAX_HOUSES } from '../types.ts';
+import { HOTEL_LEVEL } from '../types.ts';
 import type {
   BuildingKind,
   GameState,
@@ -10,6 +10,7 @@ import type {
   PropertyId,
   PropertySquare,
   RuleError,
+  Standing,
   StreetSquare,
 } from '../types.ts';
 import { fail } from './run.ts';
@@ -84,8 +85,35 @@ export function resaleValue(ctx: Context, street: StreetSquare): number {
   return Math.floor((street.buildingCost * ctx.rules.buildingResalePercent) / 100);
 }
 
-export function buildingKindAt(level: number): BuildingKind {
-  return level >= MAX_HOUSES ? 'hotel' : 'house';
+/*
+ * A street's level is its house count (0 to housesBeforeHotel) or HOTEL_LEVEL for a hotel,
+ * so rents[level] is always the right rent. Its step counts buildings bought in order:
+ * a hotel is one step past the last house. Even building, refunds and building value use steps.
+ */
+
+export function buildingStep(ctx: Context, level: number): number {
+  return level === HOTEL_LEVEL ? ctx.rules.housesBeforeHotel + 1 : level;
+}
+
+export function isBuildingLevel(ctx: Context, level: number): boolean {
+  return Number.isInteger(level) && ((level >= 0 && level <= ctx.rules.housesBeforeHotel) || level === HOTEL_LEVEL);
+}
+
+export function nextLevel(ctx: Context, level: number): number {
+  return level === ctx.rules.housesBeforeHotel ? HOTEL_LEVEL : level + 1;
+}
+
+export function previousLevel(ctx: Context, level: number): number {
+  return level === HOTEL_LEVEL ? ctx.rules.housesBeforeHotel : level - 1;
+}
+
+export function groupSteps(ctx: Context, s: GameState, group: GroupId): number[] {
+  return groupLevels(ctx, s, group).map((level) => buildingStep(ctx, level));
+}
+
+/** The kind of building the next purchase on a street at this level would be. */
+export function buildingKindAt(ctx: Context, level: number): BuildingKind {
+  return level >= ctx.rules.housesBeforeHotel ? 'hotel' : 'house';
 }
 
 export function bankSupply(s: GameState, kind: BuildingKind): number {
@@ -126,10 +154,32 @@ export function liquidationValue(ctx: Context, s: GameState, playerId: PlayerId)
   let total = mustPlayer(s, playerId).cash;
   for (const sq of ownedProperties(ctx, s, playerId)) {
     const state = s.properties[sq.id];
-    if (sq.kind === 'street') total += state.level * resaleValue(ctx, sq);
+    if (sq.kind === 'street') total += buildingStep(ctx, state.level) * resaleValue(ctx, sq);
     if (!state.mortgaged) total += sq.mortgageValue;
   }
   return total;
+}
+
+/**
+ * Net worth as the short game counts it: cash, properties at their printed price (half for a
+ * mortgaged one), and buildings at what they cost, a hotel including the houses it replaced.
+ */
+export function netWorth(ctx: Context, s: GameState, playerId: PlayerId): number {
+  let total = mustPlayer(s, playerId).cash;
+  for (const sq of ownedProperties(ctx, s, playerId)) {
+    const state = s.properties[sq.id];
+    total += state.mortgaged ? Math.floor(sq.price / 2) : sq.price;
+    if (sq.kind === 'street') total += buildingStep(ctx, state.level) * sq.buildingCost;
+  }
+  return total;
+}
+
+/** Players still in the game, richest first; ties go to more cash, then to seat order. */
+export function standings(ctx: Context, s: GameState): Standing[] {
+  return activePlayers(s)
+    .map((p, seat) => ({ seat, standing: { player: p.id, netWorth: netWorth(ctx, s, p.id), cash: p.cash } }))
+    .sort((a, b) => b.standing.netWorth - a.standing.netWorth || b.standing.cash - a.standing.cash || a.seat - b.seat)
+    .map((entry) => entry.standing);
 }
 
 export function placementError(
@@ -150,7 +200,7 @@ export function placementError(
     return fail('GROUP_MORTGAGED', `A street in the ${sq.group} group is mortgaged.`);
   }
   if (state.level >= HOTEL_LEVEL) return fail('MAX_LEVEL', `${sq.name} already has a hotel.`);
-  if (state.level > Math.min(...groupLevels(ctx, s, sq.group))) {
+  if (buildingStep(ctx, state.level) > Math.min(...groupSteps(ctx, s, sq.group))) {
     return fail('UNEVEN_BUILD', 'Buildings must be spread evenly across the group.');
   }
   return null;
@@ -166,10 +216,11 @@ export function buildDemand(
   for (const group of ctx.groups.keys()) {
     if (!ownsGroup(ctx, s, playerId, group) || groupHasMortgage(ctx, s, group)) continue;
     const levels = groupLevels(ctx, s, group);
+    const houses = ctx.rules.housesBeforeHotel;
     if (kind === 'house') {
-      total += levels.reduce((sum, level) => sum + Math.max(0, MAX_HOUSES - level), 0);
-    } else if (levels.every((level) => level >= MAX_HOUSES)) {
-      total += levels.filter((level) => level === MAX_HOUSES).length;
+      total += levels.reduce((sum, level) => sum + (level === HOTEL_LEVEL ? 0 : Math.max(0, houses - level)), 0);
+    } else if (levels.every((level) => level >= houses)) {
+      total += levels.filter((level) => level === houses).length;
     }
   }
   return total;

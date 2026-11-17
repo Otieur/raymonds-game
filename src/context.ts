@@ -1,4 +1,4 @@
-import { HOTEL_LEVEL } from './types.ts';
+import { HOTEL_LEVEL, MAX_HOUSES } from './types.ts';
 import type {
   BoardDefinition,
   CardDefinition,
@@ -121,6 +121,13 @@ export function buildContext(board: BoardDefinition, rules: RuleConfig): Context
   }
   if (!isWholeNumber(rules.doublesToJail, 1) || !isWholeNumber(rules.maxJailRolls, 1)) {
     problems.push('doublesToJail and maxJailRolls must be at least 1.');
+  }
+  if (!isWholeNumber(rules.startingDeeds)) problems.push('startingDeeds must be a whole, non-negative number.');
+  if (!isWholeNumber(rules.housesBeforeHotel, 1) || rules.housesBeforeHotel > MAX_HOUSES) {
+    problems.push(`housesBeforeHotel must be 1 to ${MAX_HOUSES}.`);
+  }
+  if (rules.endAfterBankruptcies !== null && !isWholeNumber(rules.endAfterBankruptcies, 1)) {
+    problems.push('endAfterBankruptcies must be null or at least 1.');
   }
 
   if (problems.length > 0) {

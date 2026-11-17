@@ -1,6 +1,6 @@
 import type { Context } from '../context.ts';
 import { randomInt, seedFrom, shuffle } from '../rng.ts';
-import type { GameState, PlayerId, PlayerState } from '../types.ts';
+import type { GameState, PlayerId, PlayerState, PropertySquare } from '../types.ts';
 
 export interface NewGameOptions {
   players: readonly (PlayerId | { id: PlayerId; name?: string })[];
@@ -70,6 +70,33 @@ export function newGame(ctx: Context, options: NewGameOptions): GameState {
       deck.map((card) => card.id),
     );
   }
+  dealStartingDeeds(ctx, state);
   state.turn.player = options.startingPlayer ?? rollOff(state);
   return state;
+}
+
+/** Deals title deeds one at a time around the table; each player pays the printed price. */
+function dealStartingDeeds(ctx: Context, state: GameState): void {
+  const perPlayer = ctx.rules.startingDeeds;
+  if (perPlayer === 0) return;
+  const needed = perPlayer * state.players.length;
+  if (needed > ctx.propertyOrder.length) {
+    throw new Error(
+      `Dealing ${perPlayer} deeds to ${state.players.length} players needs ${needed} properties; the board has ${ctx.propertyOrder.length}.`,
+    );
+  }
+  const pack = shuffle(
+    state,
+    ctx.propertyOrder.map((sq) => sq.id),
+  );
+  for (let round = 0; round < perPlayer; round++) {
+    for (const player of state.players) {
+      const sq = ctx.properties.get(pack.shift() as string) as PropertySquare;
+      if (player.cash < sq.price) {
+        throw new Error(`${player.id} cannot pay ${sq.price} for the dealt deed ${sq.name}.`);
+      }
+      player.cash -= sq.price;
+      state.properties[sq.id].owner = player.id;
+    }
+  }
 }
