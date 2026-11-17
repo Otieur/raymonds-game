@@ -144,7 +144,7 @@ test('a jailed player can still manage property and bid', () => {
   assert.equal(mortgaged.properties.t1.mortgaged, true);
 
   const auction = play(landOn(mortgaged, 'a', 'g1-2'), { type: 'DECLINE', player: 'a' });
-  play(auction, { type: 'BID', player: 'b', amount: 5 });
+  play(auction, { type: 'BID', player: 'b', amount: 10 });
 });
 
 test('after a third failed roll, a player holding a jail card may use it instead of paying', () => {

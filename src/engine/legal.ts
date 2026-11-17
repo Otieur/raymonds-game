@@ -6,6 +6,7 @@ import {
   findPlayer,
   groupHasBuildings,
   groupStreets,
+  minimumBid,
   ownedProperties,
   ownsGroup,
   placementError,
@@ -77,7 +78,7 @@ export function legalActions(ctx: Context, s: GameState, playerId: PlayerId): Le
     top.bidders.includes(playerId) &&
     top.highBidder !== playerId;
   if (canBid && top?.kind === 'auction') {
-    const min = top.highBid + 1;
+    const min = minimumBid(ctx, top);
     if (min <= player.cash) legal.push({ type: 'BID', player: playerId, min, max: player.cash });
   }
   if (canBid && top?.kind === 'buildingAuction') {
@@ -88,7 +89,7 @@ export function legalActions(ctx: Context, s: GameState, playerId: PlayerId): Le
           placementError(ctx, s, playerId, sq.id) === null &&
           buildingKindAt(ctx, s.properties[sq.id].level) === top.building,
       )
-      .map((sq) => ({ property: sq.id, min: Math.max(top.highBid + 1, sq.buildingCost) }))
+      .map((sq) => ({ property: sq.id, min: minimumBid(ctx, top) }))
       .filter((target) => target.min <= player.cash);
     if (targets.length > 0) {
       const min = Math.min(...targets.map((target) => target.min));

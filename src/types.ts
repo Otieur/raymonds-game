@@ -106,6 +106,11 @@ export interface RuleConfig {
   groupRentMultiplier: number;
   nearestTransitRentMultiplier: number;
   buildingShortageAuction: boolean;
+  /**
+   * The lowest first bid in an auction, for property and for buildings in short supply
+   * (a building cheaper than this opens at its list price).
+   */
+  auctionOpeningBid: number;
   /** Title deeds dealt to each player at setup; each is paid for at its printed price. */
   startingDeeds: number;
   /** Houses every street in a group needs before one of them can take a hotel (1 to MAX_HOUSES). */

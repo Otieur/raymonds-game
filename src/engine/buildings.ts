@@ -6,6 +6,7 @@ import {
   activePlayers,
   bankSupply,
   buildDemand,
+  buildingOpeningBid,
   buildingKindAt,
   buildingStep,
   canRaiseFunds,
@@ -53,11 +54,12 @@ export function doBuild(run: Run, playerId: PlayerId, propertyId: PropertyId): v
       const bidders = [playerId, ...rivals];
       const demand = bidders.reduce((sum, id) => sum + buildDemand(ctx, s, id, kind), 0);
       if (bankSupply(s, kind) < demand) {
+        const openingBid = buildingOpeningBid(ctx, sq);
         s.pending.push({
           kind: 'buildingAuction',
           building: kind,
           bidders,
-          highBid: sq.buildingCost,
+          highBid: openingBid,
           highBidder: playerId,
           nominations: { [playerId]: propertyId },
         });
@@ -66,7 +68,7 @@ export function doBuild(run: Run, playerId: PlayerId, propertyId: PropertyId): v
           building: kind,
           bidders: [...bidders],
           openedBy: playerId,
-          openingBid: sq.buildingCost,
+          openingBid,
         });
         return;
       }

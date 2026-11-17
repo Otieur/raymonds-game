@@ -122,6 +122,7 @@ export function buildContext(board: BoardDefinition, rules: RuleConfig): Context
   if (!isWholeNumber(rules.doublesToJail, 1) || !isWholeNumber(rules.maxJailRolls, 1)) {
     problems.push('doublesToJail and maxJailRolls must be at least 1.');
   }
+  if (!isWholeNumber(rules.auctionOpeningBid, 1)) problems.push('auctionOpeningBid must be at least 1.');
   if (!isWholeNumber(rules.startingDeeds)) problems.push('startingDeeds must be a whole, non-negative number.');
   if (!isWholeNumber(rules.housesBeforeHotel, 1) || rules.housesBeforeHotel > MAX_HOUSES) {
     problems.push(`housesBeforeHotel must be 1 to ${MAX_HOUSES}.`);

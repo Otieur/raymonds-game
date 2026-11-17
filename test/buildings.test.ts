@@ -6,6 +6,7 @@ import { board, build, economy, engine, landOn, newGame, own, play, rejects, str
 
 const cost = street('g1-1').buildingCost;
 const start = economy.startingCash;
+const opening = engine.rules.auctionOpeningBid;
 
 function withGroup(): GameState {
   const state = newGame();
@@ -175,13 +176,13 @@ test('a building in short supply goes to auction among the players who could pla
   if (auction.kind !== 'buildingAuction') return;
   assert.deepEqual(auction.bidders, ['a', 'b']);
   assert.equal(auction.highBidder, 'a');
-  assert.equal(auction.highBid, cost);
+  assert.equal(auction.highBid, opening);
   assert.equal(state.properties['g1-1'].level, 0);
   assert.equal(who(state, 'a').cash, start);
   assert.deepEqual(engine.awaiting(state), ['b']);
 });
 
-test('the requester gets the building at list price when rivals pass', () => {
+test('the requester gets the building for the opening bid when rivals pass', () => {
   const state = play(
     withShortage(4),
     { type: 'BUILD', player: 'a', property: 'g1-1' },
@@ -189,17 +190,17 @@ test('the requester gets the building at list price when rivals pass', () => {
   );
   assert.deepEqual(state.pending, []);
   assert.equal(state.properties['g1-1'].level, 1);
-  assert.equal(who(state, 'a').cash, start - cost);
+  assert.equal(who(state, 'a').cash, start - opening);
   assert.equal(state.bank.houses, 3);
 });
 
 test('a rival who outbids places the building on a street of their own', () => {
   const opened = play(withShortage(4), { type: 'BUILD', player: 'a', property: 'g1-1' });
   const rivalCost = street('g2-2').buildingCost;
-  const bid = rivalCost + 10;
-  assert.ok(rivalCost > cost);
+  const bid = rivalCost - 20;
+  assert.ok(bid > opening);
   rejects(opened, { type: 'BID', player: 'b', amount: bid }, 'INVALID_ACTION');
-  rejects(opened, { type: 'BID', player: 'b', amount: rivalCost - 5, property: 'g2-2' }, 'BID_TOO_LOW');
+  rejects(opened, { type: 'BID', player: 'b', amount: opening, property: 'g2-2' }, 'BID_TOO_LOW');
   rejects(opened, { type: 'BID', player: 'b', amount: bid, property: 'g1-1' }, 'NOT_OWNER');
   rejects(opened, { type: 'MORTGAGE', player: 'b', property: 'g2-2' }, 'DECISION_PENDING');
 
@@ -222,4 +223,16 @@ test('the shortage auction can be switched off', () => {
   if (!result.ok) return;
   assert.deepEqual(result.state.pending, []);
   assert.equal(result.state.properties['g1-1'].level, 1);
+});
+
+test('a building cheaper than the opening bid goes to auction at its list price', () => {
+  const steep = createEngine(board, { auctionOpeningBid: cost * 2 });
+  const result = steep.apply(withShortage(4), { type: 'BUILD', player: 'a', property: 'g1-1' });
+  assert.ok(result.ok);
+  if (!result.ok) return;
+  const auction = result.state.pending[0];
+  assert.equal(auction.kind, 'buildingAuction');
+  if (auction.kind !== 'buildingAuction') return;
+  assert.equal(auction.highBid, cost);
+  assert.ok(result.events.some((e) => e.type === 'BUILDING_AUCTION_STARTED' && e.openingBid === cost));
 });

@@ -116,6 +116,16 @@ export function buildingKindAt(ctx: Context, level: number): BuildingKind {
   return level >= ctx.rules.housesBeforeHotel ? 'hotel' : 'house';
 }
 
+/** The first bid must reach the opening bid; every later bid must beat the high bid. */
+export function minimumBid(ctx: Context, auction: { highBid: number; highBidder: PlayerId | null }): number {
+  return auction.highBidder === null ? ctx.rules.auctionOpeningBid : auction.highBid + 1;
+}
+
+/** A building auction opens at the opening bid, or at the list price if that is lower. */
+export function buildingOpeningBid(ctx: Context, street: StreetSquare): number {
+  return Math.min(ctx.rules.auctionOpeningBid, street.buildingCost);
+}
+
 export function bankSupply(s: GameState, kind: BuildingKind): number {
   return kind === 'house' ? s.bank.houses : s.bank.hotels;
 }

@@ -1,8 +1,8 @@
 import type { Context } from '../context.ts';
-import type { GameState, PlayerId, PropertyId, PropertySquare, RuleError, StreetSquare } from '../types.ts';
+import type { GameState, PlayerId, PropertyId, PropertySquare, RuleError } from '../types.ts';
 import { placeBuilding } from './buildings.ts';
 import { transfer } from './money.ts';
-import { activePlayers, buildingKindAt, mustPlayer, placementError, topPending } from './queries.ts';
+import { activePlayers, buildingKindAt, minimumBid, mustPlayer, placementError, topPending } from './queries.ts';
 import { fail } from './run.ts';
 import type { Run } from './run.ts';
 
@@ -71,7 +71,8 @@ export function checkBid(
   if (!Number.isInteger(action.amount) || action.amount < 1) {
     return fail('INVALID_ACTION', 'A bid must be a whole amount of at least 1.');
   }
-  if (action.amount <= top.highBid) return fail('BID_TOO_LOW', `The bid to beat is ${top.highBid}.`);
+  const lowest = minimumBid(ctx, top);
+  if (action.amount < lowest) return fail('BID_TOO_LOW', `The lowest bid now is ${lowest}.`);
   if (action.amount > mustPlayer(s, action.player).cash) {
     return fail('INSUFFICIENT_CASH', 'A bid cannot exceed the cash in hand.');
   }
@@ -85,10 +86,6 @@ export function checkBid(
     if (blocked) return blocked;
     if (buildingKindAt(ctx, s.properties[target].level) !== top.building) {
       return fail('INVALID_ACTION', `That street cannot take a ${top.building} right now.`);
-    }
-    const sq = ctx.properties.get(target) as StreetSquare;
-    if (action.amount < sq.buildingCost) {
-      return fail('BID_TOO_LOW', `A ${top.building} on ${sq.name} lists at ${sq.buildingCost}.`);
     }
   }
   return null;

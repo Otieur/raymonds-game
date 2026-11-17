@@ -123,9 +123,9 @@ test('bankruptcy to the bank auctions the estate, free of mortgages', () => {
   assert.deepEqual(gone.auctionQueue, ['u1']);
   rejects(gone, { type: 'ROLL', player: 'b' }, 'DECISION_PENDING');
 
-  const first = play(gone, { type: 'BID', player: 'c', amount: 1 }, { type: 'PASS', player: 'b' });
+  const first = play(gone, { type: 'BID', player: 'c', amount: 10 }, { type: 'PASS', player: 'b' });
   assert.equal(first.properties['g1-2'].owner, 'c');
-  assert.equal(who(first, 'c').cash, start - 1);
+  assert.equal(who(first, 'c').cash, start - 10);
   assert.equal(first.pending[0].kind, 'auction');
   assert.deepEqual(first.auctionQueue, []);
 

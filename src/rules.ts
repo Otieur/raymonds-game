@@ -10,6 +10,7 @@ export const DEFAULT_RULES: Readonly<RuleConfig> = Object.freeze({
   groupRentMultiplier: 2,
   nearestTransitRentMultiplier: 2,
   buildingShortageAuction: true,
+  auctionOpeningBid: 10,
   startingDeeds: 0,
   housesBeforeHotel: 4,
   endAfterBankruptcies: null,

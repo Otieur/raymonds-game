@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createEngine } from '../src/index.ts';
 import type { GameState } from '../src/index.ts';
-import { economy, engine, landOn, newGame, own, play, property, rejects, who } from './helpers.ts';
+import { board, economy, engine, landOn, newGame, own, play, property, rejects, who } from './helpers.ts';
 
 const price = property('g1-2').price;
 
@@ -108,4 +109,33 @@ test('bidders may mortgage during an auction, but not spend', () => {
   const raised = play(state, { type: 'MORTGAGE', player: 'b', property: 't1' });
   assert.equal(who(raised, 'b').cash, property('t1').mortgageValue);
   play(raised, { type: 'BID', player: 'b', amount: property('t1').mortgageValue });
+});
+
+test('the first bid must reach the opening bid, and later bids must beat the high bid', () => {
+  const state = auctioning();
+  const opening = engine.rules.auctionOpeningBid;
+  assert.equal(opening, 10);
+  assert.deepEqual(
+    engine.legalActions(state, 'b').filter((action) => action.type === 'BID'),
+    [{ type: 'BID', player: 'b', min: opening, max: economy.startingCash }],
+  );
+  rejects(state, { type: 'BID', player: 'b', amount: opening - 1 }, 'BID_TOO_LOW');
+
+  const opened = play(state, { type: 'BID', player: 'b', amount: opening });
+  rejects(opened, { type: 'BID', player: 'c', amount: opening }, 'BID_TOO_LOW');
+  play(opened, { type: 'BID', player: 'c', amount: opening + 1 });
+});
+
+test('a player holding less than the opening bid can only pass', () => {
+  const state = auctioning((s) => {
+    who(s, 'b').cash = engine.rules.auctionOpeningBid - 1;
+  });
+  assert.deepEqual(engine.legalActions(state, 'b'), [{ type: 'PASS', player: 'b' }]);
+});
+
+test('the opening bid is a rule option', () => {
+  const anyPrice = createEngine(board, { auctionOpeningBid: 1 });
+  const result = anyPrice.apply(auctioning(), { type: 'BID', player: 'b', amount: 1 });
+  assert.ok(result.ok);
+  assert.throws(() => createEngine(board, { auctionOpeningBid: 0 }), /auctionOpeningBid must be at least 1/);
 });
