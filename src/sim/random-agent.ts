@@ -121,5 +121,9 @@ export function chooseRandomAction(engine: Engine, state: GameState, random: Ran
       const accept = ofType(legal, 'ACCEPT_TRADE')[0];
       return accept && random() < 0.5 ? accept : { type: 'REJECT_TRADE', player: actor };
     }
+    case 'jailExit': {
+      const bail = ofType(legal, 'PAY_BAIL')[0];
+      return bail && random() < 0.5 ? bail : { type: 'USE_JAIL_CARD', player: actor };
+    }
   }
 }

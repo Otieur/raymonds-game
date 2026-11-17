@@ -187,6 +187,7 @@ export type Pending =
       resume?: Resume;
     }
   | { kind: 'mortgageTransfer'; player: PlayerId; property: PropertyId }
+  | { kind: 'jailExit'; player: PlayerId; dice: Dice }
   | { kind: 'trade'; offer: TradeOffer };
 
 export interface TurnState {

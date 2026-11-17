@@ -20,6 +20,7 @@ export function awaiting(s: GameState): PlayerId[] {
   switch (top.kind) {
     case 'buy':
     case 'mortgageTransfer':
+    case 'jailExit':
       return [top.player];
     case 'debt':
       return [top.debtor];

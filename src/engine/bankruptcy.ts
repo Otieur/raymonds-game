@@ -36,6 +36,7 @@ function dropPendingFor(s: GameState, gone: PlayerId): void {
     switch (item.kind) {
       case 'buy':
       case 'mortgageTransfer':
+      case 'jailExit':
         return item.player !== gone;
       case 'debt':
         return item.debtor !== gone && item.creditor !== gone;

@@ -1,8 +1,8 @@
 import type { Context } from '../context.ts';
-import type { GameState, PlayerId, RuleError } from '../types.ts';
+import type { Dice, GameState, Pending, PlayerId, RuleError } from '../types.ts';
 import { charge, transfer } from './money.ts';
 import { advanceBy, releaseFromJail, rollDice, runResume, sendToJail } from './movement.ts';
-import { mustPlayer } from './queries.ts';
+import { mustPlayer, topPending } from './queries.ts';
 import { fail } from './run.ts';
 import type { Run } from './run.ts';
 
@@ -42,6 +42,10 @@ export function doRoll(run: Run, playerId: PlayerId): void {
     player.jailRolls += 1;
     run.events.push({ type: 'JAIL_ROLL_FAILED', player: playerId, attempt: player.jailRolls });
     if (player.jailRolls >= ctx.rules.maxJailRolls) {
+      if (player.jailCards.length > 0) {
+        s.pending.push({ kind: 'jailExit', player: playerId, dice: [dice[0], dice[1]] });
+        return;
+      }
       const resume = { kind: 'jailMove', dice } as const;
       if (charge(run, playerId, null, ctx.board.economy.bail, 'bail', resume)) {
         runResume(run, playerId, resume);
@@ -80,7 +84,21 @@ export function advanceTurn(run: Run): void {
   }
 }
 
+/** The choice left after a final failed jail roll: pay bail or use a card, then move by that roll. */
+function forcedExit(s: GameState, playerId: PlayerId): Extract<Pending, { kind: 'jailExit' }> | null {
+  const top = topPending(s);
+  return top?.kind === 'jailExit' && top.player === playerId ? top : null;
+}
+
+function takeForcedExit(run: Run, playerId: PlayerId): Dice | null {
+  const exit = forcedExit(run.s, playerId);
+  if (!exit) return null;
+  run.s.pending.pop();
+  return exit.dice;
+}
+
 function checkJailExit(s: GameState, playerId: PlayerId): RuleError | null {
+  if (forcedExit(s, playerId)) return null;
   const blocked = checkTurn(s, playerId, 'preRoll');
   if (blocked) return blocked;
   if (!mustPlayer(s, playerId).inJail) return fail('NOT_IN_JAIL', `${playerId} is not in jail.`);
@@ -97,7 +115,12 @@ export function checkPayBail(ctx: Context, s: GameState, playerId: PlayerId): Ru
 }
 
 export function doPayBail(run: Run, playerId: PlayerId): void {
+  const dice = takeForcedExit(run, playerId);
   transfer(run, playerId, null, run.ctx.board.economy.bail, 'bail');
+  if (dice) {
+    runResume(run, playerId, { kind: 'jailMove', dice });
+    return;
+  }
   releaseFromJail(run, playerId, 'bail');
 }
 
@@ -111,8 +134,10 @@ export function checkUseJailCard(s: GameState, playerId: PlayerId): RuleError | 
 }
 
 export function doUseJailCard(run: Run, playerId: PlayerId): void {
+  const dice = takeForcedExit(run, playerId);
   const held = mustPlayer(run.s, playerId).jailCards.shift();
   if (!held) throw new Error('Internal error: no jail card to use.');
   run.s.decks[held.deck].push(held.card);
   releaseFromJail(run, playerId, 'card');
+  if (dice) advanceBy(run, playerId, dice);
 }

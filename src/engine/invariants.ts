@@ -103,6 +103,14 @@ export function checkInvariants(ctx: Context, s: GameState): string[] {
       case 'mortgageTransfer':
         involved.push(item.player);
         break;
+      case 'jailExit': {
+        involved.push(item.player);
+        const jailed = findPlayer(s, item.player);
+        if (!jailed?.inJail || jailed.jailCards.length === 0) {
+          problems.push(`${item.player} has a jail exit to choose but is not jailed with a card.`);
+        }
+        break;
+      }
       case 'debt':
         involved.push(item.debtor);
         if (item.creditor !== null) involved.push(item.creditor);

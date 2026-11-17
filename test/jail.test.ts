@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   economy,
+  engine,
   giveJailCard,
   indexOf,
   jail,
@@ -144,4 +145,66 @@ test('a jailed player can still manage property and bid', () => {
 
   const auction = play(landOn(mortgaged, 'a', 'g1-2'), { type: 'DECLINE', player: 'a' });
   play(auction, { type: 'BID', player: 'b', amount: 5 });
+});
+
+test('after a third failed roll, a player holding a jail card may use it instead of paying', () => {
+  const state = newGame();
+  jail(state, 'a');
+  who(state, 'a').jailRolls = 2;
+  giveJailCard(state, 'a', 'p', 'p-free');
+  own(state, 'a', 'g3-2');
+  roll(state, [1, 2]);
+
+  const choosing = play(state, { type: 'ROLL', player: 'a' });
+  assert.deepEqual(choosing.pending, [{ kind: 'jailExit', player: 'a', dice: [1, 2] }]);
+  assert.equal(who(choosing, 'a').inJail, true);
+  assert.equal(who(choosing, 'a').position, indexOf('jail'));
+  rejects(choosing, { type: 'END_TURN', player: 'a' }, 'DECISION_PENDING');
+  rejects(choosing, { type: 'ROLL', player: 'a' }, 'DECISION_PENDING');
+
+  const freed = play(choosing, { type: 'USE_JAIL_CARD', player: 'a' });
+  assert.deepEqual(freed.pending, []);
+  assert.equal(who(freed, 'a').inJail, false);
+  assert.equal(who(freed, 'a').cash, economy.startingCash);
+  assert.equal(who(freed, 'a').position, indexOf('g3-2'));
+  assert.deepEqual(who(freed, 'a').jailCards, []);
+  assert.equal(freed.decks.p.at(-1), 'p-free');
+  assert.equal(freed.turn.phase, 'postRoll');
+});
+
+test('after a third failed roll, a card holder may still pay bail and keep the card', () => {
+  const state = newGame();
+  jail(state, 'a');
+  who(state, 'a').jailRolls = 2;
+  giveJailCard(state, 'a', 'p', 'p-free');
+  own(state, 'a', 'g3-2');
+  roll(state, [1, 2]);
+
+  const paid = play(play(state, { type: 'ROLL', player: 'a' }), { type: 'PAY_BAIL', player: 'a' });
+  assert.deepEqual(paid.pending, []);
+  assert.equal(who(paid, 'a').inJail, false);
+  assert.equal(who(paid, 'a').cash, economy.startingCash - economy.bail);
+  assert.equal(who(paid, 'a').position, indexOf('g3-2'));
+  assert.equal(who(paid, 'a').jailCards.length, 1);
+});
+
+test('a card holder who cannot cover bail leaves with the card, or raises the cash first', () => {
+  const state = newGame();
+  jail(state, 'a');
+  who(state, 'a').jailRolls = 2;
+  who(state, 'a').cash = 10;
+  giveJailCard(state, 'a', 'p', 'p-free');
+  own(state, 'a', 't1');
+  roll(state, [1, 2]);
+
+  const choosing = play(state, { type: 'ROLL', player: 'a' });
+  rejects(choosing, { type: 'PAY_BAIL', player: 'a' }, 'INSUFFICIENT_CASH');
+  const legal = engine.legalActions(choosing, 'a').map((action) => action.type);
+  assert.ok(legal.includes('USE_JAIL_CARD'));
+  assert.ok(legal.includes('MORTGAGE'));
+
+  const raised = play(choosing, { type: 'MORTGAGE', player: 'a', property: 't1' });
+  const paid = play(raised, { type: 'PAY_BAIL', player: 'a' });
+  assert.equal(who(paid, 'a').cash, 10 + property('t1').mortgageValue - economy.bail);
+  assert.equal(who(paid, 'a').inJail, false);
 });
