@@ -10,7 +10,7 @@ Unattended work on the plan in [README.md](README.md), from 17 November 2026, 23
 
 ## Summary for the author
 
-Written at the end of the night; the sections after it are the record as it happened.
+Written at the end of the night (about 08:45); the sections after it are the record as it happened.
 
 **Done, with its gate**
 
@@ -23,25 +23,29 @@ Written at the end of the night; the sections after it are the record as it happ
 
 | Stage | State | Why not all |
 | --- | --- | --- |
-| M2 Schools | Built and studied; bar 1 passed (the baseline style is today's agent, 2,035,760 decisions identical); bar 2: 30 of 32 judged bars pass | Pass baron and All in miss narrowly after four rounds of retuning; four bars (Concentrator, Icebreaker, Leveller, Kingmaker) need counts the study does not keep. |
-| M3 Search and league | Run at reduced size; bar 2 passed at every size (the best found style beats the refuser by 29.2, 15.5 and 8.1 points); all three style lines taken from the baseline by found styles (edges 75.1, 39.2 and 25.7 points) | The machine had about a third of the compute the plans assumed, so the searches were short: bar 1 fails at four players (7 admitted) and is borderline at three (11); the playbook comparison ran at two players only, where the best fixed style beat the Opportunist by 24.8 points. |
-| M5 Supervised | Pipeline built and checked: decision sets, cloning, export to TypeScript, parity (6e-5), a learned agent in the engine | Its gate needs M3's teachers. A clone of the baseline reaches 92.5% agreement from 2.1 million decisions but wins only 8.5% as one among baselines; the plan's remedies (perturbed games, correction, full-size data) are next. |
+| M2 Schools | Built and studied. Bar 1 passed (the baseline style is today's agent: 2,035,760 decisions identical). Bar 2: all 36 bars judged, 33 pass. | Pass baron (+0.42 passes at round 20, bar 0.5) and All in (53% of the baseline's cash, bar under half) miss narrowly after four rounds of retuning. Concentrator misses as written (87.4% against the baseline's 87.6%), because the baseline passes through the same state; a proposed bar that measures its idea directly gives 27.4% against 42.9% and is not counted. |
+| M3 Search and league | Run at reduced size. Bar 2 passed at every size (the best found style beats the refuser by 29.2, 15.5 and 8.1 points over 5,000 paired games). All three style lines taken from the baseline by found styles (edges 75.1, 39.2 and 25.7 points). 62 admitted styles in `src/sim/styles-found.ts`. | The machine had about a third of the compute the plans assumed, so the searches were short (9, 13 and 7 generations). Bar 1 holds at two and three players counting cells, fails at four (11 cells, 9 distinct styles). Bar 3 holds except two baseline rows outside 400-game intervals. Bar 4 ran at two players only (the best fixed style beat the Opportunist by 24.8 points). Ladders are one step. |
+| M5 Supervised | Pipeline built and checked: decision sets, cloning, export to TypeScript, parity (6e-5), a learned agent in the engine, and diagnostics (`evaluate.ts --rules-for`, `--no-proposals`, `train/confusion.py`). | Its gate needs M3's teachers. The baseline's clone plays far below its teacher: 92% to 93% agreement, 6.8% to 8.5% wins as one among baselines against an even 25%. One round of correction (DAgger) did not help. The diagnosis: with only its free-turn decisions handed back to the rules it wins 23.8%, level with the rules alone (24.0%); its offers are not the cause (5.5% without them). A flaw in the decision sets was found and fixed (the offers left in a turn were always recorded as two): retrained on corrected sets, agreement on starting an offer rose from 46% to 87%, but the clone still wins 6.3%. Building (91% matched) and lifting mortgages (67%) remain. |
 
-M6 to M10 were not started: each needs the gate before it.
+M6 to M10 were not started: each needs the gate before it. M10's play by a person was left for you, as asked.
 
 **For you to decide**
 
 1. Nothing is pushed. Every commit is local on `frontend`; your own uncommitted changes from before are untouched and unstaged.
 2. Whether to accept the reduced sizes of M3, or schedule a longer unattended run. The desktop apps left open used about 2.5 of this M4's 10 cores; a long run goes faster with the app closed or minimised.
-3. Two changes to the author's reference style came out of M2's retuning: it now never builds past three (`buildBeyond: null`), the stricter reading of "build to three".
-4. M5 proper needs about 100 GB of decision sets on the external disk (it has about 430 GB free).
+3. One change to your reference style came out of M2's retuning: it now never builds past three (`buildBeyond: null`), the stricter reading of "build to three".
+4. Whether to adopt the proposed Concentrator bar (first buildings on a new group while another buildable group is below four) in place of the written one, which cannot separate the school from the baseline.
+5. M3 bar 1 at three players: 12 cells are admitted but one style fills two, so 11 distinct styles. The result counts cells, as the bar is written; a stricter reading fails it.
+6. M5's next step. The losses sit in the clone's free turn (building and lifting mortgages). Options: more data on the corrected sets, a feature or loss weight aimed at building versus keeping a reserve, or letting M6's reinforcement learning start from a clone below the bar. The plan's order says the first.
+7. M5 proper needs about 100 GB of decision sets on the external disk (431 GB free now).
 
 **Not verified**
 
 - Rates of the environment on an idle machine; only loaded-machine figures exist.
-- The four-player playbook comparison and three- and four-player playbook searches were not run.
-- The M2 bars of four schools, and the "less cash after completing a group" part of the Opportunist's bar.
-- No person has played any of the new agents.
+- The four-player playbook comparison and the three- and four-player playbook searches were not run; league reports at three and four players were not rerun after the later admission rounds.
+- The "less cash after completing a group" part of the Opportunist's bar.
+- Why the clone's building costs it games: building into its rent reserve is a plausible mechanism, not tested.
+- No clone was tried in the client (M5 bar 4); no person has played any of the new agents.
 
 ## Decisions
 
@@ -63,7 +67,7 @@ Choices made without the author, with the reason. Each is also noted at the task
 | 00:40 | The environment's test of a full game driven by the rule-based agent through the environment's own indices, and M4 task 8's check (a learner seat fed the baseline's choices wins an even share), are not done. | Both need the baseline's free choices mapped to indices; its bids and offer prices are drawn from ranges that the eight bid levels and nine cash levels do not contain, so the mapping would not be exact. The mask, decoding, determinism and hidden-information tests cover the codec instead. |
 | 00:58 | Each preset plays 2,000 games at each of its sizes in the M2 study, not 20,000. A first start at 10,000 was stopped after four minutes. | Games with the style agent run at about twice the cost of games with today's agent, and the machine was shared with the snapshot run: 10,000 a table was on course for over six hours. At 2,000 the interval on a four-player win share is about ±1.9 points, which still separates the behaviours the gate asks for. |
 | 07:32 | M2's four remaining bars are read so: "stands at four" means every street of the group at four or more, and both groups are looked at when each round starts; "ranked first" and "its own chance" are by V1, as the style agent itself ranks; Icebreaker's offers are those of cash for property, with the table cold when its latest eight answers were under 15% accepted (the preset's own window and floor). | The bars do not say when or by what measure; these readings use the same measures the schools act on, so a pass means the behaviour shows, not that two definitions happen to agree. |
-| 07:35 | M5's correction round lets the clone drive one seat in each game, drawn at random, with no perturbed games, and records every seat's teacher choice. | The plan's decision point names correction in the manner of DAgger as the next remedy; one seat in four keeps the tables close to what the clone meets when scored, and the other seats' decisions see the clone's play too (its offers, its bids). |
+| 07:35 | M5's correction round lets the clone drive one seat in each game, drawn at random, with no perturbed games, and records every seat's teacher choice. The decision point's first step, raising the perturbed share of games from one in five to one in two, was skipped for lack of time. | The plan's decision point names correction in the manner of DAgger as the next remedy; one seat in four keeps the tables close to what the clone meets when scored, and the other seats' decisions see the clone's play too (its offers, its bids). |
 
 ## Tasks
 
@@ -180,3 +184,4 @@ Choices made without the author, with the reason. Each is also noted at the task
 - 08:31 **Four players: the search stopped** after generation 6 (7 generations in all, 21 cells; generation 7 could not finish before morning with the M5 rebuild sharing the machine). Third admission round from that archive: the 12 best cells, 2,000 games each as the one among baselines on seeds from 2,100,000, named `third-4-<cell>` (`admit-third-4.md`).
 - 08:41 **Third admission round, four players** (`admit-third-4.md`): 11 of the 12 best cells admitted, held by 9 distinct styles (two styles fill two cells each), from 35.7% ± 2.1 down to 26.5% ± 1.9; the twelfth won 16.4%. Bar 1 still fails at four players (11 cells). Across all three rounds the league holds admitted four-player styles in 12 different cells, but only 10 of them can be held by different styles, so the union does not meet the bar either. No new challenger for `style-4`: the round's best is the same style as before (found-4-b1t1p1c2, 35.7%), and the best new one (third-4-b2t3p1c1, 34.6% ± 2.1) is below the holder's 37.3% ± 2.1 on the same seeds. `src/sim/styles-found.ts` gains the 11 (62 entries; the earlier 51 unchanged).
 - 08:42 **M5: the best epoch of the correction run** (epoch 10, 93.1% agreement; free turn 96.3%, answering 85.3%) also wins 6.8% (4.3 to 9.2) of the 400 games. Keeping the best epoch rather than the last did not change the score.
+- 08:49 **M5, the clone on the corrected sets.** `baseline-4-train-2m-v2`: 2,286,484 decisions from 2,900 games on seeds from 3,500,000 (478 s on 3 processes); `baseline-4-val-v2`: 192,700 decisions from 250 games on seeds from 2,200,000 (the writer overshot its target of 115,000 by finishing whole parts). Every recorded action is legal under its mask. Twelve epochs, the best kept (epoch 8, 93.2% agreement; free turn 97.0%, answering 86.6%, property auction 76.5%). On the free turn (`confusion-clone-4-v2.txt`) starting an offer is now matched 86.7%, from 46.0%: the fix did what it was for. Building is matched 91.3% and lifting a mortgage 67.2%, as before. Scored on the same 400 seeds: 6.3% (3.9 to 8.6) as the one among three baselines (7.0% and 5.5% in the halves). *Check:* not passed. Every remedy tried tonight (five times the data, one round of correction, the best epoch, the corrected sets) leaves the clone between 5.5% and 8.5%; the diagnosis puts the loss in its building and mortgage decisions.

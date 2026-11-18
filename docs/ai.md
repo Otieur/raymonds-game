@@ -552,6 +552,8 @@ The schools are free teachers. This stage uses them to prove the pipeline and to
 
 A clone inherits its teachers' blind spots. Going beyond them is what the next stage is for.
 
+*First results (18 November 2026, the pipeline only; see [m05](plan/m05-supervised.md)).* A clone of the rule-based agent alone, at four players, agrees with it on 92% to 93% of held-out decisions yet wins only 6.8% to 8.5% as one seat among baselines. Agreement is not enough. Handing kinds of decision back to the rules one group at a time shows where the gap is: with only its free turns (building, lifting mortgages, offers, ending the turn) made by the rules it wins 23.8%, level with the rules alone; bids, answers to offers and the rest cost nothing measurable, and switching its offers off makes it worse. So the free turn's building decisions are the kind to weight, in cloning and in M6's reinforcement learning. A flaw in the first decision sets (every decision recorded with two offers left in the turn) was fixed on the way.
+
 ### G. Reinforcement learning
 
 **Algorithm.** Proximal policy optimization (Schulman and others, 2017) with a masked policy head and a value head, started from the weights of stage F. It is the method the strongest published agent for this kind of game used, it tolerates long horizons with generalized advantage estimation (Schulman and others, 2015), and it is forgiving of its settings.
