@@ -61,12 +61,15 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--overfit", action="store_true")
     parser.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
+    parser.add_argument("--trade-weight", type=float, default=4.0, help="loss weight of answering an offer")
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     device = torch.device(args.device)
     net = Net().to(device)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
-    weights = KIND_WEIGHTS.to(device)
+    weights = KIND_WEIGHTS.clone()
+    weights[7] = args.trade_weight
+    weights = weights.to(device)
     started = time.time()
 
     if args.overfit:
