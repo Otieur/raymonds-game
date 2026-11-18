@@ -10,7 +10,7 @@ Unattended work on the plan in [README.md](README.md), from 17 November 2026, 23
 
 ## Summary for the author
 
-Written at the end of the night (finished 09:07); the sections after it are the record as it happened.
+Written at the end of the night (finished 09:27); the sections after it are the record as it happened.
 
 **Done, with its gate**
 
@@ -37,7 +37,7 @@ M6 to M10 were not started: each needs the gate before it. M10's play by a perso
 4. Whether to adopt the proposed Concentrator bar (first buildings on a new group while another buildable group is below four) in place of the written one, which cannot separate the school from the baseline.
 5. M3 bar 1 at three players: 12 cells are admitted but one style fills two, so 11 distinct styles. The result counts cells, as the bar is written; a stricter reading fails it.
 6. M5's next step. The clone's games drift away from positions worth an offer; weighting offers in the loss did not help. One round of correction (DAgger) on the corrected sets did not help (7.5%). Options: several rounds of correction; more perturbed games (one in two, the decision point's first step, not tried); or letting M6's reinforcement learning start from a clone below the bar, since a reward reaches the positions that imitation does not. The plan's order says the first two; my guess, untested, is that the third is what closes the gap.
-7. M5 proper needs about 100 GB of decision sets on the external disk (427 GB free at 09:07).
+7. M5 proper needs about 100 GB of decision sets on the external disk (425 GB free at 09:27).
 
 **Not verified**
 
