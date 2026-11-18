@@ -20,9 +20,22 @@ export interface Mlp {
   forward(input: Float32Array): { policy: Float32Array; value: Float32Array };
 }
 
+/** One IEEE half-precision float, from its 16 bits. */
+function half(bits: number): number {
+  const sign = bits & 0x8000 ? -1 : 1;
+  const exponent = (bits >> 10) & 0x1f;
+  const fraction = bits & 0x3ff;
+  if (exponent === 0) return sign * 2 ** -14 * (fraction / 1024);
+  if (exponent === 31) return fraction ? Number.NaN : sign * Number.POSITIVE_INFINITY;
+  return sign * 2 ** (exponent - 15) * (1 + fraction / 1024);
+}
+
+/** Little-endian half floats from base64, decoded without Node's Buffer so that browsers can run it. */
 function halves(base64: string): Float32Array {
-  const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
-  return Float32Array.from(new Float16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2));
+  const text = atob(base64);
+  const out = new Float32Array(text.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = half(text.charCodeAt(2 * i) | (text.charCodeAt(2 * i + 1) << 8));
+  return out;
 }
 
 export function createMlp(weights: ModelWeights): Mlp {
