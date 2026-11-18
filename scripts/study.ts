@@ -259,9 +259,17 @@ interface Behaviour {
   firstGroups: number;
   firstGroupCheap: number;
   declinedAffordable: number;
-  /** Games in which it held two complete groups at a round's start; of those, games with one group all at four or more and another bare. */
+  /**
+   * Games in which it held two complete groups; of those, games with one group all at four or more
+   * while another was bare. Looked at after every building, purchase, trade and sale of buildings;
+   * `concentratedAtRound` looks only when a round starts.
+   */
   twoGroups: number;
   concentrated: number;
+  concentratedAtRound: number;
+  /** First buildings on a group while another complete group was held; of those, while another unmortgaged complete group stood below four. */
+  groupStarts: number;
+  earlyStarts: number;
   /** Offers of cash for property, made while the table's latest eight answers were under 15% accepted, and the rest; and their cash over list. */
   coldOffers: number;
   coldOfferRatio: number;
@@ -323,6 +331,9 @@ const emptyBehaviour = (): Behaviour => ({
   declinedAffordable: 0,
   twoGroups: 0,
   concentrated: 0,
+  concentratedAtRound: 0,
+  groupStarts: 0,
+  earlyStarts: 0,
   coldOffers: 0,
   coldOfferRatio: 0,
   warmOffers: 0,
@@ -862,26 +873,40 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
   close(tally, notes, state, policyOf);
 }
 
-/** At the start of a round: two complete groups held, one built to four with another bare; a chance under 5%. */
+/** Whether a seat holds two complete groups, and whether one is all at four or more while another is bare. */
+function concentration(ctx: Context, state: GameState, id: PlayerId): { two: boolean; concentrated: boolean } {
+  const complete = [...ctx.groups.keys()].filter((group) => ownsGroup(ctx, state, id, group));
+  if (complete.length < 2) return { two: false, concentrated: false };
+  const levels = (group: string) => (ctx.groups.get(group) ?? []).map((sq) => state.properties[sq.id].level);
+  const four = complete.some((group) => levels(group).every((level) => level >= 4));
+  const bare = complete.some((group) => levels(group).every((level) => level === 0));
+  return { two: true, concentrated: four && bare };
+}
+
+/** Counts the concentration measures of one seat once a game. */
+function noteConcentration(ctx: Context, state: GameState, id: PlayerId, seat: Behaviour, flags: Set<string>, atRound: boolean): void {
+  const { two, concentrated } = concentration(ctx, state, id);
+  if (two && !flags.has(`two|${id}`)) {
+    flags.add(`two|${id}`);
+    seat.twoGroups += 1;
+  }
+  if (concentrated && !flags.has(`concentrated|${id}`)) {
+    flags.add(`concentrated|${id}`);
+    seat.concentrated += 1;
+  }
+  if (atRound && concentrated && !flags.has(`concentratedAtRound|${id}`)) {
+    flags.add(`concentratedAtRound|${id}`);
+    seat.concentratedAtRound += 1;
+  }
+}
+
+/** At the start of a round: the concentration measures; a chance under 5%. */
 function roundStart(ctx: Context, watch: Map<PlayerId, Behaviour>, flags: Set<string>, state: GameState): void {
   let chances: number[] | null = null;
   for (const [id, seat] of watch) {
     const player = state.players.find((p) => p.id === id);
     if (!player || player.bankrupt) continue;
-    const complete = [...ctx.groups.keys()].filter((group) => ownsGroup(ctx, state, id, group));
-    if (complete.length >= 2) {
-      if (!flags.has(`two|${id}`)) {
-        flags.add(`two|${id}`);
-        seat.twoGroups += 1;
-      }
-      const levels = (group: string) => (ctx.groups.get(group) ?? []).map((sq) => state.properties[sq.id].level);
-      const four = complete.filter((group) => levels(group).every((level) => level >= 4));
-      const bare = complete.filter((group) => levels(group).every((level) => level === 0));
-      if (four.length > 0 && bare.length > 0 && !flags.has(`concentrated|${id}`)) {
-        flags.add(`concentrated|${id}`);
-        seat.concentrated += 1;
-      }
-    }
+    noteConcentration(ctx, state, id, seat, flags, true);
     if (state.players.length >= 3 && !flags.has(`hopeless|${id}`)) {
       chances ??= v1(state.players.length).chances(ctx, state);
       if (chances[state.players.indexOf(player)] < 0.05) {
@@ -949,6 +974,17 @@ function watchBehaviour(
         seat.spentBuildings += event.cost;
         seat.builds += 1;
         const sq = ctx.properties.get(event.property);
+        if (sq?.kind === 'street' && (ctx.groups.get(sq.group) ?? []).every((mate) => before.properties[mate.id].level === 0)) {
+          const others = [...ctx.groups.keys()].filter((group) => group !== sq.group && ownsGroup(ctx, before, event.player, group));
+          if (others.length > 0) {
+            seat.groupStarts += 1;
+            const below = others.some((group) => {
+              const mates = ctx.groups.get(group) ?? [];
+              return mates.every((mate) => !before.properties[mate.id].mortgaged) && mates.some((mate) => before.properties[mate.id].level < 4);
+            });
+            if (below) seat.earlyStarts += 1;
+          }
+        }
         if (sq?.kind === 'street') {
           const near = before.players.some(
             (p) =>
@@ -1084,6 +1120,11 @@ function watchBehaviour(
       }
       default:
         break;
+    }
+  }
+  if (events.some((e) => e.type === 'BUILT' || e.type === 'BUILDINGS_SOLD' || e.type === 'PROPERTY_ACQUIRED' || e.type === 'TRADE_ACCEPTED')) {
+    for (const [id, seat] of watch) {
+      if (!state.players.find((p) => p.id === id)?.bankrupt) noteConcentration(ctx, state, id, seat, flags, false);
     }
   }
   for (const event of events) {

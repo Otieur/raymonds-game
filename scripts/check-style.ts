@@ -203,8 +203,19 @@ function gateBars(name: string, odd: B, ord: B, games: number, bankEmpty: number
     case 'concentrator':
       return {
         bar: 'Of games with two complete groups, more with one at four and another bare',
-        measured: `${f(share(odd.concentrated, odd.twoGroups) * 100, 1)}% of ${odd.twoGroups} against ${f(share(ord.concentrated, ord.twoGroups) * 100, 1)}%`,
-        pass: odd.twoGroups > 0 && share(odd.concentrated, odd.twoGroups) > share(ord.concentrated, ord.twoGroups),
+        measured: `${f(share(odd.concentrated, odd.twoGroups) * 100, 1)}% of ${odd.twoGroups} against ${f(share(ord.concentrated, ord.twoGroups) * 100, 1)}% (looking only at round starts: ${f(share(odd.concentratedAtRound ?? 0, odd.twoGroups) * 100, 1)}% against ${f(share(ord.concentratedAtRound ?? 0, ord.twoGroups) * 100, 1)}%)`,
+        // Both readings must agree: the round-start one was fixed first, the other added after it failed.
+        pass:
+          odd.twoGroups > 0 &&
+          share(odd.concentrated, odd.twoGroups) > share(ord.concentrated, ord.twoGroups) &&
+          share(odd.concentratedAtRound ?? 0, odd.twoGroups) > share(ord.concentratedAtRound ?? 0, ord.twoGroups),
+      };
+    case 'concentrator-proposed':
+      // Not one of the plan's bars: a reading proposed after the plan's bar failed to separate the school from the baseline.
+      return {
+        bar: 'Proposed: fewer first buildings on a new group while another buildable group stands below four',
+        measured: `${f(share(odd.earlyStarts, odd.groupStarts) * 100, 1)}% of ${odd.groupStarts} against ${f(share(ord.earlyStarts ?? 0, ord.groupStarts ?? 0) * 100, 1)}%`,
+        pass: odd.groupStarts > 0 && share(odd.earlyStarts, odd.groupStarts) < share(ord.earlyStarts ?? 0, ord.groupStarts ?? 0),
       };
     case 'icebreaker': {
       const cold = (b: B) => share(b.coldOfferRatio, b.coldOffers);
@@ -291,6 +302,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href && process.arg
   for (const [name, e] of byName) {
     const c = control(name, e.ord, e.games);
     const r = gateBars(name, e.odd, c.b, e.games, e.bankEmpty / e.games, baseBank);
+    if (name === 'concentrator') {
+      const p = gateBars('concentrator-proposed', e.odd, c.b, e.games, 0, 0);
+      console.log(`| concentrator (proposed bar, not counted) | | ${p.bar} | ${p.measured} | ${p.pass ? 'yes' : 'no'} |`);
+    }
     if (r.pass !== null) {
       judged += 1;
       if (r.pass) passed += 1;

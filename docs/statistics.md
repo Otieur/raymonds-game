@@ -819,7 +819,7 @@ Stage M2 of [the plan](plan/m02-schools.md) turned the rule-based agent's settin
 | rusher | How to build | The cheap groups, built up at once, everything else mortgaged to pay. | 78.8% | 55.5% | 31.4% | yes |
 | all-in | How to build | No spare cash, ever: everything into buildings. | 56.0% | 38.6% | 31.3% | no, narrowly |
 | slumlord | How to build | Han Court and Chain Stratagem to a fortress as early as possible. | 77.5% | 48.5% | 19.8% | yes |
-| concentrator | How to build | One group to four before the next gets anything. | 51.8% | 33.6% | 24.9% | not measured |
+| concentrator | How to build | One group to four before the next gets anything. | 51.8% | 33.6% | 24.9% | no: the bar does not separate it from the baseline |
 | ambusher | How to build | Holds its cash until a rival is within one roll of its group, then builds. | 44.0% | 31.4% | 25.9% | yes |
 | cornerer | How to build | Stops at four farmsteads to run the bank out of buildings. | 65.1% | 39.2% | 29.2% | yes |
 | hoarder | Cash | A large reserve, few purchases early, strong bids late. | 37.2% | 15.2% | 7.8% | yes |
@@ -834,15 +834,15 @@ Stage M2 of [the plan](plan/m02-schools.md) turned the rule-based agent's settin
 | dealer | Trading | Proposes often, swaps property, accepts fair deals. | 68.4% | 38.8% | 21.7% | yes |
 | big-spender | Trading | Pays up to three times the price for the street that completes a group. | 47.4% | 28.6% | 22.3% | yes |
 | squeezer | Trading | Sells the last street of a group to a rival who then cannot afford to build. | 77.4% | 46.3% | 28.6% | yes |
-| icebreaker | Trading | Pays more when the table stops trading. |  | 30.3% | 23.8% | not measured |
+| icebreaker | Trading | Pays more when the table stops trading. |  | 30.3% | 23.8% | yes |
 | reference | Whole plans | The project author's style: reads the table and changes plan. | 50.4% | 32.9% | 20.5% | yes |
 | two-stage | Whole plans | A cheap group first, then a dear one paid for by it. | 53.9% | 33.9% | 19.8% | yes |
 | duelist | Whole plans | With one rival: never lets a property go cheaply at auction, never helps the only opponent. | 64.1% |  |  | yes |
 | sky-rush | Whole plans | Buys and values like Orange and sky, builds and keeps cash like All in, answers like Blocker. | 67.8% | 49.6% | 40.7% | yes |
 | iron-bank | Whole plans | Buys like Pass baron, keeps cash like Hoarder, bids like Vulture, answers like Refuser. | 58.9% | 28.1% | 8.6% | yes |
 | opportunist | Whole plans | A playbook of ten rules: holds no plan longer than the position supports it. | 65.3% | 39.4% | 27.4% | yes |
-| leveller | Trading | No deal with the leader. |  | 23.2% | 16.3% | not measured |
-| kingmaker | Trading | Sells out to the weakest rival once it cannot win. |  | 46.9% | 29.0% | not measured |
+| leveller | Trading | No deal with the leader. |  | 23.2% | 16.3% | yes |
+| kingmaker | Trading | Sells out to the weakest rival once it cannot win. |  | 46.9% | 29.0% | yes |
 
 "Shows its behaviour" is judged against the baseline playing the same seat, by the bar M2 sets for each school; the figures behind each judgement are in the [log](plan/log.md).
 
