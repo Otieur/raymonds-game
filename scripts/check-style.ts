@@ -200,6 +200,33 @@ function gateBars(name: string, odd: B, ord: B, games: number, bankEmpty: number
       };
     case 'opportunist':
       return { bar: 'Three different rules on in most games; less cash and more mortgages', measured: `${f(per(odd, 'rulesOn'), 1)} rules a game; cash ${f(at20(odd, 'cashAt20'), 0)} against ${f(at20(ord, 'cashAt20'), 0)}`, pass: per(odd, 'rulesOn') >= 3 && odd.mortgagesOutOfDebt > ord.mortgagesOutOfDebt };
+    case 'concentrator':
+      return {
+        bar: 'Of games with two complete groups, more with one at four and another bare',
+        measured: `${f(share(odd.concentrated, odd.twoGroups) * 100, 1)}% of ${odd.twoGroups} against ${f(share(ord.concentrated, ord.twoGroups) * 100, 1)}%`,
+        pass: odd.twoGroups > 0 && share(odd.concentrated, odd.twoGroups) > share(ord.concentrated, ord.twoGroups),
+      };
+    case 'icebreaker': {
+      const cold = (b: B) => share(b.coldOfferRatio, b.coldOffers);
+      const warm = (b: B) => share(b.warmOfferRatio, b.warmOffers);
+      return {
+        bar: 'Higher offers after the table stops trading',
+        measured: `${f(cold(odd))} times list cold (${f(odd.coldOffers, 0)} offers), ${f(warm(odd))} warm; the baseline ${f(cold(ord))} cold, ${f(warm(ord))} warm`,
+        pass: odd.coldOffers > 0 && cold(odd) > warm(odd) && cold(odd) > cold(ord),
+      };
+    }
+    case 'leveller':
+      return {
+        bar: 'No deal with the seat ranked first',
+        measured: `${odd.dealsWithLeader} of ${odd.deals} deals, against ${f(share(ord.dealsWithLeader, ord.deals) * 100, 1)}% for the baseline`,
+        pass: odd.dealsWithLeader === 0,
+      };
+    case 'kingmaker':
+      return {
+        bar: 'Sales at list price to the weakest rival once its chance is under 5%',
+        measured: `${odd.hopelessSales} in ${odd.hopeless} hopeless games, against ${f(share(ord.hopelessSales, ord.hopeless), 3)} a game for the baseline`,
+        pass: odd.hopelessSales > 0 && share(odd.hopelessSales, odd.hopeless) > share(ord.hopelessSales, ord.hopeless),
+      };
     case 'baseline':
       return { bar: 'None (the reference point)', measured: '', pass: null };
     default:

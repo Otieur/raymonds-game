@@ -16,15 +16,22 @@
  * Decisions with a single legal index are forced and are not recorded. In one game in five
  * (by `--perturb`) each decision is replaced, with chance 0.05, by a random legal action, and the
  * teacher's choice is still what is recorded.
+ *
+ * With `--learner <model.ts>` (correction in the manner of DAgger), one seat of each game, drawn at
+ * random, plays the exported model's moves while its teacher's choices are still what is recorded,
+ * so the set covers the positions the learner reaches by its own mistakes.
  */
 import { fork } from 'node:child_process';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ACTIONS, ASK0, BID0, BUILD0, CASH0, codecFor, emptyDraft, FIXED, GIVE0, GIVE_NOTHING, legalIndices, MORTGAGE0, SELL0, UNMORTGAGE0 } from '../src/env/actions.ts';
 import type { Codec, Draft } from '../src/env/actions.ts';
+import { createLearnedAgent } from '../src/env/learned-agent.ts';
 import { createLedger, note } from '../src/env/ledger.ts';
+import { createMlp } from '../src/env/mlp.ts';
+import type { Mlp, ModelWeights } from '../src/env/mlp.ts';
 import { decisionKind, observe, OBS_SIZE, OBS_VERSION } from '../src/env/observe.ts';
 import { createEngine, threeKingdoms } from '../src/index.ts';
 import type { Action, Engine, PlayerId } from '../src/index.ts';
@@ -85,13 +92,24 @@ function indexOf(engineAction: Action, codec: Codec, ctx: ReturnType<typeof cont
   }
 }
 
-function playGame(engine: Engine, teachers: string[], size: number, seed: number, perturb: boolean, out: Pending[], won: Map<number, [number, number]>): void {
+function playGame(
+  engine: Engine,
+  teachers: string[],
+  size: number,
+  seed: number,
+  perturb: boolean,
+  out: Pending[],
+  won: Map<number, [number, number]>,
+  learner: Mlp | null = null,
+): void {
   const ctx = contextOf(engine);
   const holder = { rng: seedFrom(`dataset-${size}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: size }, (_, i) => `p${i + 1}`);
   const names = ids.map(() => teachers[Math.floor(random() * teachers.length)]);
   const agents = new Map<PlayerId, SeatAgent>(ids.map((id, i) => [id, memberAgent(names[i])]));
+  const driven = learner ? ids[Math.floor(random() * size)] : null;
+  const pupil = learner ? createLearnedAgent(learner, engine) : null;
   const teacherOf = new Map(ids.map((id, i) => [id, i]));
   const ledger = createLedger();
   const eliminated: PlayerId[] = [];
@@ -145,7 +163,9 @@ function playGame(engine: Engine, teachers: string[], size: number, seed: number
       const index = indexOf(action, codec, ctx);
       if (index !== null && codec.mask[index]) record(actor, emptyDraft(), codec, index);
     }
-    if (perturb && legal.length > 1 && random() < 0.05) {
+    if (pupil && actor === driven) {
+      action = pupil.choose(engine, state, actor, random) ?? action;
+    } else if (perturb && legal.length > 1 && random() < 0.05) {
       const pick = legal[Math.floor(random() * legal.length)];
       const decoded = codec.decode(pick);
       if (decoded.kind === 'engine') action = decoded.action;
@@ -155,6 +175,7 @@ function playGame(engine: Engine, teachers: string[], size: number, seed: number
     state = result.state;
     note(ctx, ledger, state, result.events);
     for (const a of agents.values()) a.observe(result.events, state);
+    pupil?.observe(result.events, state);
     for (const event of result.events) if (event.type === 'BANKRUPT') eliminated.push(event.player);
   }
   const winner = state.winner;
@@ -197,6 +218,8 @@ if (process.argv[2] === '--worker') {
   const size = Number(option('--size') ?? 4);
   const perturbShare = Number(option('--perturb') ?? 0.2);
   const dir = option('--dir') as string;
+  const learnerPath = option('--learner');
+  const learner = learnerPath ? createMlp(((await import(pathToFileURL(resolve(learnerPath)).href)) as { MODEL: ModelWeights }).MODEL) : null;
   process.on('message', (job: Job) => {
     const records: Pending[] = [];
     const won = new Map<number, [number, number]>();
@@ -204,7 +227,7 @@ if (process.argv[2] === '--worker') {
     for (let seed = job.from; seed <= job.to; seed++) {
       const before = records.length;
       const perturb = seedFrom(`perturb-${seed}`) % 1000 < perturbShare * 1000;
-      playGame(engine, teachers, size, seed, perturb, records, won);
+      playGame(engine, teachers, size, seed, perturb, records, won, learner);
       for (let i = before; i < records.length; i++) seeds.push(seed);
     }
     const file = join(dir, `part-${String(job.part).padStart(5, '0')}.bin`);
@@ -224,6 +247,7 @@ if (process.argv[2] === '--worker') {
   const size = Number(option('--size') ?? 4);
   const gamesPerPart = Number(option('--games-per-part') ?? 100);
   const args = ['--worker', '--dir', dir, '--size', String(size), '--teachers', option('--teachers') ?? 'baseline', '--perturb', option('--perturb') ?? '0.2'];
+  if (option('--learner')) args.push('--learner', option('--learner') as string);
   let decisions = 0;
   let games = 0;
   let next = 0;
@@ -263,7 +287,7 @@ if (process.argv[2] === '--worker') {
   parts.sort((a, b) => a.part - b.part);
   writeFileSync(
     join(dir, 'index.json'),
-    JSON.stringify({ set, size, teachers: option('--teachers') ?? 'baseline', recordBytes: RECORD_BYTES, obs: OBS_SIZE, obsVersion: OBS_VERSION, actions: ACTIONS, decisions, games, parts }, null, 2),
+    JSON.stringify({ set, size, teachers: option('--teachers') ?? 'baseline', learner: option('--learner') ?? null, recordBytes: RECORD_BYTES, obs: OBS_SIZE, obsVersion: OBS_VERSION, actions: ACTIONS, decisions, games, parts }, null, 2),
   );
   console.log(`${set}: ${decisions} decisions from ${games} games in ${((performance.now() - began) / 1000).toFixed(0)} s.`);
 }

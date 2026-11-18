@@ -31,6 +31,9 @@ def index(path: str | Path) -> dict:
 
 
 def parts(path: str | Path) -> list[Path]:
+    """The part files of a set, or of several sets given as one comma-separated string."""
+    if "," in str(path):
+        return [f for one in str(path).split(",") for f in parts(one)]
     info = index(path)
     return [Path(path) / f"part-{p['part']:05d}.bin" for p in info["parts"]]
 

@@ -52,6 +52,7 @@ import { fitLinear as fit } from '../src/sim/linear.ts';
 import { MEASURES, setOf, viewOf } from '../src/sim/measures.ts';
 import { snapshotOf as snapshotRow } from '../src/sim/snapshot.ts';
 import { PRESETS, presetAgent } from '../src/sim/styles.ts';
+import { v1 } from '../src/sim/valuation.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
 import type { OpenRow, SnapshotRow } from '../src/sim/snapshot.ts';
 import type { View } from '../src/sim/measures.ts';
@@ -258,6 +259,20 @@ interface Behaviour {
   firstGroups: number;
   firstGroupCheap: number;
   declinedAffordable: number;
+  /** Games in which it held two complete groups at a round's start; of those, games with one group all at four or more and another bare. */
+  twoGroups: number;
+  concentrated: number;
+  /** Offers of cash for property, made while the table's latest eight answers were under 15% accepted, and the rest; and their cash over list. */
+  coldOffers: number;
+  coldOfferRatio: number;
+  warmOffers: number;
+  warmOfferRatio: number;
+  /** Deals it made with the seat V1 ranked first at that moment, and all its deals (3 or more players). */
+  dealsWithLeader: number;
+  deals: number;
+  /** Games in which its chance by V1 fell under 5% at a round's start; sales after that to the weakest rival at list price or less. */
+  hopeless: number;
+  hopelessSales: number;
 }
 
 interface StyleTally {
@@ -306,6 +321,16 @@ const emptyBehaviour = (): Behaviour => ({
   firstGroups: 0,
   firstGroupCheap: 0,
   declinedAffordable: 0,
+  twoGroups: 0,
+  concentrated: 0,
+  coldOffers: 0,
+  coldOfferRatio: 0,
+  warmOffers: 0,
+  warmOfferRatio: 0,
+  dealsWithLeader: 0,
+  deals: 0,
+  hopeless: 0,
+  hopelessSales: 0,
 });
 
 const SET_ORDER = ['han', 'chain', 'yuan', 'wei', 'shu', 'wu', 'conquest', 'sima', 'passes', 'works'];
@@ -773,6 +798,7 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
   const watch = tally.styles ? new Map<PlayerId, Behaviour>([[ids[0], emptyBehaviour()], [ids[1], emptyBehaviour()]]) : null;
   const peaks = new Map<string, number>();
   const flags = new Set<string>();
+  const answers: boolean[] = [];
   let bankEmpty = false;
   let state = engine.newGame({ players: ids, seed });
   let actions = 0;
@@ -798,7 +824,7 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
     state = result.state;
     actions += 1;
     for (const agent of agents.values()) agent.observe(result.events, state);
-    if (watch) watchBehaviour(table, watch, peaks, flags, before, state, result.events);
+    if (watch) watchBehaviour(table, watch, peaks, flags, answers, before, state, result.events);
     if (watch && state.bank.houses === 0) bankEmpty = true;
     for (const event of result.events) {
       note(table, tally, notes, state, event);
@@ -836,12 +862,43 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
   close(tally, notes, state, policyOf);
 }
 
+/** At the start of a round: two complete groups held, one built to four with another bare; a chance under 5%. */
+function roundStart(ctx: Context, watch: Map<PlayerId, Behaviour>, flags: Set<string>, state: GameState): void {
+  let chances: number[] | null = null;
+  for (const [id, seat] of watch) {
+    const player = state.players.find((p) => p.id === id);
+    if (!player || player.bankrupt) continue;
+    const complete = [...ctx.groups.keys()].filter((group) => ownsGroup(ctx, state, id, group));
+    if (complete.length >= 2) {
+      if (!flags.has(`two|${id}`)) {
+        flags.add(`two|${id}`);
+        seat.twoGroups += 1;
+      }
+      const levels = (group: string) => (ctx.groups.get(group) ?? []).map((sq) => state.properties[sq.id].level);
+      const four = complete.filter((group) => levels(group).every((level) => level >= 4));
+      const bare = complete.filter((group) => levels(group).every((level) => level === 0));
+      if (four.length > 0 && bare.length > 0 && !flags.has(`concentrated|${id}`)) {
+        flags.add(`concentrated|${id}`);
+        seat.concentrated += 1;
+      }
+    }
+    if (state.players.length >= 3 && !flags.has(`hopeless|${id}`)) {
+      chances ??= v1(state.players.length).chances(ctx, state);
+      if (chances[state.players.indexOf(player)] < 0.05) {
+        flags.add(`hopeless|${id}`);
+        seat.hopeless += 1;
+      }
+    }
+  }
+}
+
 /** Counts what the watched seats did in one applied action. */
 function watchBehaviour(
   table: Table,
   watch: Map<PlayerId, Behaviour>,
   peaks: Map<string, number>,
   flags: Set<string>,
+  answers: boolean[],
   before: GameState,
   state: GameState,
   events: GameEvent[],
@@ -849,6 +906,7 @@ function watchBehaviour(
   const { ctx } = table;
   const seats = table.seats.length;
   const round = (state.turn.number - 1) / seats;
+  const chancesBefore = () => v1(before.players.length).chances(ctx, before);
   for (const event of events) {
     switch (event.type) {
       case 'PROPERTY_OFFERED':
@@ -932,14 +990,52 @@ function watchBehaviour(
       case 'TRADE_PROPOSED': {
         const proposer = watch.get(event.offer.from);
         const receiver = watch.get(event.offer.to);
+        if (proposer && event.offer.receive.properties.length > 0 && event.offer.give.properties.length === 0) {
+          const list = event.offer.receive.properties.reduce((t, id) => t + (ctx.properties.get(id)?.price ?? 0), 0);
+          const ratio = (event.offer.give.cash - event.offer.receive.cash) / Math.max(1, list);
+          const recent = answers.slice(-8);
+          if (recent.length === 8 && recent.filter(Boolean).length / 8 < 0.15) {
+            proposer.coldOffers += 1;
+            proposer.coldOfferRatio += ratio;
+          } else {
+            proposer.warmOffers += 1;
+            proposer.warmOfferRatio += ratio;
+          }
+        }
         if (proposer) proposer.offersMade += 1;
         if (proposer && event.offer.give.properties.length > 0) proposer.ownPropertyOffers += 1;
         if (receiver) receiver.receivedOffers += 1;
         break;
       }
+      case 'TRADE_REJECTED':
+        answers.push(false);
+        break;
       case 'TRADE_ACCEPTED': {
+        answers.push(true);
         const proposer = watch.get(event.offer.from);
         const receiver = watch.get(event.offer.to);
+        if ((proposer || receiver) && before.players.length >= 3) {
+          const chances = chancesBefore();
+          const chance = (id: PlayerId) => chances[before.players.findIndex((p) => p.id === id)];
+          const live = before.players.filter((p) => !p.bankrupt);
+          const leader = live.reduce((a, b) => (chance(b.id) > chance(a.id) ? b : a));
+          for (const [me, other] of [
+            [event.offer.from, event.offer.to],
+            [event.offer.to, event.offer.from],
+          ] as const) {
+            const seat = watch.get(me);
+            if (!seat) continue;
+            seat.deals += 1;
+            if (leader.id === other) seat.dealsWithLeader += 1;
+            if (!flags.has(`hopeless|${me}`)) continue;
+            const rivals = live.filter((p) => p.id !== me);
+            const weakest = rivals.reduce((a, b) => (chance(b.id) < chance(a.id) ? b : a));
+            const gives = me === event.offer.from ? event.offer.give : event.offer.receive;
+            const gets = me === event.offer.from ? event.offer.receive : event.offer.give;
+            const list = gives.properties.reduce((t, id) => t + (ctx.properties.get(id)?.price ?? 0), 0);
+            if (other === weakest.id && gives.properties.length > 0 && gets.properties.length === 0 && gets.cash <= list) seat.hopelessSales += 1;
+          }
+        }
         if (proposer) {
           proposer.acceptedAsProposer += 1;
           proposer.proposerPaid += event.offer.give.cash;
@@ -964,6 +1060,7 @@ function watchBehaviour(
         break;
       }
       case 'TURN_STARTED': {
+        if ((event.turn - 1) % seats === 0) roundStart(ctx, watch, flags, state);
         const jailed = watch.get(event.player);
         if (jailed && round >= 20 && state.players.find((p) => p.id === event.player)?.inJail) jailed.jailTurnsAfter20 += 1;
         if (event.turn === 10 * seats + 1) {
