@@ -14,6 +14,8 @@ Choices made without the author, with the reason. Each is also noted at the task
 
 | When | Decision | Why |
 | --- | --- | --- |
+| 00:50 | A snapshot line also records `turn`, the seat whose turn is beginning. Cards held to leave jail are not recorded; a rebuilt state returns them to their decks. | The intervention study must play a position on from the right seat. Held jail cards are rare and recording which deck each came from would complicate the format for little. |
+| 00:50 | The study gained `--only <prefix>` to play a subset of its tables. | The snapshot run needs only the three main tables, about a third of the study's full time. |
 
 ## Tasks
 
@@ -23,3 +25,4 @@ Choices made without the author, with the reason. Each is also noted at the task
 - 00:05 **Task 2, solver.** `fitLinear` moved to `src/sim/linear.ts`; `test/linear.test.ts` recovers an exact 4 by 4 system and leaves an all-zero feature without a coefficient. *Check:* passed; the 300-game report is byte-identical to the reference.
 - 00:20 **Task 3, measures.** `View`, `viewOf`, `MEASURES` and their helpers moved to `src/sim/measures.ts`; a `View` now holds a `Context` instead of a study table, and net worth comes from the engine's query. `test/measures.test.ts` checks all twenty on hand-built positions: a built group with passes and a blocking street, a player one street short with a mortgage, a player in jail with nothing, everything mortgaged. *Check:* passed; the 300-game report is byte-identical to the reference.
 - 00:35 **Task 4, landing rates and V0.** `--rates <file>` writes `src/sim/landing-rates.ts`; it works on a saved run, so the rates come from the 100,000-game run of 17 November rather than a new one. `src/sim/valuation.ts` has `staticIncome`, `marginalReturn` and `groupIncome`. *Check:* passed: the test reproduces 56.3 (Cao Wei at three), 6.3 (Han Court at three), 110.9 (Conquest of Shu at a fortress), 25.2 (four passes), 4.4 (both works) and 11.91 per 100 coins (Cao Wei's third building).
+- 00:50 **Task 5, snapshots.** `src/sim/snapshot.ts`: `snapshotOf`, `stateOf`, the row format of M1 plus `turn`. The study writes snapshots with `--snapshots <dir>`: each chunk writes a part under a temporary name and the parts are joined in seed order at the end. `test/snapshot.test.ts` plays games with the rule-based agent, rebuilds a state at every fifth round and compares all twenty measures for every seat; it also checks that a rebuilt state passes the engine's invariants and plays on to the end with fresh draws. *Check:* passed over 200 games at each table size (by `SNAPSHOT_CHECK_GAMES=200`; `npm test` runs 8). The 300-game report is unchanged.

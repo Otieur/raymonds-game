@@ -11,6 +11,8 @@
  *   node scripts/study.ts --from build/study.json          prints the report of a saved run
  *   node scripts/study.ts ... --details                    adds the full report of every table
  *   node scripts/study.ts ... --rates src/sim/landing-rates.ts   writes the four-player landing rates
+ *   node scripts/study.ts 100000 --snapshots <dir>         writes a snapshot every five rounds of the main tables
+ *   node scripts/study.ts 100000 --only full               plays only the tables whose names start so
  *
  * The main tables are full games among rule-based players. The short game and the tables of one
  * odd player among ordinary ones get a fifth as many games; the tables where nobody trades,
@@ -19,9 +21,9 @@
  * its seed.
  */
 import { fork } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildContext } from '../src/context.ts';
 import type { Context } from '../src/context.ts';
@@ -48,6 +50,8 @@ import type {
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { fitLinear as fit } from '../src/sim/linear.ts';
 import { MEASURES, setOf, viewOf } from '../src/sim/measures.ts';
+import { snapshotOf as snapshotRow } from '../src/sim/snapshot.ts';
+import type { OpenRow, SnapshotRow } from '../src/sim/snapshot.ts';
 import type { View } from '../src/sim/measures.ts';
 
 /** Actions after which an unfinished game is abandoned. */
@@ -632,7 +636,12 @@ function close(tally: Tally, notes: Notes, state: GameState, policyOf: Map<Playe
   }
 }
 
-function playGame(table: Table, seed: number, tally: Tally): void {
+/** Where snapshot files go, when asked for. Workers get it on their command line. */
+const SNAPSHOT_DIR = option('--snapshots');
+/** Rounds between snapshots in the snapshot files. */
+const SNAPSHOT_EVERY = 5;
+
+function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): void {
   const { engine, seats } = table;
   const ids = seats.map((_, i) => `p${i + 1}`);
   const policyOf = new Map(ids.map((id, i) => [id, seats[i]]));
@@ -641,6 +650,8 @@ function playGame(table: Table, seed: number, tally: Tally): void {
   const memory = createAgentMemory();
   const notes: Notes = { seen: new Set(), completed: new Map(), firstCompleter: null, peak: new Map(), snapshots: [] };
 
+  const open: OpenRow[] = [];
+  const gone = ids.map(() => 0);
   let state = engine.newGame({ players: ids, seed });
   let actions = 0;
   while (state.winner === null && actions < ACTION_LIMIT) {
@@ -663,7 +674,19 @@ function playGame(table: Table, seed: number, tally: Tally): void {
     }
     state = result.state;
     actions += 1;
-    for (const event of result.events) note(table, tally, notes, state, event);
+    for (const event of result.events) {
+      note(table, tally, notes, state, event);
+      if (!lines) continue;
+      if (event.type === 'BANKRUPT') gone[state.players.findIndex((p) => p.id === event.player)] = state.turn.number;
+      if (event.type === 'TURN_STARTED' && (event.turn - 1) % ids.length === 0) {
+        const round = (event.turn - 1) / ids.length;
+        if (round > 0 && round % SNAPSHOT_EVERY === 0) open.push(snapshotRow(table.ctx, state, { table: table.key, seed, round, n: ids.length }));
+      }
+    }
+  }
+  if (lines && state.winner !== null) {
+    const win = state.players.findIndex((p) => p.id === state.winner);
+    for (const row of open) lines.push(JSON.stringify({ ...row, win, gone, turns: state.turn.number } satisfies SnapshotRow));
   }
 
   tally.games += 1;
@@ -1468,8 +1491,33 @@ function reportSummary(entries: Map<string, Entry>): void {
 
 function runChunk(table: Table, from: number, to: number): Tally {
   const tally = emptyTally(table);
-  for (let seed = from; seed <= to; seed++) playGame(table, seed, tally);
+  const lines = SNAPSHOT_DIR && table.key.startsWith('full-') ? [] : undefined;
+  for (let seed = from; seed <= to; seed++) playGame(table, seed, tally, lines);
+  if (SNAPSHOT_DIR && lines) {
+    // Each chunk writes its own part under a temporary name; the parts are joined in order at the end.
+    const part = join(SNAPSHOT_DIR, `${table.key}.part-${String(from).padStart(8, '0')}.jsonl`);
+    writeFileSync(`${part}.tmp`, lines.length > 0 ? `${lines.join('\n')}\n` : '');
+    renameSync(`${part}.tmp`, part);
+  }
   return tally;
+}
+
+/** Joins each main table's snapshot parts, in the order of their seeds, into one file. */
+function joinSnapshots(dir: string): void {
+  const parts = readdirSync(dir).filter((name) => /\.part-\d+\.jsonl$/.test(name)).sort();
+  const byTable = new Map<string, string[]>();
+  for (const name of parts) {
+    const key = name.slice(0, name.indexOf('.part-'));
+    byTable.set(key, [...(byTable.get(key) ?? []), name]);
+  }
+  for (const [key, names] of byTable) {
+    const target = join(dir, `${key}.jsonl`);
+    writeFileSync(`${target}.tmp`, '');
+    for (const name of names) appendFileSync(`${target}.tmp`, readFileSync(join(dir, name)));
+    renameSync(`${target}.tmp`, target);
+    for (const name of names) unlinkSync(join(dir, name));
+    process.stderr.write(`Wrote ${target}\n`);
+  }
 }
 
 function runAll(tables: Table[], games: number, workers: number): Promise<Tally[]> {
@@ -1489,7 +1537,12 @@ function runAll(tables: Table[], games: number, workers: number): Promise<Tally[
     let next = 0;
     let done = 0;
     for (let i = 0; i < Math.min(workers, jobs.length); i++) {
-      const child = fork(fileURLToPath(import.meta.url), ['--worker', String(games)]);
+      const child = fork(fileURLToPath(import.meta.url), [
+        '--worker',
+        String(games),
+        ...(SNAPSHOT_DIR ? ['--snapshots', SNAPSHOT_DIR] : []),
+        ...(option('--only') ? ['--only', option('--only') as string] : []),
+      ]);
       const give = () => {
         if (next < jobs.length) child.send(jobs[next++]);
         else child.disconnect();
@@ -1566,6 +1619,12 @@ function writeRates(file: string, tables: Table[], tallies: Tally[]): void {
   process.stderr.write(`Wrote ${file}\n`);
 }
 
+/** The tables of a run: all of them, or those named by `--only`. Workers apply the same filter. */
+function chosenTables(games: number): Table[] {
+  const only = option('--only')?.split(',');
+  return makeTables(games).filter((table) => !only || only.some((prefix) => table.key.startsWith(prefix)));
+}
+
 function describe(tables: Table[], tallies: Tally[]): string {
   const counts = [...new Set(tables.map((table) => table.games))].join(', ');
   const played = tallies.reduce((sum, tally) => sum + tally.games, 0);
@@ -1574,7 +1633,7 @@ function describe(tables: Table[], tallies: Tally[]): string {
 
 const saved = option('--from');
 if (process.argv[2] === '--worker') {
-  const tables = makeTables(Number(process.argv[3]));
+  const tables = chosenTables(Number(process.argv[3]));
   process.on('message', (job: Job) => {
     process.send?.({ job, tally: runChunk(tables[job.table], job.from, job.to) });
   });
@@ -1593,10 +1652,12 @@ if (process.argv[2] === '--worker') {
   const games = Number(process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 2000);
   if (!Number.isInteger(games) || games < 1) throw new Error('Give a whole number of games.');
   const workers = Number(option('--workers') ?? Math.max(1, availableParallelism() - 1));
-  const tables = makeTables(games);
+  const tables = chosenTables(games);
+  if (SNAPSHOT_DIR) mkdirSync(SNAPSHOT_DIR, { recursive: true });
   const started = performance.now();
   const tallies = await runAll(tables, games, workers);
   const seconds = (performance.now() - started) / 1000;
+  if (SNAPSHOT_DIR) joinSnapshots(SNAPSHOT_DIR);
   print(tables, tallies, `${describe(tables, tallies)} ${seconds.toFixed(0)} seconds on ${workers} processes.`);
 
   const json = option('--json');
