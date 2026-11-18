@@ -51,6 +51,8 @@ import { nextFloat, seedFrom } from '../src/rng.ts';
 import { fitLinear as fit } from '../src/sim/linear.ts';
 import { MEASURES, setOf, viewOf } from '../src/sim/measures.ts';
 import { snapshotOf as snapshotRow } from '../src/sim/snapshot.ts';
+import { PRESETS, presetAgent } from '../src/sim/styles.ts';
+import type { SeatAgent } from '../src/sim/styles.ts';
 import type { OpenRow, SnapshotRow } from '../src/sim/snapshot.ts';
 import type { View } from '../src/sim/measures.ts';
 
@@ -72,7 +74,7 @@ const TURN_BUCKETS = 400;
  * `no-conquest` never buys or bids on a street of the Conquest of Shu group, `refuser` rejects
  * every trade offered to it, `quiet` never proposes one, and `no-trade` does neither.
  */
-type Policy = 'rules' | 'random' | 'no-works' | 'no-conquest' | 'refuser' | 'quiet' | 'no-trade';
+type Policy = 'rules' | 'random' | 'no-works' | 'no-conquest' | 'refuser' | 'quiet' | 'no-trade' | `style:${string}`;
 type Via = 'purchase' | 'auction' | 'trade' | 'bankruptcy';
 type MomentKind = 'soldOut' | 'firstGroup' | 'firstBuilding' | 'firstBankruptcy';
 
@@ -168,6 +170,8 @@ interface Tally {
   finishedTurns: number;
   turnHistogram: number[];
   wins: Record<Policy, number>;
+  /** For a table with a named school in the first seat: how that seat and an ordinary seat behaved. */
+  styles?: StyleTally;
   winsByPlace: number[];
   kinds: Record<string, KindTally>;
   landings: number[];
@@ -209,6 +213,103 @@ interface Snapshot {
   round: number;
   rows: Row[];
 }
+
+/** How one seat behaved, summed over games. */
+interface Behaviour {
+  spentProperty: number;
+  spentBuildings: number;
+  offersMade: number;
+  acceptedAsProposer: number;
+  acceptedAsReceiver: number;
+  receivedOffers: number;
+  passesAt20: number;
+  cashAt20: number;
+  seenAt20: number;
+  builtGroups: number;
+  peak3: number;
+  peak4: number;
+  peak5: number;
+  listBuys: number;
+  auctionBuys: number;
+  firstBuildingRound: number;
+  firstBuildings: number;
+  mortgages: number;
+  mortgagesOutOfDebt: number;
+  rulesOn: number;
+  completionsSold: number;
+  /** Properties acquired from the bank, by set in the order han, chain, yuan, wei, shu, wu, conquest, sima, passes, works. */
+  acquiredBySet: number[];
+  /** List price of what it holds at round 20, by set. */
+  heldAt20BySet: number[];
+  propertiesAt10: number;
+  seenAt10: number;
+  buildsNear: number;
+  builds: number;
+  /** Games in which Han Court or Chain Stratagem of its own reached a fortress, and the summed round. */
+  cheapFortress: number;
+  cheapFortressRound: number;
+  jailTurnsAfter20: number;
+  auctionsLost: number;
+  auctionsLostRatio: number;
+  auctionsWonRatio: number;
+  proposerPaid: number;
+  proposerList: number;
+  ownPropertyOffers: number;
+  firstGroups: number;
+  firstGroupCheap: number;
+  declinedAffordable: number;
+}
+
+interface StyleTally {
+  odd: Behaviour;
+  ordinary: Behaviour;
+  bankEmpty: number;
+}
+
+const emptyBehaviour = (): Behaviour => ({
+  spentProperty: 0,
+  spentBuildings: 0,
+  offersMade: 0,
+  acceptedAsProposer: 0,
+  acceptedAsReceiver: 0,
+  receivedOffers: 0,
+  passesAt20: 0,
+  cashAt20: 0,
+  seenAt20: 0,
+  builtGroups: 0,
+  peak3: 0,
+  peak4: 0,
+  peak5: 0,
+  listBuys: 0,
+  auctionBuys: 0,
+  firstBuildingRound: 0,
+  firstBuildings: 0,
+  mortgages: 0,
+  mortgagesOutOfDebt: 0,
+  rulesOn: 0,
+  completionsSold: 0,
+  acquiredBySet: zeros(10),
+  heldAt20BySet: zeros(10),
+  propertiesAt10: 0,
+  seenAt10: 0,
+  buildsNear: 0,
+  builds: 0,
+  cheapFortress: 0,
+  cheapFortressRound: 0,
+  jailTurnsAfter20: 0,
+  auctionsLost: 0,
+  auctionsLostRatio: 0,
+  auctionsWonRatio: 0,
+  proposerPaid: 0,
+  proposerList: 0,
+  ownPropertyOffers: 0,
+  firstGroups: 0,
+  firstGroupCheap: 0,
+  declinedAffordable: 0,
+});
+
+const SET_ORDER = ['han', 'chain', 'yuan', 'wei', 'shu', 'wu', 'conquest', 'sima', 'passes', 'works'];
+const setIndex = (sq: PropertySquare) => SET_ORDER.indexOf(sq.kind === 'street' ? sq.group : sq.kind === 'transit' ? 'passes' : 'works');
 
 /** What is remembered about one game while it is played. */
 interface Notes {
@@ -252,6 +353,15 @@ function makeTables(games: number): Table[] {
   for (const n of [3, 4]) {
     add(`random-among-rules-${n}`, `Full game, one random player among ${n - 1} rule-based`, full, oneAmong('random', 'rules', n), fewer, false);
   }
+  const named = option('--styles');
+  const presets = named === 'all' ? Object.keys(PRESETS) : (named?.split(',') ?? []);
+  for (const name of presets) {
+    const preset = PRESETS[name];
+    if (!preset) throw new Error(`No preset named ${name}.`);
+    for (const n of preset.sizes) {
+      add(`style-${name}-${n}`, `Full game, one ${name} player among ${n - 1} rule-based`, full, oneAmong(`style:${name}`, 'rules', n), fewer, false);
+    }
+  }
   for (const odd of ['no-works', 'no-conquest', 'refuser', 'quiet'] as const) {
     for (const n of sizes) {
       add(`${odd}-among-rules-${n}`, `Full game, one ${odd} player among ${n - 1} rule-based`, full, oneAmong(odd, 'rules', n), fewer, false);
@@ -275,8 +385,10 @@ function choose(
   actor: PlayerId,
   random: () => number,
   memory: AgentMemory,
+  agent?: SeatAgent,
 ): Action | null {
   const { engine, ctx } = table;
+  if (agent) return agent.choose(engine, state, actor, random);
   if (policy === 'random') return chooseRandomAction(engine, state, random, actor);
   // Without a memory the rule-based agent proposes nothing.
   const proposes = policy !== 'quiet' && policy !== 'no-trade';
@@ -351,9 +463,11 @@ function emptyTally(table: Table): Tally {
   const moments = {} as Tally['moments'];
   for (const moment of MOMENTS) moments[moment] = { games: 0, turns: 0 };
   const wins = {} as Tally['wins'];
-  for (const policy of POLICIES) wins[policy] = 0;
+  for (const policy of new Set([...POLICIES, ...table.seats])) wins[policy] = 0;
 
+  const styles = table.seats[0].startsWith('style:') ? { styles: { odd: emptyBehaviour(), ordinary: emptyBehaviour(), bankEmpty: 0 } } : {};
   return {
+    ...styles,
     games: 0,
     finished: 0,
     actions: 0,
@@ -652,6 +766,14 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
 
   const open: OpenRow[] = [];
   const gone = ids.map(() => 0);
+  const agents = new Map<PlayerId, SeatAgent>();
+  ids.forEach((id, i) => {
+    if (seats[i].startsWith('style:')) agents.set(id, presetAgent(seats[i].slice('style:'.length)));
+  });
+  const watch = tally.styles ? new Map<PlayerId, Behaviour>([[ids[0], emptyBehaviour()], [ids[1], emptyBehaviour()]]) : null;
+  const peaks = new Map<string, number>();
+  const flags = new Set<string>();
+  let bankEmpty = false;
   let state = engine.newGame({ players: ids, seed });
   let actions = 0;
   while (state.winner === null && actions < ACTION_LIMIT) {
@@ -666,14 +788,18 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
       entry.maxLegal = Math.max(entry.maxLegal, legal);
     }
 
-    const action = choose(policyOf.get(actor) ?? 'rules', table, state, actor, random, memory);
+    const action = choose(policyOf.get(actor) ?? 'rules', table, state, actor, random, memory, agents.get(actor));
     if (!action) throw new Error(`${table.key}, seed ${seed}: ${actor} has no action. Pending: ${JSON.stringify(state.pending)}`);
     const result = engine.apply(state, action);
     if (!result.ok) {
       throw new Error(`${table.key}, seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
     }
+    const before = state;
     state = result.state;
     actions += 1;
+    for (const agent of agents.values()) agent.observe(result.events, state);
+    if (watch) watchBehaviour(table, watch, peaks, flags, before, state, result.events);
+    if (watch && state.bank.houses === 0) bankEmpty = true;
     for (const event of result.events) {
       note(table, tally, notes, state, event);
       if (!lines) continue;
@@ -691,7 +817,186 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
 
   tally.games += 1;
   tally.actions += actions;
+  if (watch && tally.styles) {
+    for (const key of peaks.keys()) {
+      const [player, , level] = key.split('|');
+      const seat = watch.get(player);
+      if (!seat) continue;
+      seat.builtGroups += 1;
+      if (level === '3') seat.peak3 += 1;
+      if (level === '4') seat.peak4 += 1;
+      if (level === '5') seat.peak5 += 1;
+    }
+    const odd = watch.get(ids[0]) as Behaviour;
+    odd.rulesOn += agents.get(ids[0])?.rules().ever.length ?? 0;
+    tally.styles.odd = merged(tally.styles.odd, odd) as Behaviour;
+    tally.styles.ordinary = merged(tally.styles.ordinary, watch.get(ids[1])) as Behaviour;
+    if (bankEmpty) tally.styles.bankEmpty += 1;
+  }
   close(tally, notes, state, policyOf);
+}
+
+/** Counts what the watched seats did in one applied action. */
+function watchBehaviour(
+  table: Table,
+  watch: Map<PlayerId, Behaviour>,
+  peaks: Map<string, number>,
+  flags: Set<string>,
+  before: GameState,
+  state: GameState,
+  events: GameEvent[],
+): void {
+  const { ctx } = table;
+  const seats = table.seats.length;
+  const round = (state.turn.number - 1) / seats;
+  for (const event of events) {
+    switch (event.type) {
+      case 'PROPERTY_OFFERED':
+        flags.add(`offered|${event.player}|${event.property}`);
+        break;
+      case 'AUCTION_STARTED': {
+        for (const key of [...flags]) if (key.startsWith('bid|')) flags.delete(key);
+        for (const [id, seat] of watch) {
+          if (!flags.has(`offered|${id}|${event.property}`)) continue;
+          flags.delete(`offered|${id}|${event.property}`);
+          const sq = ctx.properties.get(event.property);
+          const cash = before.players.find((p) => p.id === id)?.cash ?? 0;
+          if (sq && cash >= sq.price) seat.declinedAffordable += 1;
+        }
+        break;
+      }
+      case 'BID_PLACED':
+        flags.add(`bid|${event.player}`);
+        break;
+      case 'AUCTION_ENDED': {
+        const sq = ctx.properties.get(event.property);
+        if (!sq) break;
+        for (const [id, seat] of watch) {
+          if (event.winner === id) seat.auctionsWonRatio += event.amount / sq.price;
+          else if (flags.has(`bid|${id}`) && event.winner) {
+            seat.auctionsLost += 1;
+            seat.auctionsLostRatio += event.amount / sq.price;
+          }
+        }
+        break;
+      }
+      case 'PAID': {
+        const seat = event.from === null ? undefined : watch.get(event.from);
+        if (seat && (event.reason === 'purchase' || event.reason === 'auction')) seat.spentProperty += event.amount;
+        break;
+      }
+      case 'BUILT': {
+        const seat = watch.get(event.player);
+        if (!seat) break;
+        seat.spentBuildings += event.cost;
+        seat.builds += 1;
+        const sq = ctx.properties.get(event.property);
+        if (sq?.kind === 'street') {
+          const near = before.players.some(
+            (p) =>
+              p.id !== event.player &&
+              !p.bankrupt &&
+              (ctx.groups.get(sq.group) ?? []).some((mate) => {
+                const ahead = ((ctx.squareIndex.get(mate.id) ?? 0) - p.position + 40) % 40;
+                return ahead >= 2 && ahead <= 12;
+              }),
+          );
+          if (near) seat.buildsNear += 1;
+          if (event.level === 5 && (sq.group === 'han' || sq.group === 'chain') && !flags.has(`fortress|${event.player}`)) {
+            flags.add(`fortress|${event.player}`);
+            seat.cheapFortress += 1;
+            seat.cheapFortressRound += round;
+          }
+          // One key for each player and group, holding the highest level reached.
+          const old = [...peaks.keys()].find((k) => k.startsWith(`${event.player}|${sq.group}|`));
+          const level = Math.max(event.level, old ? Number(old.split('|')[2]) : 0);
+          if (old) peaks.delete(old);
+          peaks.set(`${event.player}|${sq.group}|${level}`, level);
+        }
+        break;
+      }
+      case 'PROPERTY_ACQUIRED': {
+        const seat = watch.get(event.player);
+        if (!seat) break;
+        if (event.via === 'purchase') seat.listBuys += 1;
+        if (event.via === 'auction') seat.auctionBuys += 1;
+        const sq = ctx.properties.get(event.property);
+        if (sq && (event.via === 'purchase' || event.via === 'auction')) seat.acquiredBySet[setIndex(sq)] += 1;
+        if (sq?.kind === 'street' && !flags.has(`first|${event.player}`) && ownsGroup(ctx, state, event.player, sq.group)) {
+          flags.add(`first|${event.player}`);
+          seat.firstGroups += 1;
+          if (['han', 'chain', 'yuan', 'wei'].includes(sq.group)) seat.firstGroupCheap += 1;
+        }
+        break;
+      }
+      case 'TRADE_PROPOSED': {
+        const proposer = watch.get(event.offer.from);
+        const receiver = watch.get(event.offer.to);
+        if (proposer) proposer.offersMade += 1;
+        if (proposer && event.offer.give.properties.length > 0) proposer.ownPropertyOffers += 1;
+        if (receiver) receiver.receivedOffers += 1;
+        break;
+      }
+      case 'TRADE_ACCEPTED': {
+        const proposer = watch.get(event.offer.from);
+        const receiver = watch.get(event.offer.to);
+        if (proposer) {
+          proposer.acceptedAsProposer += 1;
+          proposer.proposerPaid += event.offer.give.cash;
+          for (const id of event.offer.receive.properties) proposer.proposerList += ctx.properties.get(id)?.price ?? 0;
+        }
+        if (receiver) {
+          receiver.acceptedAsReceiver += 1;
+          const completes = event.offer.receive.properties.some((id) => {
+            const sq = ctx.properties.get(id);
+            return sq?.kind === 'street' && ownsGroup(ctx, state, event.offer.from, sq.group);
+          });
+          if (completes) receiver.completionsSold += 1;
+        }
+        break;
+      }
+      case 'MORTGAGED': {
+        const seat = watch.get(event.player);
+        if (!seat) break;
+        seat.mortgages += 1;
+        const top = before.pending.at(-1);
+        if (!(top?.kind === 'debt' && top.debtor === event.player)) seat.mortgagesOutOfDebt += 1;
+        break;
+      }
+      case 'TURN_STARTED': {
+        const jailed = watch.get(event.player);
+        if (jailed && round >= 20 && state.players.find((p) => p.id === event.player)?.inJail) jailed.jailTurnsAfter20 += 1;
+        if (event.turn === 10 * seats + 1) {
+          for (const [id, seat] of watch) {
+            const player = state.players.find((p) => p.id === id);
+            if (!player || player.bankrupt) continue;
+            seat.seenAt10 += 1;
+            seat.propertiesAt10 += ctx.propertyOrder.filter((sq) => state.properties[sq.id].owner === id).length;
+          }
+        }
+        if (event.turn !== 20 * seats + 1) break;
+        for (const [id, seat] of watch) {
+          const player = state.players.find((p) => p.id === id);
+          if (!player || player.bankrupt) continue;
+          seat.seenAt20 += 1;
+          seat.cashAt20 += player.cash;
+          seat.passesAt20 += ctx.transit.filter((sq) => state.properties[sq.id].owner === id).length;
+          for (const sq of ctx.propertyOrder) if (state.properties[sq.id].owner === id) seat.heldAt20BySet[setIndex(sq)] += sq.price;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  for (const event of events) {
+    if (event.type !== 'BUILT') continue;
+    const seat = watch.get(event.player);
+    if (seat && seat.firstBuildings === 0) {
+      seat.firstBuildings = 1;
+      seat.firstBuildingRound = (state.turn.number - 1) / seats;
+    }
+  }
 }
 
 // ---------- Arithmetic ----------
@@ -1117,6 +1422,61 @@ function reportDetail(table: Table, tally: Tally): void {
   reportSnapshots(table, tally);
 }
 
+/** The behaviour descriptors of the named schools, beside an ordinary seat of the same tables. */
+function reportStyles(tables: Table[], tallies: Tally[]): void {
+  const rows: (string | number)[][] = [];
+  tables.forEach((table, i) => {
+    const t = tallies[i].styles;
+    if (!t) return;
+    const games = tallies[i].games;
+    const describe = (b: Behaviour, label: string): (string | number)[] => [
+      label,
+      percent(b.spentBuildings / Math.max(1, b.spentBuildings + b.spentProperty)),
+      fixed(b.offersMade / games, 2),
+      fixed(b.acceptedAsProposer / games, 2),
+      fixed(b.acceptedAsReceiver / games, 2),
+      b.receivedOffers ? percent(b.acceptedAsReceiver / b.receivedOffers) : 'n/a',
+      fixed(b.completionsSold / games, 2),
+      b.seenAt20 ? fixed(b.passesAt20 / b.seenAt20, 2) : 'n/a',
+      b.seenAt20 ? fixed(b.cashAt20 / b.seenAt20, 0) : 'n/a',
+      b.builtGroups ? `${percent(b.peak3 / b.builtGroups, 0)} / ${percent(b.peak4 / b.builtGroups, 0)} / ${percent(b.peak5 / b.builtGroups, 0)}` : 'n/a',
+      percent(b.auctionBuys / Math.max(1, b.auctionBuys + b.listBuys)),
+      b.firstBuildings ? fixed(b.firstBuildingRound / b.firstBuildings, 1) : 'n/a',
+      fixed(b.mortgages / games, 2),
+      b.mortgages ? percent(b.mortgagesOutOfDebt / b.mortgages) : 'n/a',
+      fixed(b.rulesOn / games, 1),
+    ];
+    rows.push(describe(t.odd, `${table.label}: the school`));
+    rows.push(describe(t.ordinary, `${table.label}: an ordinary seat`));
+    rows.push([`${table.label}: games in which the bank ran out of farmsteads`, percent(t.bankEmpty / games), '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  });
+  if (rows.length === 0) return;
+  console.log('\n## How the named schools played\n');
+  console.log(
+    'Building share is money spent on buildings over money spent on property and buildings. Highest level: of its groups that were built on, the share whose highest level was 3, 4 and a fortress. Rules on: for a playbook, the distinct rules that came on in a game.\n',
+  );
+  markdown(
+    [
+      'Seat',
+      'Building share',
+      'Offers made',
+      'Accepted as proposer',
+      'Accepted as receiver',
+      'Share of offers received accepted',
+      'Sold a street completing the proposer\'s group',
+      'Passes at round 20',
+      'Cash at round 20',
+      'Highest level 3 / 4 / fortress',
+      'Auction share of purchases',
+      'First building, round',
+      'Mortgages',
+      'Mortgages not in debt',
+      'Rules on',
+    ],
+    rows,
+  );
+}
+
 function reportMatches(tables: Table[], tallies: Tally[]): void {
   console.log('\n## One odd player among ordinary ones\n');
   markdown(
@@ -1504,7 +1864,8 @@ function runChunk(table: Table, from: number, to: number): Tally {
 
 /** Joins each main table's snapshot parts, in the order of their seeds, into one file. */
 function joinSnapshots(dir: string): void {
-  const parts = readdirSync(dir).filter((name) => /\.part-\d+\.jsonl$/.test(name)).sort();
+  // Names starting "._" are the metadata files macOS writes beside files on some external disks.
+  const parts = readdirSync(dir).filter((name) => !name.startsWith('._') && /\.part-\d+\.jsonl$/.test(name)).sort();
   const byTable = new Map<string, string[]>();
   for (const name of parts) {
     const key = name.slice(0, name.indexOf('.part-'));
@@ -1542,6 +1903,7 @@ function runAll(tables: Table[], games: number, workers: number): Promise<Tally[
         String(games),
         ...(SNAPSHOT_DIR ? ['--snapshots', SNAPSHOT_DIR] : []),
         ...(option('--only') ? ['--only', option('--only') as string] : []),
+        ...(option('--styles') ? ['--styles', option('--styles') as string] : []),
       ]);
       const give = () => {
         if (next < jobs.length) child.send(jobs[next++]);
@@ -1585,6 +1947,7 @@ function print(tables: Table[], tallies: Tally[], opening: string): void {
   console.log(opening);
   reportSummary(new Map(tables.map((table, i) => [table.key, { table, tally: tallies[i] }])));
   reportMatches(tables, tallies);
+  reportStyles(tables, tallies);
   if (process.argv.includes('--details')) {
     tables.forEach((table, i) => {
       if (table.detail) reportDetail(table, tallies[i]);
