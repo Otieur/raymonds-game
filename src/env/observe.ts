@@ -1,0 +1,208 @@
+/**
+ * The observation: 985 numbers written from the point of view of the seat that decides. That seat
+ * is relative seat 0 and the others follow in the order of play. Amounts are divided by the
+ * starting cash unless a block says otherwise. Nothing a seat may not know is read: the order of
+ * the decks, the generator and the dice queue stay out.
+ */
+import type { Context } from '../context.ts';
+import { ownsGroup, rentDue } from '../engine/queries.ts';
+import { LANDING_RATES } from '../sim/landing-rates.ts';
+import { duesInReach, holds, MEASURES, rivalMost, setOf } from '../sim/measures.ts';
+import type { View } from '../sim/measures.ts';
+import type { GameState, PlayerId } from '../types.ts';
+import type { Draft } from './actions.ts';
+import { habits } from './ledger.ts';
+import type { Ledger } from './ledger.ts';
+
+export const OBS_VERSION = 2;
+export const SEATS = 4;
+
+export const OBS_LAYOUT: readonly { name: string; offset: number; length: number }[] = (() => {
+  const blocks: [string, number][] = [
+    ['seats', SEATS * 48],
+    ['standing', SEATS * MEASURES.length],
+    ['habits', SEATS * 12],
+    ['properties', 28 * 15],
+    ['facts', 28 * 7],
+    ['table', 47],
+    ['risk', 2],
+  ];
+  let offset = 0;
+  return blocks.map(([name, length]) => {
+    const block = { name, offset, length };
+    offset += length;
+    return block;
+  });
+})();
+export const OBS_SIZE = OBS_LAYOUT.reduce((sum, block) => sum + block.length, 0);
+
+export const DECISION_KINDS = ['free', 'buy', 'auction', 'buildingAuction', 'debt', 'mortgageTransfer', 'jailExit', 'trade'] as const;
+
+export function decisionKind(state: GameState): number {
+  const top = state.pending[state.pending.length - 1];
+  return top ? DECISION_KINDS.indexOf(top.kind) : 0;
+}
+
+export interface ObserveInput {
+  ctx: Context;
+  state: GameState;
+  view: View;
+  /** The deciding seat's index in the order of play. */
+  seat: number;
+  ledger: Ledger;
+  chances: number[];
+  draft: Draft;
+  proposalsLeft: number;
+  shortGame: boolean;
+}
+
+export function observe(input: ObserveInput): Float32Array {
+  const { ctx, state, view, seat, ledger, chances, draft } = input;
+  const out = new Float32Array(OBS_SIZE);
+  const stake = ctx.board.economy.startingCash;
+  const n = state.players.length;
+  const me = state.players[seat];
+  const rel = (i: number) => (i - seat + n) % n;
+  const relOf = (id: PlayerId | null) => {
+    const i = state.players.findIndex((p) => p.id === id);
+    return i === -1 ? -1 : rel(i);
+  };
+  let at = 0;
+  const put = (value: number) => {
+    out[at++] = Number.isFinite(value) ? value : 0;
+  };
+  const block = (name: string) => {
+    const b = OBS_LAYOUT.find((x) => x.name === name);
+    if (!b || b.offset !== at) throw new Error(`Observation block ${name} is out of place at ${at}.`);
+  };
+
+  // Seats
+  block('seats');
+  for (let r = 0; r < SEATS; r++) {
+    const i = r < n ? (seat + r) % n : -1;
+    const p = i === -1 ? null : state.players[i];
+    put(p ? 1 : 0);
+    put(p?.bankrupt ? 1 : 0);
+    put(p && state.turn.player === p.id ? 1 : 0);
+    put(p ? p.cash / stake : 0);
+    for (let sq = 0; sq < 40; sq++) put(p && !p.bankrupt && p.position === sq ? 1 : 0);
+    put(p?.inJail ? 1 : 0);
+    put(p ? p.jailRolls / 3 : 0);
+    put(p ? p.jailCards.length / 2 : 0);
+    put(i === -1 ? 0 : chances[i]);
+  }
+
+  // Standing: each measure as the seat's share of the table's total
+  block('standing');
+  const values = MEASURES.map((m) => state.players.map((p) => (p.bankrupt ? 0 : Math.max(0, m.value(view, p)))));
+  const totals = values.map((row) => row.reduce((a, b) => a + b, 0));
+  for (let r = 0; r < SEATS; r++) {
+    const i = r < n ? (seat + r) % n : -1;
+    MEASURES.forEach((_, k) => put(i === -1 || totals[k] === 0 ? 0 : values[k][i] / totals[k]));
+  }
+
+  // Habits
+  block('habits');
+  for (let r = 0; r < SEATS; r++) {
+    const i = r < n ? (seat + r) % n : -1;
+    const row = i === -1 ? new Array(12).fill(0) : habits(ledger, state.players[i].id, stake);
+    for (const value of row) put(value);
+  }
+
+  // Properties
+  block('properties');
+  const top = state.pending[state.pending.length - 1];
+  const subject = top && (top.kind === 'buy' || top.kind === 'auction' || top.kind === 'mortgageTransfer') ? top.property : null;
+  const offer = top?.kind === 'trade' ? top.offer : null;
+  const receiving = new Set<string>();
+  const giving = new Set<string>();
+  if (offer && offer.to === me.id) {
+    offer.give.properties.forEach((id) => receiving.add(id));
+    offer.receive.properties.forEach((id) => giving.add(id));
+  }
+  if (draft.stage !== 'none') {
+    receiving.add(ctx.propertyOrder[draft.ask].id);
+    if (draft.give !== null) giving.add(ctx.propertyOrder[draft.give].id);
+  }
+  for (const sq of ctx.propertyOrder) {
+    const p = state.properties[sq.id];
+    const owner = p.owner === null ? -1 : relOf(p.owner);
+    put(owner === -1 ? 1 : 0);
+    for (let r = 0; r < SEATS; r++) put(owner === r ? 1 : 0);
+    put(p.mortgaged ? 1 : 0);
+    for (let level = 0; level <= 5; level++) put(p.level === level ? 1 : 0);
+    put(subject === sq.id ? 1 : 0);
+    put(receiving.has(sq.id) ? 1 : 0);
+    put(giving.has(sq.id) ? 1 : 0);
+  }
+
+  // Property facts
+  block('facts');
+  for (const sq of ctx.propertyOrder) {
+    const set = setOf(sq);
+    const size = view.sizes.get(set) ?? 1;
+    const mine = holds(view, set, me.id);
+    const rival = rivalMost(view, set, me.id);
+    const owner = state.properties[sq.id].owner;
+    put(sq.price / 400);
+    put(LANDING_RATES[ctx.squareIndex.get(sq.id) ?? 0] * 20);
+    put(owner === null ? 0 : rentDue(ctx, state, sq, { diceTotal: 7, nearest: false }) / 2000);
+    put(mine / size);
+    put(rival / size);
+    put(sq.kind === 'street' && owner !== me.id && mine === size - 1 ? 1 : 0);
+    const forRival =
+      sq.kind === 'street' &&
+      state.players.some((p) => !p.bankrupt && p.id !== me.id && p.id !== owner && holds(view, set, p.id) === size - 1 && !ownsGroup(ctx, state, p.id, sq.group));
+    put(forRival ? 1 : 0);
+  }
+
+  // Table
+  block('table');
+  put(state.turn.phase === 'preRoll' ? 1 : 0);
+  put(state.turn.phase === 'postRoll' ? 1 : 0);
+  put(state.turn.doubles / 2);
+  put(Math.min(1, (state.turn.number - 1) / n / 100));
+  put(state.bank.houses / ctx.board.economy.houses);
+  put(state.bank.hotels / ctx.board.economy.hotels);
+  const kind = decisionKind(state);
+  DECISION_KINDS.forEach((_, k) => put(kind === k ? 1 : 0));
+  put(top?.kind === 'buildingAuction' && top.building === 'hotel' ? 1 : 0);
+  put(draft.stage === 'none' ? 1 : 0);
+  put(draft.stage === 'give' ? 1 : 0);
+  put(draft.stage === 'cash' ? 1 : 0);
+  const auction = top && (top.kind === 'auction' || top.kind === 'buildingAuction') ? top : null;
+  put(auction ? auction.highBid / stake : 0);
+  for (let r = 0; r < SEATS; r++) put(auction && auction.bidders.some((id) => relOf(id) === r) ? 1 : 0);
+  for (let r = 0; r < SEATS; r++) put(auction && auction.highBidder !== null && relOf(auction.highBidder) === r ? 1 : 0);
+  const debt = top?.kind === 'debt' ? top : null;
+  put(debt ? debt.amount / stake : 0);
+  put(debt && debt.creditor === null ? 1 : 0);
+  for (let r = 1; r < SEATS; r++) put(debt && debt.creditor !== null && relOf(debt.creditor) === r ? 1 : 0);
+  let cashIn = 0;
+  let cashOut = 0;
+  let other = -1;
+  if (offer && offer.to === me.id) {
+    cashIn = offer.give.cash;
+    cashOut = offer.receive.cash;
+    other = relOf(offer.from);
+  } else if (draft.stage !== 'none') {
+    other = relOf(draft.partner);
+  }
+  put(cashIn / stake);
+  put(cashOut / stake);
+  for (let r = 1; r < SEATS; r++) put(other === r ? 1 : 0);
+  for (const size of [2, 3, 4]) put(n === size ? 1 : 0);
+  put(state.players.filter((p) => !p.bankrupt).length / SEATS);
+  put(input.shortGame ? 1 : 0);
+  for (let place = 0; place < SEATS; place++) put(seat === place ? 1 : 0);
+  put(input.proposalsLeft / 2);
+
+  // Risk
+  block('risk');
+  const dues = duesInReach(view, me);
+  put(dues.largest / stake);
+  put(dues.expected / stake);
+
+  if (at !== OBS_SIZE) throw new Error(`The observation has ${at} numbers, not ${OBS_SIZE}.`);
+  return out;
+}
