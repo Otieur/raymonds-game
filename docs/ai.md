@@ -72,8 +72,9 @@ Measured by `scripts/study.ts` on 17 November 2026. Each figure is the share of 
 | Rule-based, never proposing | Rule-based | 42.3% (41.6 to 43.0) | 14.2% (13.7 to 14.6) | 5.9% (5.6 to 6.2) |
 | Rule-based, never buying Conquest of Shu | Rule-based | 48.2% (47.5 to 48.9) | 40.5% (39.9 to 41.2) | 28.7% (28.1 to 29.3) |
 | Rule-based, never buying a works | Rule-based | 45.8% (45.2 to 46.5) | 34.3% (33.6 to 34.9) | 26.1% (25.5 to 26.7) |
+| The best style found by M3's search (5,000 games on evaluation seeds, 18 November 2026) | Rule-based | 87.3% | 56.4% | 39.3% |
 
-The rule-based agent is far above random play and well below what is possible. Two one-line changes to it, refusing every offer and leaving Conquest of Shu alone, each beat it with three and four players. The refuser is the first bar a new agent must clear: an agent that only matches it has learned one trick.
+The rule-based agent is far above random play and well below what is possible. Two one-line changes to it, refusing every offer and leaving Conquest of Shu alone, each beat it with three and four players. The refuser is the first bar a new agent must clear: an agent that only matches it has learned one trick. The styles found by M3's search clear it at every size; they hold the lines `style-2`, `-3` and `-4` in `assets/lines.json`, and are the bar after it.
 
 The scale of the game the agents play, from 100,000 full games at each size:
 

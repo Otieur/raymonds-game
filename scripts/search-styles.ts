@@ -688,7 +688,7 @@ async function admit(): Promise<void> {
     const entries = Object.values(state.archive).sort((a, b) => b.score - a.score).slice(0, candidates);
     const results = await Promise.all(
       entries.map(async (entry) => {
-        const style = decode(entry.genome, `found-${size}-${entry.cell}`);
+        const style = decode(entry.genome, `${option('--prefix') ?? 'found'}-${size}-${entry.cell}`);
         const s = await scoreStyle(pool, style.name, style, size, 2_100_000, games, ['baseline'], {});
         return { entry, style, share: s.wins / Math.max(1, s.finished), finished: s.finished };
       }),

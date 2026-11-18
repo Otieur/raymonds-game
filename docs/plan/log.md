@@ -8,6 +8,41 @@ Unattended work on the plan in [README.md](README.md), from 17 November 2026, 23
 - Machine: Apple M4, 10 cores (4 performance, 6 efficiency), 16 GB of memory. The desktop apps left open used about 2.5 cores through the night, so the work had roughly four performance cores' worth of compute, about a third of what the stage plans' costs assumed. Internal disk 24 GB free; external disk 440 GB free.
 - Background jobs use 8 processes, leaving 2 for other work.
 
+## Summary for the author
+
+Written at the end of the night; the sections after it are the record as it happened.
+
+**Done, with its gate**
+
+| Stage | State | The numbers that close it |
+| --- | --- | --- |
+| M1 Valuation | Gate passed at every size | V1's log loss on test games 0.383, 0.572, 0.675 (two, three, four players) against 0.448, 0.690, 0.857 for the share of net worth. After 10 rounds of a four-player game its leader wins 56.8% against 40.3% for the net-worth leader. Calibrated within 2.6 points. It agrees in sign with all 206 clear cells of the intervention study, rank correlation 0.861. |
+| M4 Environment | Gate passed | 985-number observation, 188 actions, 12 potentials; all tests pass; about 855 learner decisions a second in process and 720 through the bridge, per core on a loaded machine. |
+
+**Done in part**
+
+| Stage | State | Why not all |
+| --- | --- | --- |
+| M2 Schools | Built and studied; bar 1 passed (the baseline style is today's agent, 2,035,760 decisions identical); bar 2: 30 of 32 judged bars pass | Pass baron and All in miss narrowly after four rounds of retuning; four bars (Concentrator, Icebreaker, Leveller, Kingmaker) need counts the study does not keep. |
+| M3 Search and league | Run at reduced size; bar 2 passed at every size (the best found style beats the refuser by 29.2, 15.5 and 8.1 points); all three style lines taken from the baseline by found styles (edges 75.1, 39.2 and 25.7 points) | The machine had about a third of the compute the plans assumed, so the searches were short: bar 1 fails at four players (7 admitted) and is borderline at three (11); the playbook comparison ran at two players only, where the best fixed style beat the Opportunist by 24.8 points. |
+| M5 Supervised | Pipeline built and checked: decision sets, cloning, export to TypeScript, parity (6e-5), a learned agent in the engine | Its gate needs M3's teachers. A clone of the baseline reaches 92.5% agreement from 2.1 million decisions but wins only 8.5% as one among baselines; the plan's remedies (perturbed games, correction, full-size data) are next. |
+
+M6 to M10 were not started: each needs the gate before it.
+
+**For you to decide**
+
+1. Nothing is pushed. Every commit is local on `frontend`; your own uncommitted changes from before are untouched and unstaged.
+2. Whether to accept the reduced sizes of M3, or schedule a longer unattended run. The desktop apps left open used about 2.5 of this M4's 10 cores; a long run goes faster with the app closed or minimised.
+3. Two changes to the author's reference style came out of M2's retuning: it now never builds past three (`buildBeyond: null`), the stricter reading of "build to three".
+4. M5 proper needs about 100 GB of decision sets on the external disk (it has about 430 GB free).
+
+**Not verified**
+
+- Rates of the environment on an idle machine; only loaded-machine figures exist.
+- The four-player playbook comparison and three- and four-player playbook searches were not run.
+- The M2 bars of four schools, and the "less cash after completing a group" part of the Opportunist's bar.
+- No person has played any of the new agents.
+
 ## Decisions
 
 Choices made without the author, with the reason. Each is also noted at the task where it was made.
@@ -120,3 +155,12 @@ Choices made without the author, with the reason. Each is also noted at the task
 - 05:18 **M5 task 11, scoring the clone,** first 20 games: 1 win as the one among three baselines, no refused action, no fallback, 3.5 ms a decision. A 400-game run follows. Diagnosis on held-out decisions: most bid disagreements are the random part (the minimum against the minimum plus 10), but in answering offers the clone accepts about 15% of the offers the baseline refuses, which gives rivals the street that completes their group. A retraining with answering weighted 20 instead of 4 is running, as the decision point's first remedy (more weight where the clone is weak) before more data or DAgger.
 - 05:25 **M5 task 11, the clone over 400 games:** 8.5% (5.8 to 11.2) as the one among three baselines, against an even share of 25%; 2 fallbacks in 70,064 decisions, 4.3 ms a decision, no refused action. *Check:* the bar (an even share) is not met. This is the plan's decision point "the clone agrees with its teachers but plays below an even share": small errors compound in positions the teacher never reaches.
 - 05:31 **Remedy tried: answering weighted 20.** Overall agreement 92.0%, but answering offers fell from 84.4% to 79.4%, so it was not scored. The plan's next remedies (more perturbed games, then correction in the manner of DAgger, and the full-size data) are left for M5 proper. Both clones were moved out of the repository to `$DATA_DIR/models/`: they are pipeline checks, not opponents, and the client does not load them.
+- 05:33 **A slip, corrected.** Commit `8332e2e` went in with the web project's type check failing: `src/env/mlp.ts` used `Float16Array`, which the web settings do not know, and Node's `Buffer`, which a browser lacks. `6c84046` decodes the weights by hand; `npm run typecheck` passes and parity is unchanged.
+- 05:32 **Four players: admission** (`admit-4.md`): 7 of the 12 best cells admitted (Sky rush 37.3% down to 26.5%); the Kingmaker filled two cells, so 6 distinct styles. Bar 1 needs twelve: not met, and the plan's fallback (within 3 points of an even share) would add only Shark (22.4%). The search ran 3 generations, so the archive is thin at four players. The league report runs with the 10 members; bar 2 (Sky rush against the refuser among baselines, 5,000 games each on evaluation seeds) started.
+- 05:36 **What the search found.** The best two-player style (found-2-b1t2p2c1) buys the cheap side outright and the dear groups only to complete them, keeps 102 coins (32 once rivals build), offers 2.3 to 3.1 times list for a missing street, sells its idle property to collectors, and accepts only offers worth 1.7 times what it gives. The best three-player style (found-3-b2t2p1c1) is similar, with selling that leaves the buyer cash for one building at most (the Squeezer's idea) and a high price for a street that completes the proposer's group. At four players the search ran only three generations and its best is the Sky rush preset itself. The common thread matches the schools table: against today's agent, selling well and refusing to sell cheaply beat buying well.
+- 05:39 **Four players: bar 2 passed.** found-4-b2t1p1c2 (Sky rush) wins 39.3% of 4,995 games as the one among baselines; the refuser 31.2% of 4,994 on the same seeds; difference 8.1 points (6.2 to 9.9). Bar 2 holds at every table size.
+- 05:40 **Second round of search.** The four- and three-player searches resumed from their saved states (2 processes each) to thicken their archives, with a second admission round to follow. Their first-round results above stand on their own.
+- 07:15 **Four players: league and promotion.** League (`report-4.md`, 10 members): the found styles rate 0 to 30 against the baseline's 0 in the mixed tables, the refuser -6, random -128; cycles are many. One found style (found-4-b1t1p1c2) loses even to random players when it fills three seats (random wins 24.2% among its copies), which suggests that styles bred against refusers starve one another at a table of copies. Bar 3: the baseline among random players 93.8% (ai.md 93.7%) and random among baselines 1.3% (1.0%) agree; the refuser among baselines 24.9% against ai.md's 30.4% does not, though 5,000 paired games on evaluation seeds gave it 31.2%. `style-4` opened, held by the baseline; found-4-b2t1p1c2 (Sky rush) took it with an edge of 25.7 points (23.9 to 27.6), 10.8 points ahead among baselines, worst row 13.6% against the holder's 9.3%.
+- 07:17 **Second admission round** for three players (the search reached 13 generations, 40 cells) and four players (4 generations, 16 cells), named `second-<n>-<cell>`; their best challenge the holders by the promotion rule. No second league report: there is not time before morning.
+- 07:25 **Second admission round** (`admit-second-3.md`, `admit-second-4.md`): three players 12 of 12 cells admitted (one style fills two), so bar 1 holds at three players as written; four players 8 of 12 (6 distinct styles), so it still fails there. The best style of each size is the same as in the first round, so there is no new challenger for the lines. `src/sim/styles-found.ts` now lists 51 entries: both rounds and the two-player playbook search's best.
+- 07:27 **Four players:** the search resumed again, on 6 processes, for a last admission before morning.

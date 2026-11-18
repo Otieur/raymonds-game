@@ -1,6 +1,6 @@
 {
   "note": "Lines of succession: the holder of each line is the best version so far, and only a challenger that beats it at the table takes its place. Written by scripts/promote.ts; see docs/plan/README.md, \"New against best\".",
-  "nextSeed": 1508000,
+  "nextSeed": 1516000,
   "lines": {
     "style-2": {
       "holder": "found-2-b1t2p2c1",
@@ -50,6 +50,107 @@
           "baselineDifference": -0.04422444889779564,
           "worstRow": "challenger 45.9%, holder 34.3%",
           "promoted": false
+        }
+      ]
+    },
+    "valuation-2": {
+      "holder": "v1-2026-11-18",
+      "holders": [
+        {
+          "member": "v1-2026-11-18",
+          "since": "2026-11-18",
+          "note": "Opens the line: V1 fitted from 100,000 games, commit cd0ba1b; passed M1's gate."
+        }
+      ],
+      "matches": []
+    },
+    "valuation-3": {
+      "holder": "v1-2026-11-18",
+      "holders": [
+        {
+          "member": "v1-2026-11-18",
+          "since": "2026-11-18",
+          "note": "Opens the line: V1 fitted from 100,000 games, commit cd0ba1b; passed M1's gate."
+        }
+      ],
+      "matches": []
+    },
+    "valuation-4": {
+      "holder": "v1-2026-11-18",
+      "holders": [
+        {
+          "member": "v1-2026-11-18",
+          "since": "2026-11-18",
+          "note": "Opens the line: V1 fitted from 100,000 games, commit cd0ba1b; passed M1's gate."
+        }
+      ],
+      "matches": []
+    },
+    "style-3": {
+      "holder": "found-3-b2t2p1c1",
+      "holders": [
+        {
+          "member": "baseline",
+          "since": "2026-11-18",
+          "note": "Opens the line: today's rule-based agent."
+        },
+        {
+          "member": "found-3-b2t2p1c1",
+          "since": "2026-11-18",
+          "note": "Beat baseline by an edge of 39.2 points (37.2 to 41.1)."
+        }
+      ],
+      "matches": [
+        {
+          "date": "2026-11-18",
+          "challenger": "found-3-b2t2p1c1",
+          "holder": "baseline",
+          "seeds": [
+            1508000,
+            1511999
+          ],
+          "a": 0.59575,
+          "b": 0.20412267471091,
+          "edge": 0.39162732528909,
+          "low": 0.37192501086749746,
+          "high": 0.41132963971068254,
+          "baselineDifference": 0.26,
+          "worstRow": "challenger 31.8%, holder 18.5%",
+          "promoted": true
+        }
+      ]
+    },
+    "style-4": {
+      "holder": "found-4-b2t1p1c2",
+      "holders": [
+        {
+          "member": "baseline",
+          "since": "2026-11-18",
+          "note": "Opens the line: today's rule-based agent."
+        },
+        {
+          "member": "found-4-b2t1p1c2",
+          "since": "2026-11-18",
+          "note": "Beat baseline by an edge of 25.7 points (23.9 to 27.6)."
+        }
+      ],
+      "matches": [
+        {
+          "date": "2026-11-18",
+          "challenger": "found-4-b2t1p1c2",
+          "holder": "baseline",
+          "seeds": [
+            1512000,
+            1515999
+          ],
+          "a": 0.3675106542993231,
+          "b": 0.11011310711909514,
+          "edge": 0.257397547180228,
+          "low": 0.23871375705997705,
+          "high": 0.27608133730047896,
+          "baselineDifference": 0.10841604010025063,
+          "worstRow": "challenger 13.6%, holder 9.3%",
+          "promoted": true
         }
       ]
     }

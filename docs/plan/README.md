@@ -9,7 +9,7 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size, and M5's pipeli
 | M0 | The simulation study: [statistics.md](../statistics.md) | | | Done |
 | M1 | [Valuation](m01-valuation.md) | A | M0 | Done 18 November 2026: gate passed |
 | M2 | [Schools of play](m02-schools.md) | B | M1 for the presets that price by the valuation; nothing for the baseline preset | Built 18 November 2026; gate not met in full (30 of 32 judged bars; 4 not measured) |
-| M3 | [Style search and the league](m03-search-and-league.md) | B, C | M2 | Not started |
+| M3 | [Style search and the league](m03-search-and-league.md) | B, C | M2 | Run 18 November 2026 at reduced size; gate not met in full (bar 2 passed at every size; bar 1 failed at four players) |
 | M4 | [The environment](m04-environment.md) | D, E | M1; can run alongside M2 and M3 | Done 18 November 2026: gate passed |
 | M5 | [Supervised learning](m05-supervised.md) | F, J | M3, M4 | Pipeline written; overfit check passed; gate waits for M3 |
 | M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5 | Not started |
