@@ -14,10 +14,15 @@ import type { Action, GameEvent, GameState, PlayerId } from '../types.ts';
 import { codecFor, emptyDraft } from './actions.ts';
 import type { Draft } from './actions.ts';
 import { createLedger, note } from './ledger.ts';
-import { observe } from './observe.ts';
+import { decisionKind, observe } from './observe.ts';
 import type { Mlp } from './mlp.ts';
 
-export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean } = {}): SeatAgent & { fallbacks(): number } {
+/**
+ * `rulesFor` lists kinds of decision (indices into DECISION_KINDS) that the rule-based agent makes
+ * instead of the network; `proposals: false` keeps it from drafting offers. Both are for diagnosis;
+ * the defaults leave every decision to the network.
+ */
+export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean; rulesFor?: number[]; proposals?: boolean } = {}): SeatAgent & { fallbacks(): number } {
   const ctx = contextOf(engine);
   const ledger = createLedger();
   const memory = createAgentMemory();
@@ -27,6 +32,7 @@ export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy
   return {
     choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null {
       if (!engine.awaiting(state).includes(actor)) return null;
+      if (options.rulesFor?.includes(decisionKind(state))) return chooseHeuristicAction(engine, state, actor, random, memory);
       try {
         if (state.turn.number !== turn) {
           turn = state.turn.number;
@@ -37,7 +43,7 @@ export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy
         const view = viewOf(ctx, state);
         let draft: Draft = emptyDraft();
         for (let step = 0; step < 4; step++) {
-          const left = 2 - (proposals.get(actor) ?? 0);
+          const left = options.proposals === false ? 0 : 2 - (proposals.get(actor) ?? 0);
           const codec = codecFor(ctx, engine, state, actor, draft, { drafting: true, proposalsLeft: left, refused: new Set() });
           const obs = observe({ ctx, state, view, seat, ledger, chances, draft, proposalsLeft: left, shortGame: false });
           const { policy } = model.forward(obs);

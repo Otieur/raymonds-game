@@ -93,6 +93,7 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     val = np.concatenate([load_part(f) for f in parts(args.val)]) if args.val else None
     history = []
+    best = None  # (agreement, epoch, weights) of the best epoch on the validation set
     for epoch in range(args.epochs):
         steps = 0
         for batch in batches(args.data, args.batch, rng):
@@ -106,6 +107,13 @@ def main() -> None:
         report = agreement(net, val, device) if val is not None else {}
         history.append({"epoch": epoch, "steps": steps, **{k: v for k, v in report.items() if k != "byKind"}})
         print(f"epoch {epoch}: {steps} steps, validation agreement {report.get('agreement', float('nan')):.4f}, loss {report.get('loss', float('nan')):.4f}, {time.time() - started:.0f} s", flush=True)
+        if val is not None and (best is None or report["agreement"] > best[0]):
+            best = (report["agreement"], epoch, {k: v.detach().clone() for k, v in net.state_dict().items()})
+    last = {k: v.detach().clone() for k, v in net.state_dict().items()}
+    if best is not None:
+        # The run keeps the best epoch on the validation set, not the last.
+        net.load_state_dict(best[2])
+        print(f"Kept epoch {best[1]} (validation agreement {best[0]:.4f}).")
     if val is not None:
         final = agreement(net, val, device)
         print("Agreement by kind of decision:")
@@ -116,6 +124,7 @@ def main() -> None:
         run = Path(args.run)
         run.mkdir(parents=True, exist_ok=True)
         torch.save(net.state_dict(), run / "weights.pt")
+        torch.save(last, run / "last.pt")
         (run / "history.json").write_text(json.dumps(history, indent=2))
 
 

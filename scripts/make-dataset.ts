@@ -116,10 +116,14 @@ function playGame(
   let state = engine.newGame({ players: ids, seed });
   const start = out.length;
   let step = 0;
+  // Offers made this turn by each seat: a learner has two a turn, and the observation says how many are left.
+  const made = new Map<PlayerId, number>();
+  let turn = state.turn.number;
+  const left = (actor: PlayerId) => Math.max(0, 2 - (made.get(actor) ?? 0));
   const record = (actor: PlayerId, draft: Draft, codec: Codec, index: number) => {
     const seat = state.players.findIndex((p) => p.id === actor);
     const chances = v1(size).chances(ctx, state);
-    const obs = observe({ ctx, state, view: viewOf(ctx, state), seat, ledger, chances, draft, proposalsLeft: 2, shortGame: false });
+    const obs = observe({ ctx, state, view: viewOf(ctx, state), seat, ledger, chances, draft, proposalsLeft: left(actor), shortGame: false });
     out.push({ obs, mask: codec.mask, action: index, kind: decisionKind(state), seat: actor, teacher: teacherOf.get(actor) ?? 0, step: step++ });
   };
   for (let actions = 0; state.winner === null && actions < ACTION_LIMIT; actions++) {
@@ -128,7 +132,7 @@ function playGame(
     const agent = agents.get(actor) as SeatAgent;
     let action = agent.choose(engine, state, actor, random);
     if (!action) throw new Error(`Seed ${seed}: ${actor} has no action.`);
-    const codec = codecFor(ctx, engine, state, actor, emptyDraft(), { drafting: true, proposalsLeft: 2, refused: new Set() });
+    const codec = codecFor(ctx, engine, state, actor, emptyDraft(), { drafting: true, proposalsLeft: left(actor), refused: new Set() });
     const legal = legalIndices(codec.mask);
     if (action.type === 'PROPOSE_TRADE' && action.receive.properties.length === 1 && action.give.properties.length <= 1) {
       const k = ctx.propertyOrder.findIndex((sq) => sq.id === (action as Extract<Action, { type: 'PROPOSE_TRADE' }>).receive.properties[0]);
@@ -136,13 +140,13 @@ function playGame(
         const a = action;
         record(actor, emptyDraft(), codec, ASK0 + k);
         const giveDraft: Draft = { stage: 'give', partner: a.to, ask: k, give: null };
-        const giveCodec = codecFor(ctx, engine, state, actor, giveDraft, { drafting: true, proposalsLeft: 2, refused: new Set() });
+        const giveCodec = codecFor(ctx, engine, state, actor, giveDraft, { drafting: true, proposalsLeft: left(actor), refused: new Set() });
         const g = a.give.properties.length === 1 ? ctx.propertyOrder.findIndex((sq) => sq.id === a.give.properties[0]) : -1;
         const giveIndex = g === -1 ? GIVE_NOTHING : GIVE0 + g;
         if (giveCodec.mask[giveIndex]) {
           record(actor, giveDraft, giveCodec, giveIndex);
           const cashDraft: Draft = { ...giveDraft, stage: 'cash', give: g === -1 ? null : g };
-          const cashCodec = codecFor(ctx, engine, state, actor, cashDraft, { drafting: true, proposalsLeft: 2, refused: new Set() });
+          const cashCodec = codecFor(ctx, engine, state, actor, cashDraft, { drafting: true, proposalsLeft: left(actor), refused: new Set() });
           const flow = a.give.cash - a.receive.cash;
           const price = ctx.propertyOrder[k].price;
           const amounts = [...[-1, -0.5, 0, 0.5, 1, 1.5, 2, 3].map((m) => Math.round(m * price)), Number.POSITIVE_INFINITY];
@@ -172,7 +176,12 @@ function playGame(
     }
     const result = engine.apply(state, action);
     if (!result.ok) throw new Error(`Seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
+    if (action.type === 'PROPOSE_TRADE') made.set(actor, (made.get(actor) ?? 0) + 1);
     state = result.state;
+    if (state.turn.number !== turn) {
+      turn = state.turn.number;
+      made.clear();
+    }
     note(ctx, ledger, state, result.events);
     for (const a of agents.values()) a.observe(result.events, state);
     pupil?.observe(result.events, state);

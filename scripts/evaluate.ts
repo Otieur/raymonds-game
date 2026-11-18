@@ -11,6 +11,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createLearnedAgent } from '../src/env/learned-agent.ts';
 import { createMlp } from '../src/env/mlp.ts';
+import { DECISION_KINDS } from '../src/env/observe.ts';
 import type { ModelWeights } from '../src/env/mlp.ts';
 import { createEngine, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
@@ -28,6 +29,12 @@ const against = option('--against') ?? 'baseline';
 const size = Number(option('--size') ?? 4);
 const games = Number(option('--games') ?? 1000);
 const start = Number(option('--seeds') ?? 1_000_000);
+// --rules-for auction,trade: those kinds of decision go to the rule-based agent (for diagnosis).
+const rulesFor = (option('--rules-for') ?? '').split(',').filter(Boolean).map((name) => {
+  const k = (DECISION_KINDS as readonly string[]).indexOf(name);
+  if (k < 0) throw new Error(`No kind of decision named ${name}.`);
+  return k;
+});
 const engine = createEngine(threeKingdoms);
 const mlp = createMlp(MODEL);
 let wins = 0;
@@ -39,7 +46,7 @@ for (let seed = start; seed < start + games; seed++) {
   const holder = { rng: seedFrom(`evaluate-${size}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: size }, (_, i) => `p${i + 1}`);
-  const learned = createLearnedAgent(mlp, engine);
+  const learned = createLearnedAgent(mlp, engine, { rulesFor, proposals: !process.argv.includes('--no-proposals') });
   const agents = new Map<PlayerId, SeatAgent>(ids.map((id, i) => [id, i === 0 ? learned : memberAgent(against)]));
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < 40000; actions++) {
@@ -68,6 +75,6 @@ for (let seed = start; seed < start + games; seed++) {
 const p = wins / finished;
 const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
 console.log(
-  `${MODEL.name} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
+  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
     `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
 );
