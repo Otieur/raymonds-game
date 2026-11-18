@@ -752,6 +752,54 @@ Each figure has an interval of about ±0.8 points.
 
 The full report, with every weight at every knot, is printed by `node scripts/fit-valuation.ts`.
 
+## What a purchase is worth, by intervention
+
+A model fitted to games as they happened cannot fully separate what helps a seat win from what a winning seat ends up holding. So stage M1 also measured the worth of a purchase directly. It took positions from the test games, rounds 5, 10 and 20, where the bank still held a property; changed one thing; and played every version to the end with fresh dice, 8 times each, with the rule-based agent at every seat. The versions were: no change (B); the seat buys the property at its list price (A); the seat is given it (D); the seat is given 200 coins (C). A cell is the set, what the seat already held of it, the round and the table size: 243 cells, 50 positions each, 12,150 positions and about 390,000 games played on from them.
+
+
+4 players, round 10. Each cell: the gift's effect in points of win share, with its interval; that effect in coins, at 7.1 points for 200 coins; and the effect of buying at list price instead.
+
+| Property | Mean list price | The seat holds none of the set | Holds part | Holds all but this one |
+| --- | ---: | --- | --- | --- |
+| Han Court | 60 | +5.0 ± 4.5; 141; +5.2 |  | +11.2 ± 6.2; 317; +8.2 |
+| Chain Stratagem | 107 | +3.0 ± 3.9; 85; -1.2 | +21.8 ± 6.3; 613; +14.5 | +24.2 ± 6.2; 684; +21.4 |
+| House of Yuan | 147 | +6.5 ± 3.2; 183; -1.0 | +18.8 ± 6.3; 529; +11.4 | +21.8 ± 6.5; 613; +16.8 |
+| Cao Wei | 187 | +7.5 ± 3.4; 211; +0.9 | +24.8 ± 6.1; 698; +9.8 | +26.8 ± 5.5; 754; +20.3 |
+| Shu Han | 227 | +4.0 ± 3.7; 113; -4.3 | +14.8 ± 5.5; 416; +3.0 | +26.5 ± 6.8; 747; +13.4 |
+| Eastern Wu | 267 | +4.0 ± 3.3; 113; -4.1 | +10.0 ± 4.1; 282; -1.7 | +27.0 ± 6.7; 761; +14.5 |
+| Conquest of Shu | 307 | +5.5 ± 4.0; 155; -3.8 | +4.5 ± 4.1; 127; -6.6 | +25.5 ± 6.2; 719; +9.8 |
+| House of Sima | 375 | +17.2 ± 5.6; 486; +2.6 |  | +31.8 ± 7.4; 895; +24.1 |
+| A pass | 200 | +4.2 ± 2.9; 120; -2.3 | +6.2 ± 3.4; 176; +0.9 | +24.0 ± 5.2; 677; +20.0 |
+| A works | 150 | +2.2 ± 3.0; 63; -0.8 |  | +6.5 ± 4.0; 183; +0.9 |
+
+2 players, round 10. Each cell: the gift's effect in points of win share, with its interval; that effect in coins, at 8.2 points for 200 coins; and the effect of buying at list price instead.
+
+| Property | Mean list price | The seat holds none of the set | Holds part | Holds all but this one |
+| --- | ---: | --- | --- | --- |
+| Han Court | 60 | +6.0 ± 4.3; 146; +3.3 |  | +14.5 ± 5.4; 353; +10.8 |
+| Chain Stratagem | 107 | +5.2 ± 4.8; 128; +3.7 | +7.8 ± 4.7; 189; -0.6 | +21.2 ± 6.0; 518; +15.5 |
+| House of Yuan | 147 | +5.8 ± 3.8; 140; -3.8 | +4.0 ± 4.4; 98; -4.6 | +23.0 ± 5.6; 561; +14.1 |
+| Cao Wei | 187 | +8.5 ± 3.5; 207; +3.0 | +5.8 ± 4.2; 140; -3.4 | +20.2 ± 5.6; 494; +16.0 |
+| Shu Han | 227 | +4.0 ± 4.0; 98; -7.3 | +4.0 ± 3.8; 98; -4.2 | +22.2 ± 5.1; 542; +1.8 |
+| Eastern Wu | 267 | +6.0 ± 4.4; 146; -7.0 | +3.2 ± 3.2; 79; -12.5 | +14.8 ± 5.8; 360; +2.9 |
+| Conquest of Shu | 307 | +5.8 ± 3.6; 140; -5.8 | +4.5 ± 4.5; 110; -15.4 | +17.8 ± 4.7; 433; +6.6 |
+| House of Sima | 375 | +9.2 ± 4.2; 226; -5.4 |  | +20.2 ± 5.2; 494; +3.7 |
+| A pass | 200 | +8.2 ± 3.4; 201; -3.3 | +11.8 ± 5.1; 286; +5.0 | +9.0 ± 3.4; 219; +6.4 |
+| A works | 150 | +2.2 ± 3.7; 55; -9.2 |  | +7.0 ± 4.4; 171; -2.7 |
+
+Each interval is about ±3 to ±7 points; a cell is 50 positions. The rate of coins is the mean of C - B over all cells of that size and round, which is steadier than any one cell's.
+
+- **The street that completes a group is worth several times its price, and buying it at list price is a large gain:** 20 to 32 points of win share at four players, 700 to 900 coins for most groups.
+- **The first street of a group is worth about its price or less, and buying it at list price gains nothing among today's agents.** At four players, buying a group's first street at list price changes the win share by between -4.3 and +5.2 points, and for the dear groups the measured effect is negative. At two players the dear groups' first streets cost 5 to 7 points when bought at list price, and the second street of Conquest of Shu costs 15.
+- **House of Sima is the exception again.** One of its streets, held alone at four players, is worth 17 points, about 490 coins, against a list price of 375. The linear model of the study found the same thing.
+- **A pass alone is worth little at four players** (+4 points, about 120 coins) **and more at two** (+8 points, about 200 coins). The fourth pass is worth as much as the last street of a group.
+- **Works are worth little at any size.**
+- **V1 agrees.** In all 206 cells whose measured effect of a gift is clear of its interval, V1 predicts an effect of the same sign, and across the 243 cells its predicted effects and the measured ones have a rank correlation of 0.861. A gift nearly always helps, so the sign is an easy test; the rank correlation is the real one.
+
+These figures describe games among the rule-based agent, which buys at list price whenever it can afford to. Against players who decline and bid, the first street of a group may be worth less still.
+
+The full table, every cell at every round and size, is printed by `node scripts/probe-value.ts`.
+
 ## Trading
 
 Full games among rule-based players as they are, and among the same players when nobody proposes or accepts a trade:
