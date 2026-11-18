@@ -19,10 +19,11 @@ import type { Mlp } from './mlp.ts';
 
 /**
  * `rulesFor` lists kinds of decision (indices into DECISION_KINDS) that the rule-based agent makes
- * instead of the network; `proposals: false` keeps it from drafting offers. Both are for diagnosis;
+ * instead of the network; `rulesWhenLegal` lists action types (such as BUILD) whose being legal hands the
+ * decision to the rule-based agent; `proposals: false` keeps it from drafting offers. All are for diagnosis;
  * the defaults leave every decision to the network.
  */
-export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean; rulesFor?: number[]; proposals?: boolean } = {}): SeatAgent & { fallbacks(): number } {
+export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean; rulesFor?: number[]; rulesWhenLegal?: string[]; proposals?: boolean } = {}): SeatAgent & { fallbacks(): number } {
   const ctx = contextOf(engine);
   const ledger = createLedger();
   const memory = createAgentMemory();
@@ -33,6 +34,9 @@ export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy
     choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null {
       if (!engine.awaiting(state).includes(actor)) return null;
       if (options.rulesFor?.includes(decisionKind(state))) return chooseHeuristicAction(engine, state, actor, random, memory);
+      if (options.rulesWhenLegal && engine.legalActions(state, actor).some((a) => options.rulesWhenLegal?.includes(a.type))) {
+        return chooseHeuristicAction(engine, state, actor, random, memory);
+      }
       try {
         if (state.turn.number !== turn) {
           turn = state.turn.number;

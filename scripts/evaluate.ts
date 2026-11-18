@@ -35,6 +35,8 @@ const rulesFor = (option('--rules-for') ?? '').split(',').filter(Boolean).map((n
   if (k < 0) throw new Error(`No kind of decision named ${name}.`);
   return k;
 });
+// --rules-when-legal BUILD: any decision where one of these action types is legal goes to the rule-based agent.
+const rulesWhenLegal = option('--rules-when-legal')?.split(',');
 const engine = createEngine(threeKingdoms);
 const mlp = createMlp(MODEL);
 let wins = 0;
@@ -42,11 +44,13 @@ let finished = 0;
 let fallbacks = 0;
 let decisions = 0;
 let thinking = 0;
+// --tally: the learner's actions on its free turns, by type, a game.
+const tally = new Map<string, number>();
 for (let seed = start; seed < start + games; seed++) {
   const holder = { rng: seedFrom(`evaluate-${size}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: size }, (_, i) => `p${i + 1}`);
-  const learned = createLearnedAgent(mlp, engine, { rulesFor, proposals: !process.argv.includes('--no-proposals') });
+  const learned = createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals') });
   const agents = new Map<PlayerId, SeatAgent>(ids.map((id, i) => [id, i === 0 ? learned : memberAgent(against)]));
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < 40000; actions++) {
@@ -59,6 +63,7 @@ for (let seed = start; seed < start + games; seed++) {
       decisions += 1;
     }
     if (!action) throw new Error(`Seed ${seed}: ${actor} has no action.`);
+    if (actor === 'p1' && state.pending.length === 0) tally.set(action.type, (tally.get(action.type) ?? 0) + 1);
     const result = engine.apply(state, action);
     if (!result.ok) throw new Error(`Seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
     state = result.state;
@@ -75,6 +80,9 @@ for (let seed = start; seed < start + games; seed++) {
 const p = wins / finished;
 const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
 console.log(
-  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
+  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
     `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
 );
+if (process.argv.includes('--tally')) {
+  console.log(`Free-turn actions a game: ${[...tally].sort((a, b) => b[1] - a[1]).map(([type, n]) => `${type} ${(n / games).toFixed(2)}`).join(', ')}`);
+}
