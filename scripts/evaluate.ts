@@ -16,6 +16,7 @@ import type { ModelWeights } from '../src/env/mlp.ts';
 import { createEngine, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
+import { chooseHeuristicAction, createAgentMemory } from '../src/sim/heuristic-agent.ts';
 import { memberAgent } from '../src/sim/league.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
 
@@ -46,6 +47,10 @@ let decisions = 0;
 let thinking = 0;
 // --tally: the learner's actions on its free turns, by type, a game.
 const tally = new Map<string, number>();
+// With --tally, also: decisions after the roll where the rule-based agent would start an offer, and how often the learner did.
+let chances = 0;
+let taken = 0;
+const probe = { rng: seedFrom('evaluate-probe') };
 for (let seed = start; seed < start + games; seed++) {
   const holder = { rng: seedFrom(`evaluate-${size}-${seed}`) };
   const random = () => nextFloat(holder);
@@ -64,6 +69,13 @@ for (let seed = start; seed < start + games; seed++) {
     }
     if (!action) throw new Error(`Seed ${seed}: ${actor} has no action.`);
     if (actor === 'p1' && state.pending.length === 0) tally.set(action.type, (tally.get(action.type) ?? 0) + 1);
+    if (actor === 'p1' && state.pending.length === 0 && state.turn.phase === 'postRoll' && process.argv.includes('--tally')) {
+      const rules = chooseHeuristicAction(engine, state, actor, () => nextFloat(probe), createAgentMemory());
+      if (rules?.type === 'PROPOSE_TRADE') {
+        chances += 1;
+        if (action.type === 'PROPOSE_TRADE') taken += 1;
+      }
+    }
     const result = engine.apply(state, action);
     if (!result.ok) throw new Error(`Seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
     state = result.state;
@@ -84,5 +96,6 @@ console.log(
     `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
 );
 if (process.argv.includes('--tally')) {
+  console.log(`After the roll, the rules would start an offer ${(chances / games).toFixed(2)} times a game; the learner started one at ${taken} of those ${chances} decisions.`);
   console.log(`Free-turn actions a game: ${[...tally].sort((a, b) => b[1] - a[1]).map(([type, n]) => `${type} ${(n / games).toFixed(2)}`).join(', ')}`);
 }

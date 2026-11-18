@@ -19,6 +19,7 @@ from data import batches, load_part, masks, parts
 from model import Net
 
 KINDS = ["free", "buy", "auction", "buildingAuction", "debt", "mortgageTransfer", "jailExit", "trade"]
+ASK0 = 121  # the first index of starting an offer (src/env/actions.ts)
 KIND_WEIGHTS = torch.tensor([1, 2, 2, 2, 2, 2, 2, 4], dtype=torch.float32)
 
 
@@ -62,6 +63,7 @@ def main() -> None:
     parser.add_argument("--overfit", action="store_true")
     parser.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
     parser.add_argument("--trade-weight", type=float, default=4.0, help="loss weight of answering an offer")
+    parser.add_argument("--ask-weight", type=float, default=1.0, help="extra loss weight of decisions where the teacher starts an offer")
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     device = torch.device(args.device)
@@ -77,7 +79,8 @@ def main() -> None:
         obs, mask, action, kind = tensors(records, device)
         for step in range(3000):
             logits, _, _ = net(obs, mask)
-            loss = (F.cross_entropy(logits, action, reduction="none") * weights[kind]).mean()
+            ask = ((action >= ASK0) & (action < ASK0 + 28)).float()
+            loss = (F.cross_entropy(logits, action, reduction="none") * weights[kind] * (1 + (args.ask_weight - 1) * ask)).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -99,7 +102,8 @@ def main() -> None:
         for batch in batches(args.data, args.batch, rng):
             obs, mask, action, kind = tensors(batch, device)
             logits, _, _ = net(obs, mask)
-            loss = (F.cross_entropy(logits, action, reduction="none") * weights[kind]).mean()
+            ask = ((action >= ASK0) & (action < ASK0 + 28)).float()
+            loss = (F.cross_entropy(logits, action, reduction="none") * weights[kind] * (1 + (args.ask_weight - 1) * ask)).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
