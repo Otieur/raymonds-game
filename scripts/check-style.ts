@@ -231,12 +231,39 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href && process.arg
   }
   const base = byName.get('baseline');
   const baseBank = base ? base.bankEmpty / base.games : 0;
+  // As the plan says, a school is compared with the baseline in the same seat: the baseline as the
+  // odd player at the same table sizes. Without a baseline table, with an ordinary seat at its own tables.
+  const baselineBySize = new Map<number, { odd: B; games: number }>();
+  for (const t of tables) {
+    if (!t.key.startsWith('style-baseline-')) continue;
+    baselineBySize.set(Number(t.key.slice(-1)), { odd: t.tally.styles!.odd, games: t.tally.games });
+  }
+  const sizesOf = new Map<string, number[]>();
+  for (const t of tables) {
+    const name = t.key.replace(/^style-/, '').replace(/-\d$/, '');
+    sizesOf.set(name, [...(sizesOf.get(name) ?? []), Number(t.key.slice(-1))]);
+  }
+  const control = (name: string, fallback: B, games: number): { b: B; games: number } => {
+    const sizes = sizesOf.get(name) ?? [];
+    if (name === 'baseline' || !sizes.every((n) => baselineBySize.has(n))) return { b: fallback, games };
+    let b = {} as B;
+    let g = 0;
+    for (const n of sizes) {
+      b = add(b, baselineBySize.get(n)!.odd);
+      g += baselineBySize.get(n)!.games;
+    }
+    // Scale the control's sums to the school's number of games, so that sums compare as rates.
+    const scaled = {} as B;
+    for (const [k, v] of Object.entries(b)) (scaled as Record<string, unknown>)[k] = Array.isArray(v) ? (v as number[]).map((x) => (x * games) / g) : ((v as number) * games) / g;
+    return { b: scaled, games };
+  };
   console.log('| School | Win share as the odd player | Bar | Measured | Passes |');
   console.log('| --- | --- | --- | --- | --- |');
   let passed = 0;
   let judged = 0;
   for (const [name, e] of byName) {
-    const r = gateBars(name, e.odd, e.ord, e.games, e.bankEmpty / e.games, baseBank);
+    const c = control(name, e.ord, e.games);
+    const r = gateBars(name, e.odd, c.b, e.games, e.bankEmpty / e.games, baseBank);
     if (r.pass !== null) {
       judged += 1;
       if (r.pass) passed += 1;

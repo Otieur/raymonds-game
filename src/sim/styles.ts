@@ -58,8 +58,11 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   'pass-baron': {
     family: 'buy', from: 'P, S1', describe: 'Passes above everything; streets mostly to block.',
     changes: {
-      buy: { ...sets(0.8, ['han', 'chain', 'yuan', 'wei', 'shu', 'wu', 'conquest', 'sima', 'works']), passes: 1 } as Style['buy'],
-      bidCap: { passes: 2.5 } as Style['bidCap'],
+      buy: { ...sets(0.6, ['han', 'chain', 'yuan', 'wei', 'shu', 'wu', 'conquest', 'sima', 'works']), passes: 1 } as Style['buy'],
+      bidCap: { passes: 3 } as Style['bidCap'],
+      prefer: { passes: 2 },
+      passStep: 0.5,
+      distressOffers: true,
       neverSell: ['passes'],
       buildTarget: 3,
     },
@@ -70,7 +73,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
   'three-and-hold': {
     family: 'build', from: 'P, S1, S4', describe: 'Every group to three buildings, then cash.',
-    changes: { buildTarget: 3, buildBeyond: null, reserveThreat: 1 },
+    changes: { buildTarget: 3, buildBeyond: null, reserveThreat: 0.5, mortgageToBuild: true },
   },
   rusher: {
     family: 'build', from: 'P', describe: 'The cheap groups, built up at once, everything else mortgaged to pay.',
@@ -78,7 +81,19 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
   'all-in': {
     family: 'build', from: 'S1', describe: 'No spare cash, ever: everything into buildings.',
-    changes: { reserve: 0, reserveBuilt: 0, mortgageToBuild: true, jailStay: 0.5 },
+    changes: {
+      reserve: 0,
+      reserveBuilt: 0,
+      mortgageToBuild: true,
+      mortgageToBuy: true,
+      buyKeep: 0,
+      bidCap: sets(3) as Style['bidCap'],
+      bidKeep: 0,
+      offerLow: 3,
+      offerHigh: 4,
+      offerFloor: 1,
+      jailStay: 0.5,
+    },
   },
   slumlord: {
     family: 'build', from: 'S3', describe: 'Han Court and Chain Stratagem to a fortress as early as possible.',
@@ -94,11 +109,11 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
   cornerer: {
     family: 'build', from: 'P, S3', describe: 'Stops at four farmsteads to run the bank out of buildings.',
-    changes: { holdHouses: true, buildTarget: 4 },
+    changes: { holdHouses: true, buildTarget: 4, buildBeyond: null, mortgageToBuild: true },
   },
   hoarder: {
     family: 'cash', from: 'P, S1', describe: 'A large reserve, few purchases early, strong bids late.',
-    changes: { reserve: 400, reserveBuilt: 600, buy: sets(0.8) as Style['buy'], bidCap: sets(1.1) as Style['bidCap'] },
+    changes: { reserve: 700, reserveBuilt: 900, buy: sets(0.8) as Style['buy'], bidCap: sets(1.1) as Style['bidCap'] },
   },
   turtle: {
     family: 'cash', from: 'S3, S4', describe: 'A reserve that grows with the danger ahead; stays in jail once rivals build.',
@@ -114,7 +129,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
   vulture: {
     family: 'bid', from: 'S3', describe: 'Waits for others to run short, then buys cheaply.',
-    changes: { declinePoor: 1.5, distressOffers: true, reserve: 300 },
+    changes: { declinePoor: 1.5, distressOffers: true, reserve: 300, bidCap: sets(0.6) as Style['bidCap'] },
   },
   refuser: { family: 'trade', from: 'P', describe: 'Rejects every offer. Still makes offers.', changes: { acceptMargin: Infinity } },
   hermit: { family: 'trade', from: 'S1', describe: 'No deal of any kind.', changes: { acceptMargin: Infinity, proposeRate: 0 } },
@@ -128,7 +143,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
   dealer: {
     family: 'trade', from: 'P, S3', describe: 'Proposes often, swaps property, accepts fair deals.',
-    changes: { swaps: true, acceptMargin: 1, offerLow: 1.5, offerHigh: 2.5 },
+    changes: { swaps: true, sellOffers: true, distressOffers: true, acceptMargin: 0.8, offerLow: 2, offerHigh: 3 },
   },
   'big-spender': {
     family: 'trade', from: 'S1', describe: 'Pays up to three times the price for the street that completes a group.',
@@ -155,7 +170,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
       bidCap: sets(3) as Style['bidCap'],
       prefer: { wei: 1.2, shu: 1.15, yuan: 1.15, chain: 1.1 },
       buildTarget: 3,
-      buildBeyond: 600,
+      buildBeyond: null,
       buildOrder: 'landing',
       mortgageToBuild: true,
       reserve: 200,

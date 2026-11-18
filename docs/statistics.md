@@ -800,6 +800,60 @@ These figures describe games among the rule-based agent, which buys at list pric
 
 The full table, every cell at every round and size, is printed by `node scripts/probe-value.ts`.
 
+## The named schools
+
+Stage M2 of [the plan](plan/m02-schools.md) turned the rule-based agent's settings into a style and named 37 schools: 34 single styles, two composed from other schools' parts, and one playbook that changes parts with the position. Each played as the one odd seat among rule-based players, 2,000 games at each of its table sizes. An even share is 50%, 33.3% and 25%; each figure has an interval of about ±2 points.
+
+| School | Kind | Idea | 2 players | 3 players | 4 players | Shows its behaviour |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| baseline | What to buy | Today's rule-based agent. Buys whatever it can afford. | 51.4% | 32.8% | 24.6% |  |
+| cheap-side | What to buy | Only the first two sides of the board. | 46.1% | 41.5% | 21.6% | yes |
+| dear-side | What to buy | Only the last two sides of the board. | 32.3% | 17.9% | 10.8% | yes |
+| warm-sides | What to buy | Prefers the two sides landed on most. | 48.1% | 28.1% | 20.2% | yes |
+| sniper | What to buy | Buys only what completes or blocks a group; always the passes; never the works. | 68.8% | 35.9% | 11.3% | yes |
+| prestige | What to buy | The passes and House of Sima first. | 50.2% | 33.3% | 26.0% | yes |
+| orange-and-sky | What to buy | The passes, Cao Wei and Chain Stratagem first. | 55.4% | 37.4% | 27.8% | yes |
+| pass-baron | What to buy | Passes above everything; streets mostly to block. | 69.0% | 35.3% | 11.5% | no, narrowly |
+| land-grabber | What to buy | Buys everything and mortgages to keep buying. | 44.5% | 31.6% | 26.0% | yes |
+| three-and-hold | How to build | Every group to three buildings, then cash. | 58.3% | 33.8% | 22.1% | yes |
+| rusher | How to build | The cheap groups, built up at once, everything else mortgaged to pay. | 78.8% | 55.5% | 31.4% | yes |
+| all-in | How to build | No spare cash, ever: everything into buildings. | 56.0% | 38.6% | 31.3% | no, narrowly |
+| slumlord | How to build | Han Court and Chain Stratagem to a fortress as early as possible. | 77.5% | 48.5% | 19.8% | yes |
+| concentrator | How to build | One group to four before the next gets anything. | 51.8% | 33.6% | 24.9% | not measured |
+| ambusher | How to build | Holds its cash until a rival is within one roll of its group, then builds. | 44.0% | 31.4% | 25.9% | yes |
+| cornerer | How to build | Stops at four farmsteads to run the bank out of buildings. | 65.1% | 39.2% | 29.2% | yes |
+| hoarder | Cash | A large reserve, few purchases early, strong bids late. | 37.2% | 15.2% | 7.8% | yes |
+| turtle | Cash | A reserve that grows with the danger ahead; stays in jail once rivals build. | 36.5% | 21.3% | 16.6% | yes |
+| shark | Bidding | Declines at list price and buys at auction. | 60.1% | 33.9% | 24.8% | yes |
+| driver | Bidding | Bids rivals up on what they need. |  | 32.6% | 24.9% | yes |
+| vulture | Bidding | Waits for others to run short, then buys cheaply. | 63.7% | 34.1% | 22.8% | yes |
+| refuser | Trading | Rejects every offer. Still makes offers. | 59.0% | 38.5% | 30.1% | yes |
+| hermit | Trading | No deal of any kind. | 49.9% | 15.6% | 6.4% | yes |
+| open-hand | Trading | Takes nearly any offer. A weak opponent on purpose. | 52.8% | 32.8% | 22.3% | yes |
+| blocker | Trading | Never sells a street somebody needs; bids to deny. | 59.3% | 38.8% | 30.2% | yes |
+| dealer | Trading | Proposes often, swaps property, accepts fair deals. | 68.4% | 38.8% | 21.7% | yes |
+| big-spender | Trading | Pays up to three times the price for the street that completes a group. | 47.4% | 28.6% | 22.3% | yes |
+| squeezer | Trading | Sells the last street of a group to a rival who then cannot afford to build. | 77.4% | 46.3% | 28.6% | yes |
+| icebreaker | Trading | Pays more when the table stops trading. |  | 30.3% | 23.8% | not measured |
+| reference | Whole plans | The project author's style: reads the table and changes plan. | 50.4% | 32.9% | 20.5% | yes |
+| two-stage | Whole plans | A cheap group first, then a dear one paid for by it. | 53.9% | 33.9% | 19.8% | yes |
+| duelist | Whole plans | With one rival: never lets a property go cheaply at auction, never helps the only opponent. | 64.1% |  |  | yes |
+| sky-rush | Whole plans | Buys and values like Orange and sky, builds and keeps cash like All in, answers like Blocker. | 67.8% | 49.6% | 40.7% | yes |
+| iron-bank | Whole plans | Buys like Pass baron, keeps cash like Hoarder, bids like Vulture, answers like Refuser. | 58.9% | 28.1% | 8.6% | yes |
+| opportunist | Whole plans | A playbook of ten rules: holds no plan longer than the position supports it. | 65.3% | 39.4% | 27.4% | yes |
+| leveller | Trading | No deal with the leader. |  | 23.2% | 16.3% | not measured |
+| kingmaker | Trading | Sells out to the weakest rival once it cannot win. |  | 46.9% | 29.0% | not measured |
+
+"Shows its behaviour" is judged against the baseline playing the same seat, by the bar M2 sets for each school; the figures behind each judgement are in the [log](plan/log.md).
+
+- **Selling well beats buying well among today's agents.** The schools that sell to rivals at high prices or refuse to sell at all (Squeezer, Kingmaker, Refuser, Blocker) and the schools that build fast (Rusher, Sky rush, Slumlord, All in) win the most. Today's agent pays too much for the last street of a group and accepts too little for its own.
+- **Sky rush, composed from three schools' parts, is the strongest at four players:** it buys and values like Orange and sky, builds and keeps cash like All in, and answers like Blocker, and wins 40.7% of four-player games against an even share of 25%.
+- **What is strong depends on the table size.** Sniper and Pass baron win two-player games (68.8% and 69.0%) and lose four-player ones (11.3% and 11.5%). Cheap side is strong with three players and weak with four.
+- **Hoarding, staying out of trade, and the dear side lose at every size.** Hermit wins 6.4% of four-player games; Dear side 10.8%; Hoarder 7.8%.
+- **The Opportunist, which changes plan through the game, beats an even share at every size** (65.3%, 39.4%, 27.4%) and falls short of the best fixed schools.
+
+These figures describe one odd seat among rule-based players. Whether any school beats the best of the others is the next stage's question.
+
 ## Trading
 
 Full games among rule-based players as they are, and among the same players when nobody proposes or accepts a trade:
