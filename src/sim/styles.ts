@@ -206,7 +206,7 @@ const plain: Record<string, Style> = Object.fromEntries(Object.entries(STYLES).m
 
 /** A plain school by name, for composing and for playbooks. */
 export function school(name: string): Style {
-  const style = plain[name];
+  const style = plain[name] ?? COMPOSED[name]?.style;
   if (!style) throw new Error(`No school named ${name}.`);
   return style;
 }

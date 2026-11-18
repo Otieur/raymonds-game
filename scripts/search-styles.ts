@@ -655,6 +655,18 @@ async function searchPlaybooks(): Promise<void> {
   console.log('| Part | Times taken |\n| --- | ---: |');
   for (const [part, n] of [...parts].sort((a, b) => b[1] - a[1])) console.log(`| ${part} | ${n} |`);
   console.log(`\nThe best playbook: \`${JSON.stringify(state.best?.genome)}\`\n`);
+  const json = option('--json');
+  if (json && state.best) {
+    const best = state.best;
+    const entry: FoundStyle = {
+      name: `playbook-${size}-best`,
+      size,
+      playbook: { name: `playbook-${size}-best`, base: resolve(best.genome.base), rules: best.genome.rules },
+      sources,
+      record: { searchScore: Number(best.score.toFixed(4)), from: best.id, rules: best.genome.rules.length },
+    };
+    writeFileSync(json, JSON.stringify([entry], (_, v) => (v === Infinity ? 1e9 : v)));
+  }
 }
 
 // ---------- Admission ----------
