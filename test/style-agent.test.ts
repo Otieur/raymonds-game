@@ -259,7 +259,7 @@ test('signals: all twenty-five are numbers, unchanged when the seats are renamed
 });
 
 test('every preset validates and plays a four-player game by the rules', () => {
-  assert.equal(Object.keys(PRESETS).length, 54); // the 37 of M2, the 15 presets and one playbook of M3b, and Early bird corrected
+  assert.equal(Object.keys(PRESETS).length, 65); // the 37 of M2, the 15 presets and one playbook of M3b, and 12 corrected forms
   for (const [name, preset] of Object.entries(PRESETS)) {
     assert.deepEqual(validateStyle(preset.playbook.base), [], name);
     const size = preset.sizes.includes(4) ? 4 : preset.sizes[0];
@@ -584,6 +584,20 @@ test('hunting: builds first where a failing rival is about to land, and as today
   const hunt = act(state, { huntFailing: true }) as Extract<Action, { type: 'BUILD' }>;
   assert.ok(['cao-cao', 'cao-pi', 'xun-yu'].includes(hunt.property), `built on ${hunt.property}`);
   assert.ok(!['cao-cao', 'cao-pi', 'xun-yu'].includes(usual.property), `today's agent builds on ${usual.property}`);
+});
+
+test('each school that prices by value has a corrected form, the same but for today\'s price for the last street', () => {
+  for (const name of ['early-bird', 'prober', 'warden', 'undertaker', 'broker', 'balancer', 'patron', 'envoy', 'scavenger', 'statesman', 'statesman-book']) {
+    const first = PRESETS[name].playbook.base;
+    const corrected = PRESETS[`${name}-2`].playbook.base;
+    assert.equal(first.offerBy, 'value', name);
+    assert.equal(first.completeBy, 'value', name);
+    assert.equal(corrected.completeBy, 'list', name);
+    const differ = Object.keys(first).filter((key) => !['name', 'completeBy', 'earlyBefore'].includes(key) && JSON.stringify(first[key as keyof typeof first]) !== JSON.stringify(corrected[key as keyof typeof corrected]));
+    assert.deepEqual(differ, [], name);
+  }
+  assert.equal(PRESETS['reference-3'].playbook.base.completeBy, 'list');
+  assert.deepEqual(PRESETS['statesman-book-2'].playbook.rules, PRESETS['statesman-book'].playbook.rules);
 });
 
 test('completeBy list: a seat that prices by value keeps today\'s price for the last street of a group, and still asks early by value', () => {

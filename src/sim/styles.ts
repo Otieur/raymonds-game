@@ -259,6 +259,19 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
   },
 };
 
+/**
+ * The schools that price by value, corrected as Early bird was on 19 November: today's price for the
+ * street that completes a group (`completeBy: 'list'`), since pricing that street by value asked a
+ * third of its worth and lost the completions. Each is named after its first form with "-2"; the first
+ * forms stay as they were, for the record of the runs. The Prober also stops early asks after round 5,
+ * as Early bird does.
+ */
+const CORRECTED: Record<string, Partial<Style>> = { prober: { earlyBefore: 5 }, warden: {}, undertaker: {}, broker: {}, balancer: {}, patron: {}, envoy: {}, scavenger: {} };
+for (const [name, extra] of Object.entries(CORRECTED)) {
+  const first = STYLES[name];
+  STYLES[`${name}-2`] = { ...first, describe: `${first.describe} With today's price for the street that completes a group.`, changes: { ...first.changes, completeBy: 'list', ...extra } };
+}
+
 const plain: Record<string, Style> = Object.fromEntries(Object.entries(STYLES).map(([name, spec]) => [name, styleFrom(name, spec.changes)]));
 
 /** A plain school by name, for composing and for playbooks. */
@@ -342,6 +355,10 @@ const STATESMAN = compose(
   'statesman',
 );
 
+/** The Statesman and Reference II with the correction of 19 November, in the form measured that day: today's price for the street that completes a group, early asks before round 8. */
+const STATESMAN_2: Style = { ...STATESMAN, name: 'statesman-2', completeBy: 'list', earlyBefore: 8 };
+const REFERENCE_3: Style = { ...REFERENCE_2, name: 'reference-3', completeBy: 'list', earlyBefore: 8 };
+
 /** The Statesman as a playbook over the four states of a table (Walker and Lehman, 1975). */
 const STATESMAN_RULES: Rule[] = [
   { name: 'nobody ahead', when: [{ signal: 'threat', is: '<', value: 1.3 }, { signal: 'gap', is: '>=', value: -0.3 }], set: { denyOffers: false }, hold: 2 },
@@ -399,6 +416,30 @@ export const PRESETS: Record<string, Preset> = {
     from: 'A',
     describe: "The Reference preset with the author's trading: early asks, denying at a high price, estates, alliances by offers.",
     playbook: { name: 'reference-2', base: REFERENCE_2, rules: [] },
+  },
+  'statesman-2': {
+    name: 'statesman-2',
+    family: 'table',
+    sizes: LARGE,
+    from: 'P',
+    describe: "The Statesman with today's price for the street that completes a group and early asks before round 8; level with Sky rush, where the first form lost to it.",
+    playbook: { name: 'statesman-2', base: STATESMAN_2, rules: [] },
+  },
+  'statesman-book-2': {
+    name: 'statesman-book-2',
+    family: 'table',
+    sizes: LARGE,
+    from: 'P, L',
+    describe: 'The playbook Statesman over the corrected Statesman.',
+    playbook: { name: 'statesman-book-2', base: { ...STATESMAN_2, name: 'statesman-book-2', againstLeader: 0, forWeak: 0 }, rules: STATESMAN_RULES },
+  },
+  'reference-3': {
+    name: 'reference-3',
+    family: 'table',
+    sizes: ALL,
+    from: 'A',
+    describe: "Reference II with today's price for the street that completes a group and early asks before round 8.",
+    playbook: { name: 'reference-3', base: REFERENCE_3, rules: [] },
   },
 };
 
