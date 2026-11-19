@@ -57,6 +57,8 @@ The layout is data: `OBS_LAYOUT` in `observe.ts` lists every block with its name
 
 What a seat may not know stays out: the order of the decks, `state.rng`, and `state.diceQueue`.
 
+**Version 3, in force since 18 November 2026.** The table above is version 2, as this stage built it. [M3b](m03b-table-politics.md) widened the risk block from the observer to every seat, with the rent each expects (12 numbers), and added a relations block (what has passed between each pair of seats, 24) and a deal-sheet block (what an open offer does to each seat's chance, 4): 1,023 numbers. It was built before M5's full sets of decisions are written, so that they are written once. The sets and clones made on 18 November are version 2; `train/data.py` and the client's forward pass refuse them. The final record of a game also names the member in each seat, so that the trainer can keep the learner's results by opponent.
+
 ### The ledger
 
 For each seat, from the game's events:
@@ -135,7 +137,7 @@ The potentials, each between 0 and 1:
 | `solvency` | The share of its property, by list price, that is not mortgaged. |
 | `eliminations` | Rivals it has bankrupted, over its rivals. |
 
-Any measure of standing can be added as a potential with one line: the name, and whether it is taken as a share.
+Any measure of standing can be added as a potential with one line: the name, and whether it is taken as a share. M3b adds a thirteenth, `threatDenial`: `denial` weighted by the chance of winning of the rival it stops.
 
 ### Configuration
 
@@ -302,6 +304,19 @@ Done on 18 November 2026, unattended; the details are in [log.md](log.md).
 | Through the server, two workers of 32 | 1,285 |
 
 The bridge costs about 15% over running in process. Eight workers on an idle machine should give roughly 5,800 to 6,800 a second; this is extrapolated, not measured.
+
+- **Rates on an idle machine,** measured on 18 November 2026 at 21:30 with only the usual desktop apps running, on layout version 3 (`$DATA_DIR/checks/bench-env-idle-v3.txt`, `bench-bridge-idle-v3.txt`):
+
+| Path | Learner decisions a second |
+| --- | ---: |
+| In process, one core: two, three, four players | 10,603, 5,415, 4,190 |
+| In process, four players, V1 left out | 4,704 |
+| Through the server, 1 worker × 16, 64, 256 environments | 2,736, 2,832, 2,970 |
+| 2 workers | 4,012, 4,147, 4,647 |
+| 4 workers | 4,763, 5,204, 5,959 |
+| 8 workers | 5,212, 6,036, 6,939 |
+
+The loaded figures above were a fifth of the idle ones. Eight workers of 256 environments clear the target of 5,000 a second, so task 12's remedies are not needed. The extrapolation was right.
 
 - **Not done.** The test of a full game driven by the rule-based agent through the environment's own indices, and task 8's check that a learner seat fed the baseline's choices wins an even share: the baseline's bids and offer prices are drawn from ranges that the bid and cash levels do not contain, so the mapping is not exact. Binary frames and the other remedies were not needed.
 - **Commit:** `cdcedc2`.

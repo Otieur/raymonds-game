@@ -2,7 +2,7 @@
 
 [ai.md](../ai.md) says what the learned opponents are for, what the simulations show and how the work is divided. The files here say how each stage is built: the files it adds, the formats it fixes, its tasks in order, its tests, its experiments and what they cost, the number that closes it, and what to do when that number is not reached.
 
-M0, M1 and M4 are done, M2 is built, M3 was run at reduced size, and M5's pipeline exists. [log.md](log.md) records the unattended work of 17 to 18 November 2026 step by step.
+M0, M1 and M4 are done, M2 is built, M3 was run at reduced size. M3b, table politics, was added on 18 November 2026 and run on 18 to 19 November; M5's remedies and value network and M6's first steps and G1 ran at the same time. [log.md](log.md) records the unattended work step by step. The runs stopped on 19 November at about 15:31; what was left is listed in log.md under "Where the runs stopped", and `$DATA_DIR/queue/resume.sh` starts it all again.
 
 | | Stage | Workstream in ai.md | Needs | Status |
 | --- | --- | --- | --- | --- |
@@ -10,18 +10,19 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size, and M5's pipeli
 | M1 | [Valuation](m01-valuation.md) | A | M0 | Done 18 November 2026: gate passed |
 | M2 | [Schools of play](m02-schools.md) | B | M1 for the presets that price by the valuation; nothing for the baseline preset | Built 18 November 2026; gate not met in full (33 of 36 bars) |
 | M3 | [Style search and the league](m03-search-and-league.md) | B, C | M2 | Run 18 November 2026 at reduced size; gate not met in full (bar 2 passed at every size; bar 1 failed at four players) |
+| M3b | [Table politics](m03b-table-politics.md) | K | M1, M2, M3 | Run 18 to 19 November 2026, in part. Bars 1 and 6 passed; bar 2 passed by means; bar 3 met by Early bird with the last street at today's price; bar 7 met at three players and not at four (an Envoy beside a False friend wins 2.3 points less than a Balancer; met narrowly with a smaller gift); bars 4 and 8 wait on runs; bar 5 not met by tables among refusers and the four-player style holder, whose games stall |
 | M4 | [The environment](m04-environment.md) | D, E | M1; can run alongside M2 and M3 | Done 18 November 2026: gate passed |
-| M5 | [Supervised learning](m05-supervised.md) | F, J | M3, M4 | Pipeline written; overfit check passed; gate waits for M3 |
-| M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5 | Not started |
+| M5 | [Supervised learning](m05-supervised.md) | F, J | M3, M4; M3b for the full sets of decisions | Remedies run 19 November 2026: none lifts the clone's own drafting (7%); with the baseline proposing it plays level with its teacher (24.8% against 24.0%). The value network is not yet better than V1 by its interval (bar 3 unmet) |
+| M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5; by the decision of 18 November it may start from the best clone to hand | Step 0d passed; step 0c not passed as specified (a shaped rerun is running). G1's first seed (19 November 2026) passes bars 1 to 3 on evaluation seeds: 89.3% against the baseline over 5,000 games, the refuser 58.1%. Bar 4 (promotion) not read; seeds 2 and 3 queued |
 | M7 | [The full game and the specialists](m07-full-game.md) | G | M6 | Not started |
 | M8 | [League training and the reward search](m08-league-training.md) | E, G | M7 | Not started |
 | M9 | [Trading](m09-trading.md) | H | M7; can overlap M8 | Not started |
 | M10 | [In the client](m10-in-the-client.md) | J | M5 for a first model; M9 for the last | Not started |
 
 ```text
-M0 ── M1 ──┬── M2 ── M3 ──┐
-           │              ├── M5 ── M6 ── M7 ──┬── M8 ──┐
-           └── M4 ────────┘                    └── M9 ──┴── M10
+M0 ── M1 ──┬── M2 ── M3 ── M3b ──┐
+           │                     ├── M5 ── M6 ── M7 ──┬── M8 ──┐
+           └── M4 ───────────────┘                    └── M9 ──┴── M10
 ```
 
 ## How a stage file is laid out
@@ -31,7 +32,7 @@ M0 ── M1 ──┬── M2 ── M3 ──┐
 | Purpose | What the stage is for, in a paragraph, and which requirements and findings of ai.md it answers. |
 | Deliverables | Every file added or changed. |
 | Specification | Interfaces, file formats, algorithms and settings, precise enough to implement from. |
-| Tasks | The work in order. Every task ends in a check that can pass or fail; there are 116 across the ten stages. |
+| Tasks | The work in order. Every task ends in a check that can pass or fail; there are 146 across the eleven stages. |
 | Tests | What goes into `test/` (or `train/tests/`) and stays there. |
 | Experiments and cost | What is run, on which seeds, how many games, and what that costs in engine time. |
 | Commands | The command lines the stage adds, as they will be typed. |
@@ -56,6 +57,8 @@ M0 ── M1 ──┬── M2 ── M3 ──┐
 | 2,500,000 to 2,999,999 | Checks during training: progress curves, choosing a checkpoint, the reward search (M6 to M9). |
 | 3,000,000 to 9,999,999 | The stored training sets of supervised learning, a block of 500,000 for each set (M5). |
 | 10,000,000 and up | Games a learner trains on. |
+
+Within the evaluation range, M3 read its gate from seeds 1,000,000 on, and M3b is given 1,100,000 to 1,199,999. Its search continues the style search's range from 2,050,000, with admission from 2,150,000.
 
 **Table sizes.** Every result is given for two, three and four players. An even share is 50%, 33.3% and 25%.
 
@@ -91,6 +94,8 @@ M0 ── M1 ──┬── M2 ── M3 ──┐
 | `replays/` | M6 and after | About 1.5 KB a game as a seed and a list of actions. Every game of a check, a gate or a match is kept; one training game in a hundred |
 
 A file system without links or permissions (exFAT, as external disks often are) is enough: every file is plain data written once. Programs write to a temporary name and rename, so that a disk unplugged mid-write leaves no half file under a real name.
+
+**When runs are made.** Set by the author on 18 November 2026. A run that plays games for data (a study, a probe, a search, a league report, decision sets, training, scoring) is made only while the data directory's disk is attached. When it is attached, the runs waiting in [log.md](log.md#runs-waiting-for-the-disk) are made in full, in order, without asking again. When it is not, no such run is made, at any size and to any other disk: the work is code, tests and documents. `npm test` and `npm run typecheck` are not runs in this sense and are always made.
 
 ## New against best
 
@@ -138,6 +143,8 @@ For a valuation there is no table. The challenger is promoted when its log loss 
 - **How many decisions reinforcement learning needs.** M6 fixes a first budget and a rule for what to do when it runs out.
 - **Whether shaping, the milestone potentials or the side predictions help.** Each is behind a switch, and M8 reports the ablation.
 - **Whether a learned agent that wins is also good company.** M10 ends with a person playing it.
+- **Whether table politics pays among these agents.** One behaviour of M3b has evidence behind it and is held to a result. The rest are measured and recorded whichever way they fall.
+- **How long M3b's runs take.** Its schools read the valuation for every candidate deal. Each run is timed on its first 200 games before it is sized.
 
 ## Decisions made while writing these plans
 
@@ -153,3 +160,14 @@ Detailing the stages changed eight things in ai.md. Each is argued in the stage 
 | A school is made of parts that can be taken from different schools, two schools can be blended, and a playbook of rules changes the parts with the position at every decision. A learned conductor chooses among schools turn by turn. | One fixed style for a whole game. | M2, M3, M8 |
 | A new version replaces the best so far only by beating it at the table, and every best-so-far is kept and played against. | Gates against fixed opponents only. | This file; every stage from M1 |
 | Training decisions are written to a large disk once and read many times. | Streaming them from the environment and keeping nothing. | M5 |
+
+Two more were made on 18 November 2026, by the author, after the first unattended run.
+
+| Decision | Instead of | Stage |
+| --- | --- | --- |
+| Whom a seat deals with, refuses and stops is designed in as its own stage, with a deal sheet that prices a deal for every seat. | Trading as a matter between two seats, left to M9. | M3b |
+| M6 may be written and started from the best clone to hand while M5's bar for the starting policy is unmet. The bar stays as written. | Nothing from M6 on before M5's gate. | M5, M6 |
+| A seat works against a leader, a person included, as far as serves its own winning. The level is set by its own win share. | A setting for how political opponents are. | M3b, M10 |
+| An alliance is asked for and answered with offers. Nothing is added to the game to talk with. Sending and reading are both designed. | A few fixed phrases between players. | M3b, M10 |
+| Agents may offer for a debtor's property at the moment of a debt, as the rules allow. | Agents that act only on their own turn. | M3b |
+| Runs that play games for data are made only while the data disk is attached, and then in full without asking. | Asking before each run; small runs to the system disk. | This file |

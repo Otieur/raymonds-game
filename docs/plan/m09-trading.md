@@ -1,0 +1,162 @@
+# M9. Trading
+
+## Purpose
+
+To let a learner make its own offers, and to measure whether it trades well. Trading is where a person most easily exploits an agent, where the choice is widest, and, by finding S7 of [ai.md](../ai.md), what decides whether games end. Until now the learner has answered offers and a school has proposed for it. The study shows how much rides on this (S5 and S6): today's agent gives its last streets away at twice their price, a player who refuses beats it, and a player who never proposes loses badly.
+
+The stage has to produce something the study could not: a measure of what a deal is really worth to each side, so that "trades well" is a number.
+
+## Deliverables
+
+| File | Contents |
+| --- | --- |
+| `scripts/probe-value.ts` | Extended from M1: changes of hands between two players. |
+| `scripts/make-offer-suite.ts` | Builds the suite of offers with measured answers. |
+| `test/fixtures/offers-*.json` | The suite. |
+| `scripts/trade-report.ts` | The three trading measures for a model. |
+| `src/env/actions.ts` | Selling for cash and second properties in a draft, if the decision below goes that way. |
+| `train/configs/trade-*.yaml` | The runs. |
+
+## Specification
+
+### What a deal is worth
+
+M1 measured what a purchase from the bank is worth by changing a position and playing it out. The same method prices a deal: take a position, apply the deal, play both versions out, and compare each side's win share. [M3b](m03b-table-politics.md) builds this first, for three kinds of deal among today's agent (a second street, a denying purchase, a purchase from a failing player), with the deal sheet that predicts the same figures from the valuation. This stage reuses both and plays the versions out with the league's best members.
+
+| Read | Meaning |
+| --- | --- |
+| The proposer's change | Whether the deal helps the one who offers. |
+| The receiver's change | Whether accepting is right. |
+| The largest change among the others | What the deal costs the rest of the table. With two players this is nothing; with more, a deal can help both sides and hurt everyone else. |
+
+Positions come from league games on seeds from 2,500,000, at rounds 10, 15, 20 and 30. Each version is played out forty times by the league's best fixed members, since the worth of a deal depends on how well the group it completes is then developed.
+
+### The offer suite
+
+Templates are filled from positions where they apply. Each case is then priced by the method above, and kept only if the receiver's change is clear: at least 5 points either way with the interval excluding zero. The label is the measured answer, not the template's intent.
+
+| Template | Intent |
+| --- | --- |
+| A street that completes the proposer's group, for cash at 0.5, 1, 2, 4 and 8 times its list price | Find the price at which accepting turns right. |
+| The same street, in exchange for a street that completes the receiver's group | A swap that completes both. |
+| The same swap, with the receiver left too short of cash to build | The reference style's question. |
+| A street the proposer has no use for, at 1.5 times list | An ordinary sale. |
+| A pass, to a proposer who holds none, one, two and three | What a pass is worth by how many it makes. |
+| A street for one coin, and a large sum for a street of no use | Offers nobody should refuse. The rules require both sides to hand something over, so nothing is given for nothing. |
+| The receiver's only blocking street, for cash, when the proposer has cash to build at once and when it has none | Whether the answer reads the proposer's funds. |
+| A second street of a group, to a proposer who holds one, at rounds 5, 10 and 20, with the third street in the bank and in a rival's hands | What a street is worth before a group lacks one (finding S16), and how fast that falls. |
+| A street the strongest rival lacks, asked for by a third seat, by that seat's rank | Whether the answer, and the price, read who is being stopped. |
+| A failing seat's best street, for cash that does and does not cover its largest due | Whether a failing seat should sell, and to whom. |
+| One swap that completes a group for each side, offered between two trailing seats and between a trailing seat and the leader | Whether the answer reads the partner's standing. |
+| An invitation as M3b defines it: a street the receiver needs, at its list price, from a trailing seat while a third seat leads | Whether accepting is right, and whether the offer that follows returns the favour. |
+
+Two hundred kept cases for each table size, half to accept and half to refuse. The suite is fixed once built and versioned; an agent is scored by the share it answers as labelled.
+
+### Switching drafting on
+
+Three steps, each from the last one's checkpoint, for the main agent of each size.
+
+| Step | Proposals | Run |
+| --- | --- | --- |
+| T1 | Made by the school, as before. The learner trains on answering with the suite in view. | The check every 100 updates adds the suite's score. No change to training. |
+| T2 | Half the learner's turns are proposed for by the school and half by its own draft actions. | 30 million decisions. The starting policy's pull is switched back on for the draft decisions only, toward the cloned offers of M5, falling to zero by half the run. |
+| T3 | All by the learner. | 50 million decisions. |
+
+The entropy bonus for the draft decisions starts at twice the general figure: an offer is cheap to try and the choice is wide.
+
+Through all three steps the opponents include, at double weight, the members that trade most by the descriptors of M2, and tables of the learner with copies of itself, where a deal that is good only because the other side is foolish does not exist.
+
+### What the learner sees of an offer
+
+Already in the observation of M4: what it would give and receive, the cash each way, the other party, each seat's chance of winning by the valuation, and each seat's funds. From M3b's version 3: what the deal does to each seat's chance by the deal sheet, what has passed between each pair of seats, and every seat's risk. This stage adds four numbers to the table block, which makes it layout version 4: whether the deal completes a set for the proposer; whether it does for the receiver; and how many buildings each side could pay for on that set afterwards, over 15. Models trained on version 3 are retrained from T1; the weights of the unchanged inputs carry over.
+
+### Whether to widen what an offer can be
+
+Version 2 of the actions asks for one property and gives at most one. Two things are missing: selling a property for cash, and deals of several properties.
+
+Before T2, count them: the share of accepted offers in league games that a draft could not have expressed (from M5's `teach` mode). The reference style's own account uses swaps with cash, which a draft can express, and says nothing of plain sales. If more than one accepted deal in ten is out of reach, add a draft that starts from "give" (a sale) before training; several properties a side are added only if that count, taken again, still exceeds one in ten.
+
+Decided on 18 November 2026, ahead of the count: the draft that starts from "give" is added. An invitation (M3b) is most often a sale at a favourable price, and a learner that cannot draft one could read signals and never send them. One more action, "ask for nothing", makes 189 and action version 3; a draft must still end with both sides handing something over, as the rules require. The count is still taken, for deals of several properties.
+
+### The three measures
+
+`scripts/trade-report.ts --model <weights> --size <n>` prints:
+
+| Measure | How | Bar |
+| --- | --- | --- |
+| **The suite** | The share of cases answered as labelled, by template. | At most 2% of the cases labelled "refuse" are accepted; at most 10% of those labelled "accept" are refused. |
+| **Dealing between copies** | 5,000 games at tables with two copies of the agent and league members in the other seats. For every accepted deal, the proposer's and receiver's change by the valuation. Compared between deals among the copies and deals with others. | Deals between copies are no more one-sided than deals with others: the mean of the larger side's gain minus the smaller's does not differ by more than its interval. |
+| **Trading against ruled trading** | The agent against a copy of itself whose offers and answers are replaced by the best fixed school's, as the one among copies, both ways round, 5,000 games each. | The learned trader wins more than an even share among the ruled copies, and the ruled copy wins no more than an even share among the learned. |
+
+It also prints offers made and accepted per game, the price over list of what it buys and sells, how often it completes a rival's group, and M3b's measures for a seat: early, denying and estate deals per game, asks per purchase, and the share of its deals made with the seat ranked first and with the seat ranked last. A learner that has found the table shows it there; one whose offers all come when it lacks one street has learned today's agent's habit and no more.
+
+## Tasks
+
+1. **Extend the intervention study** from M3b's three kinds of deal to every template of the suite, with playouts by the league's best members. *Check:* on cases where one side plainly gains (a property for nothing), it says so; on M3b's cells it reproduces M3b's signs.
+2. **Build the suite.** *Check:* 200 kept cases a size; every template has cases on both sides or is reported as one-sided.
+3. **Score today's agents on the suite:** the baseline, the refuser, the best found style, the M8 main agent. This is the picture before any training. *Check:* a table of the suite's score by template for the baseline, the refuser, the best style and the main agent.
+4. **Count the offers a draft cannot express.** Decide on selling for cash. *Check:* the share of accepted offers a draft could not express is recorded, with the decision it led to.
+5. **Layout version 4.** *Check:* M4's tests pass at the new size; the client's encoder and the trainer agree on the version.
+6. **T1, T2, T3** for each shipped size. *Check:* the checks of each step log the suite's score; after T3 the learner makes offers in most games and some are accepted.
+7. **`scripts/trade-report.ts`** on the result. *Check:* the three bars of the measures table.
+8. **Rerun M8's gate** with the new agents. Trading must not have cost them elsewhere. *Check:* the bars of G5, with the trading agent in the main agent's place.
+9. **Rerun the study** with the trading agents: with and without trading, the finishing rate of a table of them alone, the cash paid over list. *Check:* the study's trading tables for the new agents, beside those for the rule-based agent.
+10. **Write up.** *Check:* every figure quoted in the documents can be found in a report under the data directory, the Result section names the command, seeds and commit, and the link check passes.
+
+## Tests
+
+- A deal applied to a position by the study passes `checkInvariants` and leaves the table's total of cash and property unchanged.
+- Every case in the suite is an offer the engine accepts as valid in its position.
+- The suite is deterministic from its seed.
+- With drafting on, the mask tests of M4 pass, and a learner cannot send the same refused offer twice in a turn.
+
+## Experiments and cost
+
+| Run | Size | Cost |
+| --- | --- | --- |
+| Pricing candidate cases for the suite | About 1,000 candidates a size × 2 versions × 40 playouts | 240,000 part-games; about an hour of one core |
+| T2 and T3, each size | 80 million decisions | 4.4 hours a size at the planning rate |
+| The trade report | 15,000 games a size, with the network at every decision of a learned seat | Sized from M7's measurement of a learned game |
+
+## Commands
+
+```sh
+node scripts/probe-value.ts --deals --snapshots $DATA_DIR/snapshots > $DATA_DIR/probes/deals.md
+node scripts/make-offer-suite.ts --size 4 --cases 200 --out test/fixtures/offers-4.json
+node scripts/trade-report.ts --model assets/models/main-4.ts --size 4
+python train/branch.py --from $DATA_DIR/runs/league-4 --config train/configs/trade-t2.yaml --run $DATA_DIR/runs/trade-t2-4
+node scripts/promote.ts --line trader-4 --challenger $DATA_DIR/runs/trade-t3-4/exports/chosen.ts
+```
+
+## Gate
+
+At each shipped size:
+
+1. The three bars of the measures table.
+2. The gate of M8 still holds with the trading agent in place of the main agent.
+3. A table of the trading agent alone finishes at least 98% of its games within the turn limit.
+4. The trading agent holds `trader-<n>`: it won its promotion match against the holder of `main-<n>`, which is the same agent with a school making its offers.
+
+## Decision points
+
+- **The learner proposes nothing.** Proposing has a cost in steps and no reward until a deal lands. Hold the pull toward the cloned offers for the whole of T2, and add the school's own offers to the learner's experience as demonstrations.
+- **The learner floods the table with offers that are refused.** Lower `maxProposals` to one a turn, and mask an ask that the same partner has refused in the last three turns.
+- **Copies favour each other.** Train with at most one copy of the learner at a table for a while, then return to self-play with the measure in the checks. If it persists, give each copy's observation no way to tell a copy from another member: the habits and relations blocks are the only places it could, and they can be zeroed for a test. Favouring a partner for its standing is not this fault (requirement R11); the measure compares partners of the same rank.
+- **The learner's offers all come when it lacks one street.** It has copied the rule-based proposer. Double the weight of the M3b schools among the cloned offers that the pull of T2 points toward, and add the suite's second-street cases to the training games' starts.
+- **It fails the suite on one template.** Add positions of that template to the training games' starts, by setting up the position and playing on from it.
+- **Trading well costs strength elsewhere** (task 8 fails). Keep both: the M8 agent ships, and the trading agent ships as a second opponent, with the difference stated.
+
+## Feeds back into
+
+- [ai.md](../ai.md): workstream H rewritten around the measured worth of deals; findings S5 and S6 restated for agents that bargain; the open question on what holding a rival's missing street is worth, answered by the intervention study.
+- [statistics.md](../statistics.md): the trading tables for the new agents; the measures of bargaining position (wanted, chips) reported again, since their worth was expected to change.
+- [m04-environment.md](m04-environment.md): layout version 4, and any widened draft.
+
+## Out of scope
+
+- Free-form negotiation: counter-offers, conditions, promises. The rules have none.
+- Offers made out of turn, other than at a rival's debt. There M3b's window asks the school that proposes on the learner's behalf; whether the learner itself is asked is decided once M3b has measured what the window is worth.
+
+## Result
+
+Not yet run.

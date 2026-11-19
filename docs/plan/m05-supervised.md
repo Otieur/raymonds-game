@@ -28,6 +28,8 @@ It answers requirement R7 of [ai.md](../ai.md) in a first form, and R1: the star
 
 The teachers of a table size are the league members meant for that size whose rating in M3's report is above the baseline's. A teacher's weight is proportional to its Plackett-Luce strength, capped so that no teacher has more than 30% of the weight. A game for training seats teachers at every seat, each drawn by weight.
 
+The schools of [M3b](m03b-table-politics.md) that pass its gate join the teachers whatever their rating: they are the only members that ask for a street before a group lacks one, buy to deny, or buy from a failing player, and a learner cannot imitate a kind of offer no teacher makes. Their weight together is at least a fifth. The full sets are written after M3b, in layout version 3.
+
 One game in five is perturbed: at each decision, with chance 0.05, a random legal action is played instead of the teacher's, and the decision is recorded with what the teacher would have done. This puts positions in the data that good players do not reach, labelled with what a good player would do there.
 
 ### Data
@@ -137,6 +139,9 @@ It encodes the state for the acting seat, runs the network, masks, and takes the
 4. **`train/model.py`.** *Check:* an illegal action never has non-zero probability.
 5. **Overfit one batch.** Train on 4,096 fixed decisions until the agreement is above 99%. *Check:* it gets there; if not, the encoder or the labels are wrong.
 6. **Clone the baseline alone.** One teacher, one table size. *Check:* agreement above 95% on held-out decisions. The baseline is nearly deterministic, so anything less points at missing information in the observation.
+6a. **Score the clone as M6 will use it:** drafting off, the baseline proposing on its behalf (`evaluate.ts --proposer baseline`). In M6 a school starts the learner's offers, so the part of the clone's fault that lies in choosing to offer drops out. By the tally that is the smaller part (the clone already takes 74% of the positions the rules would offer in), so the gain should be modest; the task says how modest, and gives M6's step 0d the figure it must reproduce. *Check:* its win share over the same 400 seeds as the figures in Result, beside 24.0% for the rules; and offers sent per game.
+6b. **More perturbed games.** Write the corrected baseline set again with one game in two perturbed (`--perturb 0.5`), train as before, score on the same 400 seeds. *Check:* the win share, offers started per game and positions worth an offer per game (`evaluate.ts --tally`), beside the figures in Result for the clones trained with one game in five perturbed: 6.3% to 6.8%, about one offer started a game and 1.3 positions worth one.
+6c. **Three more rounds of correction,** each with the latest clone driving one seat of about a million decisions, trained on every set so far. *Check:* the same three figures after each round; the task stops early if two rounds in a row move the win share by less than its interval.
 7. **The starting policy** and **the style-conditioned policy.** *Check:* three seeds of each; the validation loss curves and the table of agreement by kind and by teacher are in the runs' directories.
 8. **The value network.** *Check:* the calibration table and the log loss beside V1's, on the validation set, for each table size.
 9. **`train/export.py`, `src/env/mlp.ts`.** *Check:* the parity test.
@@ -186,6 +191,7 @@ node scripts/evaluate.ts --model assets/models/start.ts --against baseline --siz
 - **Task 5 fails.** Stop. A network that cannot memorise 4,096 decisions means a bug: labels shifted by one step, a mask applied to the wrong row, an observation that does not match its decision.
 - **Task 6 falls short of 95%.** List the decisions it gets wrong by kind. A kind with low agreement is one whose observation lacks what the agent used: the usual suspects are the random part of a bid and of an offer's cash, which no observation can supply, and those are judged by level, not by exact match.
 - **The clone agrees with its teachers but plays below an even share.** Small errors compound in positions the teachers never visit. Raise the perturbed share of games from one in five to one in two, then add correction in the manner of DAgger: let the clone play, label its positions with the teachers' choices, and train on those.
+- **Still below an even share after those** (the state on 18 November 2026, after one round of correction). Decided by the author that day: run tasks 6a to 6c, which are cheap; write M6 meanwhile; and start M6 from the best clone to hand whatever they show. The bar is not lowered. It is reported as unmet until a clone or a learner meets it. The reasoning: a reward reaches positions that imitation does not, and in M6 a school makes the learner's offers, which is the part this clone does worst.
 - **The value network does not beat V1.** Check the split first: positions from one game must not sit on both sides. Then train longer. V1 has a few hundred weights and millions of rows; a network needs more data to pass it than to match it.
 - **A decision takes too long in the client.** Run the forward pass in a web worker so that the page does not stall; the 850 ms the client already waits before a computer player acts is the budget.
 
@@ -215,6 +221,21 @@ Run in part on 18 November 2026, unattended; the details are in [log.md](log.md)
 | 10. Learned agent | Done: no refused action over 400 games; 2 fallbacks in 70,064 decisions. |
 | 11. Scoring | The clone wins 8.5% (5.8 to 11.2) as the one among three baselines over 400 games, against an even share of 25%. Remedies tried, each scored on the same 400 seeds: one round of correction in the manner of DAgger (1,058,231 decisions with the clone driving one seat), 6.8%; its best epoch, 6.8%; decision sets rebuilt after a flaw was fixed (they had recorded every decision with two offers left in the turn), 6.3% (3.9 to 8.6). Diagnosis with `evaluate.ts --rules-for`: with its free turns made by the rule-based agent the clone wins 23.8%, level with the rules alone (24.0%); with its offers switched off, 5.5%; with the rules making only the decisions where an offer can be started (after the roll), 23.8%, but where building is legal, 8.0%, and where a mortgage can be lifted, 6.8%. Over 100 games the clone starts 0.9 offers a game and builds 7.6 times, against 3.1 and 14.8 for the rules in the same seat: it completes fewer groups because it proposes too rarely, and so has less to build on. Weighting the decisions that start an offer four times (94.7% matched on held-out decisions) leaves it at 6.8% and 1.1 offers a game: in its own games the rules would start an offer only 1.33 times a game, and it takes 74% of those. The clone's games drift away from positions worth an offer. One correction round on the corrected sets (1,132,262 decisions with that clone driving, offers weighted 4; 94.1% agreement) gives 7.5% (4.9 to 10.1), and the same 1.4 positions worth an offer a game. |
 | 12 to 14 | Not run. |
+
+**Next,** by the decision of 18 November 2026: tasks 6a, 6b and 6c on the baseline's clone, in that order, since 6a costs minutes and gives M6 its reference figure. Nothing of them has been run.
+
+**Run on 18 and 19 November with the disk** ([log.md](log.md#18-to-19-november-overnight-with-the-disk)).
+
+| Task | Result |
+| --- | --- |
+| 2 and 6 again, layout version 3 | The sets written again on the same games (2,286,484 and 192,700 decisions, the same counts). The clone: 93.1% agreement. |
+| 6a, the baseline proposing for it | 24.8% (26.5% and 23.0% in the halves) on the 400 seeds, against 7.0% with its own drafting and 24.0% for the rules in the same seat. With the baseline proposing, positions worth an offer come up 7.3 times a game against 1.5, and it builds 17.3 times against 7.0. |
+| 6b, one game in two perturbed | 93.1% agreement; 7.3% and 23.3%. No change. |
+| 6c, correction | Round 1: 94.7%, 6.5% and 22.3%. Round 2: 94.9%, 6.3% and 22.8%. Stopped by the task's rule after two rounds that moved the share by less than its interval. |
+| 8, the value network | Three attempts, none meets bar 3. The best (12,000 games a size, a sample of each game's decisions, weight decay): log loss 0.390, 0.402, 0.307 against V1's 0.396, 0.406, 0.554 at two, three and four players, no interval clear of zero; calibration gaps 7.9, 3.8 and 8.8 points. The first overfitted 3,000 games a size. |
+| The starting policy, for M6 | A clone over all three sizes wins 40.3%, 21.8% and 15.0% with the baseline proposing; a two-player clone 47.8% (sampling, 47.5%). One size at a time matches the teacher; three together do not, and why is not found. |
+
+So the clone's fault is its own offers, and in M6, where a school makes the learner's offers, a clone of one size starts level with its teacher. Bar 2 is not read: it asks for 1,000 games on evaluation seeds with the clone drafting for itself, which the plan wrote before drafting was split from the rest of play; with the baseline proposing the figure is level with the rules, and with its own drafting far below. Which of the two the bar means is the author's to say.
 
 **Gate:** not met; bars 1 to 3 need the teachers and the value network. Bar 4's timing part is met in the engine (2.1 to 4.3 ms a decision against 50 ms); the client was not tried.
 

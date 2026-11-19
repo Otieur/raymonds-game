@@ -141,6 +141,8 @@ A single rating hides cycles, so it is never printed alone.
 5. Cycles: every triple A, B, C in which A beats B, B beats C and C beats A as the one among copies, each by more than its interval.
 6. The mixed tables: win share by member, game length, the share of games not finished.
 
+[M3b](m03b-table-politics.md) adds to the report how often the seat ranked first at rounds 10 and 20 goes on to win, how often the lead changes and where bankrupt players' property goes; and a third kind of table, named seat by seat, for questions that one seat among copies cannot answer.
+
 ## Tasks
 
 1. **`league.ts`** with the fixed members and the presets. *Check:* every member plays 100 games at each of its sizes without a refused action.

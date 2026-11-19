@@ -134,6 +134,8 @@ export interface Style {
 
 Ten of these fields are new behaviour that today's agent does not have: `mortgageToBuy`, `declinePoor`, `driveUp`, `buildSpread`, `buildNear`, `jailStayBuilt`, `sellOffers`, `distressOffers`, `shunLeader` with `giveUpBelow`, and `afterFirstGroup`. Each exists because a school below cannot be written without it.
 
+**Added after this stage.** [M3b](m03b-table-politics.md) specifies twenty-two more fields, for table politics: asks priced by value and made again, asks for a second street, denying, estates, answers by the deal sheet, and hunting. With each at its default the agent is still today's agent. The Reference preset below holds only the outline of the author's play, as it was told on 17 November 2026; his trading, told on 18 November, is in M3b's Reference II, and the Reference preset is kept unchanged as the record of this stage's runs.
+
 ### Mixing schools, and playing the position
 
 **Parts.** Every field of a style belongs to exactly one of seven parts.

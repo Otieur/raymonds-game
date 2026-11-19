@@ -798,7 +798,58 @@ Each interval is about ±3 to ±7 points; a cell is 50 positions. The rate of co
 
 These figures describe games among the rule-based agent, which buys at list price whenever it can afford to. Against players who decline and bid, the first street of a group may be worth less still.
 
+### The second street, by round
+
+The tables above are for round 10. The same study ran rounds 5 and 20, and read across the rounds it shows something the first write-up did not draw out: with three or four players, early in the game, the second street of a group of three is worth nearly as much as the last. Each figure is the gift's effect in points of win share with its interval, 50 positions a cell; the full table is `$DATA_DIR/probes/purchases.md`.
+
+4 players. The seat holds one street and is given a second; and, for comparison, holds two and is given the last.
+
+| Group | Second street: round 5 | Round 10 | Round 20 | Last street: round 5 | Round 10 | Round 20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Chain Stratagem | +33.0 ± 6.1 | +21.8 ± 6.3 | +5.0 ± 3.4 | +33.0 ± 7.2 | +24.2 ± 6.2 | +10.3 ± 5.4 |
+| House of Yuan | +25.3 ± 6.8 | +18.8 ± 6.3 | +6.0 ± 3.6 | +47.0 ± 5.3 | +21.8 ± 6.5 | +10.8 ± 5.0 |
+| Cao Wei | +30.3 ± 6.0 | +24.8 ± 6.1 | +7.5 ± 4.1 | +43.8 ± 5.5 | +26.8 ± 5.5 | +21.0 ± 6.2 |
+| Shu Han | +19.3 ± 5.8 | +14.8 ± 5.5 | +9.5 ± 4.4 | +44.8 ± 6.2 | +26.5 ± 6.8 | +12.8 ± 4.7 |
+
+3 players.
+
+| Group | Second street: round 5 | Round 10 | Round 20 | Last street: round 5 | Round 10 | Round 20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Chain Stratagem | +25.0 ± 5.6 | +14.5 ± 5.8 | +4.5 ± 5.0 | +35.3 ± 5.4 | +31.0 ± 6.4 | +14.8 ± 5.5 |
+| House of Yuan | +20.8 ± 5.6 | +12.0 ± 4.9 | +5.8 ± 4.0 | +41.5 ± 5.7 | +32.5 ± 6.6 | +11.3 ± 4.7 |
+| Cao Wei | +23.8 ± 6.1 | +14.8 ± 5.5 | +10.5 ± 5.3 | +48.0 ± 6.0 | +26.5 ± 5.4 | +19.8 ± 6.1 |
+| Shu Han | +13.0 ± 5.8 | +7.8 ± 5.5 | +3.0 ± 3.3 | +40.0 ± 6.3 | +30.0 ± 5.8 | +12.8 ± 4.5 |
+
+- **At four players a second street of Chain Stratagem or Cao Wei, up to round 10, adds 22 to 33 points of win share,** against 24 to 44 for the last street. Buying it at list price still gains 10 to 28 points.
+- **The worth falls fast.** By round 20 a second street adds 5 to 10 points at four players.
+- **With two players it is worth little:** 4 to 8 points at round 10 (the table above).
+- **Why it is worth so much here.** Among the rule-based agent the holder of the last street sells it for about twice its list price, so a seat with two streets of three nearly always gets the third. The figure is the worth of a second street at a table of cheap sellers. Among players who do not sell it will be lower, and that has not been measured.
+- **No agent acts on it.** The rule-based agent and every school propose only when they lack one street. The study of table politics ([plan/m03b-table-politics.md](plan/m03b-table-politics.md)) adds agents that ask earlier, and measures the same deal when it is bought from a rival and not given by the bank.
+
 The full table, every cell at every round and size, is printed by `node scripts/probe-value.ts`.
+
+### Bought from a rival: the probe of deals
+
+The same method, applied in M3b to deals between seats ([plan/m03b-table-politics.md](plan/m03b-table-politics.md#the-probe-changes-of-hands)): each position is played on with the deal and without it, 8 times each, with the rule-based agent at every seat, up to 50 positions a cell from the test games of M1's snapshots. 13,595 positions, 276 cells, 274 of them with at least 30 positions. Report: `$DATA_DIR/probes/hands.md`, made by `node scripts/probe-hands.ts`.
+
+**The deal sheet against the measurement.** Of the 136 cells whose measured change for the buyer is clear of its interval, the sheet has the same sign in 131 (96.3%); over the 274 usable cells the rank correlation of the two is 0.865. The five wrong signs are all second streets, four of them at three players, bought at round 10 or later or above list price, where the true change is small. In size, the sheet understates a second street bought while the last is with a third seat: for Chain Stratagem at round 5 at four players, 33.5 points measured against 21.2 by the sheet.
+
+**A second street bought at list price, four players,** in points of win share for the buyer, with half the 95% interval. "Bank" means the third street is still with the bank; "seat" that a third seat holds it.
+
+| Group | Round 5, bank | Round 5, seat | Round 10, bank | Round 10, seat | Round 20, bank | Round 20, seat |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Chain Stratagem | +18.3 ± 5.7 | +33.5 ± 7.1 | +10.8 ± 6.1 | +19.5 ± 6.5 | +2.8 ± 3.9 | +7.5 ± 5.7 |
+| House of Yuan | +9.3 ± 4.9 | +20.0 ± 6.3 | +3.3 ± 4.7 | +15.3 ± 5.7 | +1.3 ± 3.7 | +4.0 ± 4.8 |
+| Cao Wei | +16.0 ± 6.1 | +29.8 ± 6.9 | +7.5 ± 5.2 | +13.0 ± 7.0 | +7.5 ± 4.3 | +6.8 ± 6.3 |
+| Shu Han | +6.5 ± 4.6 | +7.2 ± 5.0 | +1.0 ± 5.1 | +5.3 ± 5.2 | +1.5 ± 4.5 | +2.5 ± 5.1 |
+
+- **About half the gift.** Averaged over the four groups, a second street bought at list price at round 5 adds 12.5 points (bank) and 22.6 (seat), against 19 to 33 when the bank gives it (the table above). The cash paid strengthens the seller.
+- **The price matters.** At twice list the same averages fall to 4.4 and 9.9 at round 5, and Shu Han loses at any price above list.
+- **Three players.** Worth it only at round 5 and at up to one and a half times list: Chain Stratagem +12.5 ± 5.3 (bank) and +31.8 ± 5.1 (seat) at list price, Cao Wei and House of Yuan about +10. By round 10 most cells are within their intervals of zero, and Shu Han loses at every round.
+- **Denying is worth little.** Buying from a third seat the street a rival lacks adds about 1 point at list price at four players, whether the buyer is the rival's nearest opponent, the middle one or the last; at twice list it loses 2 to 6 points; at three players it loses in most cells. The probe plays on with the rule-based agent, which sells such a street on for twice its price, so a denial that is held is not what was measured.
+- **Estates.** A failing seat's unbuilt street that the buyer wants, at list price, adds +5.8 ± 3.1 at round 5 and +5.8 ± 4.3 at round 10 at four players, and nothing measurable at three. Buying the one the strongest rival wants gains nothing at four players and loses about 5 points at three.
+
+What these deals do as habits of a whole game, rather than as single deals, is in M3b's Result: early asks pay at three and four players once the last street keeps its usual price; denying and estates, as first priced, did not.
 
 ## The named schools
 

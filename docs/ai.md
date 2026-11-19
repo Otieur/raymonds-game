@@ -113,6 +113,14 @@ The study behind this section is 706,000 games; [statistics.md](statistics.md) h
 | S13 | **Landings are uneven and do not depend on the table size.** | Sides two and three take 28.1% each, sides one and four 23.8% and 23.9%. ChiBi takes 7.0%. | The static return V0 (A). The order of building (B). Landing rates among the property facts in the observation (D). |
 | S14 | **The short game is much shorter only with four players.** | 145 turns against 188 with four players; 138 against 146 with two; 156 against 168 with three. | The curriculum uses the short game only at four players (G). |
 | S15 | **The bank runs out of buildings in ordinary play.** | 3.3, 6.5 and 8.1 building auctions in a game with two, three and four players. | `holdHouses`, the Cornerer school (B). The Supply potential (E). |
+| S16 | **Early, with three or four players, the second street of a group is worth nearly as much as the last, as a gift. Bought from a rival it is worth about half that, and still worth asking for at four players.** | Measured by intervention (M1), among today's agent. At four players a second street of Cao Wei given by the bank adds 30, 25 and 8 points of win share at rounds 5, 10 and 20; the last street adds 44, 27 and 21. Chain Stratagem: 33, 22 and 5 against 33, 24 and 10. At three players the second street of Chain Stratagem, House of Yuan and Cao Wei adds 21 to 25 points at round 5. At two players it adds 4 to 8 at round 10. See [statistics.md](statistics.md#the-second-street-by-round). Bought from a rival (the probe of M3b, 19 November): at four players +12.5 to +22.6 points at round 5 at list price, +4.4 to +9.9 at twice list, +5.6 to +13.2 at round 10, about +3 to +5 at round 20; at three players worth it only at round 5 and up to one and a half times list. The cash paid strengthens the seller. As a school: early asks before round 5, with the last street priced as today's agent prices it, win **+2.4 (0.5 to 4.3)** points at three players and **+9.7 (7.9 to 11.4)** at four over 5,000 paired games. | Early asks (K, [M3b](plan/m03b-table-politics.md)), in the preset `early-bird-2`, and in the teachers and schools of later stages. Only before round 5 to 8, and never with the last street priced low (S20). |
+| S17 | **Half of all groups are first completed from a bankrupt player's estate.** | At four players the last street of Chain Stratagem, House of Yuan, Cao Wei and Shu Han comes by trade in 37% to 46% of cases and from a bankruptcy in 49% to 57%; a game has 2.9 bankruptcies, nearly all to another player. A failing seat's useful street bought at list price adds about 6 points at four players at rounds 5 and 10 (the probe: +5.8 ± 3.1 and +5.8 ± 4.3), and nothing measurable at three. As schools with the pricing flaw of S20, buying estates early lost among today's agent (Undertaker −6.4 and −4.8, Broker −6.5 and −4.9, Scavenger at the debt window −7.4 and −5.1 at three and four players) and won among the strong style holders (Undertaker 23.0% and 28.3% against the baseline's 19.8% and 11.0%). With the flaw fixed: Undertaker +1.1 and +4.3, Scavenger +0.6 and +3.6, so level at three players and ahead at four. | Estates stay in K's schools, with S20's fix. |
+| S18 | **Refusing the leader alone loses; trading on worse terms with it and better with trailing seats does not, and at four players two seats doing it cut the leader's lead. At three players two such seats lose.** | A school that makes and takes no deal with the seat ranked first wins 23.2% and 16.3% with three and four players, below an even share: it gives up its own deals and the other seats go on selling to the leader. Balancer, which answers by the sheet and favours trailing seats, wins +5.6 points at three and at four players as the one seat doing it, once S20's flaw is fixed (−1.6 and −3.6 with it); Patron likewise. Answering by the sheet alone is worth 4 to 6 of those points (S22). At a four-player table of the `style-4` holder, a baseline and two fixed Balancers, the holder wins 34.2% against 37.7% beside three baselines, the two Balancers together 46.7% against 41.5% for two baselines in the same seats, and the seat ranked first at round 20 goes on to win 65.8% against 71.2%; 96.7% of games finish against 99.8%. A third Balancer adds nothing. At three players, beside the `style-3` holder, two fixed Balancers win 34.3% together against 42.8% for two baselines, and the holder rises from 57.2% to 65.7%. | Working against a leader is measured at tables of two (K). The settings of `againstLeader` and `forWeak` (M3b task 16a) are being run, at both sizes. Leader conversion at round 20 fell by 5.4 points, past the 5 that M3b set for specifying a field for hiding a lead. |
+| S19 | **Stopping a rival is worth little, whoever does it.** Restated: the first form, that it is worth most to the seat nearest the rival, is not supported. | The form of V1 suggested it: chances add to one, so a rival's gain comes from the others roughly in proportion to what each has. Measured by the probe of M3b: buying from a third seat the street a rival lacks adds about 1 point at list price at four players, whatever the buyer's rank, loses 2 to 6 at twice list, and loses at three players. Warden, which does it, loses 7.7 and 5.6 points at three and four players with S20's flaw, and with it fixed draws at three players and wins 4.0 at four; it makes 0.04 denying deals a game, so its result is its pricing, not its denials. The probe plays on with today's agent, which sells such a street on for twice its price, so a denial that is held was not what was measured. | Denying stays a field and leaves the presets offered to a player. Warden is measured again with `denyRank: 2`. |
+| S20 | **A seat that asks a low price for the street that completes a group loses the completions that win games.** | Pricing every ask by its worth to the seat in a deal with that holder asked for a last street at about a third of that worth, where today's agent offers 1.7 to 2.2 times list. Alone, that pricing loses 5.7 points at three players and 6.9 at four. Early asks on top of it gain back +3.0 and +7.0; with today's price for the last street the same school gains +2.4 and +9.7 against the baseline. Six more schools run again with that price each gain 6.5 to 9.6 points, and at four players each then beats the baseline by its interval: Balancer +5.6, Patron +5.6, Undertaker +4.3, Warden +4.0, Scavenger +3.6, Envoy +3.2. | The field `completeBy: 'list'` keeps today's price for the completing street. Proposed for every school that prices by value; the presets keep the recorded form until the author decides. |
+| S21 | **Political play loses among players who sell cheaply and wins among players who do not.** | As the one seat among copies of the style holders (found-3-b2t2p1c1; found-4-b2t1p1c2, which is Sky rush), 2,000 games: the baseline wins 19.8% and 11.0% at three and four players; Early bird 24.7% and 33.4%; Warden 23.1% and 29.9%; Undertaker 23.0% and 28.3%; Balancer 26.1% and 41.8%; the Statesman 36.6% and 45.4%. Among today's agent most of the same schools lose (M3b's table of worth). The baseline's four-player tables there finished 74% of their games against 92% to 99% for the others. | The league must hold strong opponents that do not sell cheaply, or a learner learns only to farm the cheap seller (S5). A school is judged among both. |
+| S22 | **Mortgaging idle property to build is worth 7 to 11 points; hunting a failing seat adds nothing.** | Hunter, which mortgages to build and builds where a failing seat is about to land, wins +11.4 and +6.7 points at three and four players against the baseline, and +0.1 and +0.1 against the baseline with `mortgageToBuild` alone. Likewise Grudger's +6.4, +6.9 and +4.7 come from answering by the sheet: against that base it gains +1.5, +1.1 and +0.4. | `mortgageToBuild` and answering by the sheet belong in the search's starting archive and in the teachers. |
+| S23 | **An offer that asks for a partner pays at three players and costs at four.** | Two Envoys, which send invitations (offers that favour the receiver while a third seat leads) and read them, against two Balancers in the same seats, 5,000 games: at three players +5.8 points for the pair (40.4% against 34.6%), where an invitation nearly always goes to the other Envoy; at four players level (46.5% against 46.8%), and the baseline in the fourth seat gains 4.3 points, because it takes invitations and answers about 8% of them. Beside a False friend, which invites and never returns, an Envoy does as well as a Balancer at three players and 2.3 points worse at four; a smaller gift (`giftEdge: 1`) halves the loss, a larger one (4) does not help. | Signals stay for three players. At four players a reader needs a reason to answer, which the agents of today do not have; the question passes to the learners of M8 and to the person's check in M10. |
 
 ### The reference style against the figures
 
@@ -134,7 +142,12 @@ The plan takes one style from a person as a reference ([workstream B](#b-schools
 | Auction ceilings by side: 250 on side one, 350 on side two, 400 for Shu Han, 350 for Eastern Wu, 550 for House of Sima. | By what one street is worth on its own: low for Chain Stratagem (340 to 361) and Cao Wei (389 to 413); about right for Han Court (213 to 224), House of Yuan (288 to 327) and House of Sima (532 to 637); high for Shu Han (216 to 253) and Eastern Wu (191 to 201). A street that completes a group is worth more than these figures. |
 | Keep about 200 in cash, more late. | The direction is supported: with the rent roll held equal, spare funds carry the second largest weight. The level is for the style search to set. |
 | When the table will not trade, collect passes and block. | Supported. Without trade half of four-player games see no group completed, four passes are worth two and a half times their price, and a player who never sells wins more than an even share. |
-| Mortgage idle property in order to build. Limit the cash a trading partner is left with. | Not tested. Today's agents mortgage only to pay a debt and never negotiate. |
+| Mortgage idle property in order to build. Limit the cash a trading partner is left with. | The first half is confirmed and large: mortgaging to build is worth 7 to 11 points at three and four players (finding S22). The second is not tested. |
+| Buy toward a group many rounds before it lacks one street. | Supported with three and four players, early: before round 5 it wins 2.4 points at three players and 9.7 at four, provided the last street is still paid for at today's price (findings S16, S20). Not with two, where a second street adds little. Among the strong style holders, who do not sell cheaply, Early bird wins 24.7% and 33.4% against the baseline's 19.8% and 11.0%. |
+| Pay a high price for a useless property to stop a strong rival. | Not supported among these agents: a denial is worth about a point at list price and loses at twice list, whatever the buyer's rank (finding S19). |
+| Buy a failing player's property long before the bankruptcy. | The stake is large: half of all groups are first completed from an estate (finding S17), and a failing seat's useful street at list price is worth about 6 points at four players. As a school with the price of finding S20 fixed, it draws at three players and wins about 4 points at four. |
+| Behind, work with the weak against the strong; ahead, choose a partner before being ganged up on. | Supported at four players, not at three. One seat refusing the leader loses (finding S18), but one seat trading on better terms with trailing seats wins 5.6 points, and at four players two such seats take 5.2 points more than two baselines would and cut the leader's share by 3.5. At three players two such seats lose 8.5 points and the leader gains. Asking a partner with a favourable offer works at three players and not at four (finding S23). |
+| The whole style, as told (Reference II). | Better than the outline of M2 at every size: +6.1, +5.4 and +2.6 points against the Reference, each interval above zero; with the last street at today's price, +4.3, +3.8 and +3.7. Against the baseline +4.4, +3.3 and −2.4. |
 
 ## The plan
 
@@ -152,6 +165,7 @@ The plan takes one style from a person as a reference ([workstream B](#b-schools
 | R8 | **Evidence.** A stage is done when a number beats a baseline, with an interval that excludes luck. | The [evaluation protocol](#evaluation-protocol). |
 | R9 | **The plan moves.** Each milestone ends by rerunning the study with the new agents and revising this document. | The milestone table. |
 | R10 | **Play the position.** A school is an ingredient, not a cage. Agents combine schools, part by part, and change plan as the position changes, looking again at every decision. | Written playbooks and a learned conductor are each compared with the best fixed school at every table size; the learned agent's play is shown to differ between the opening, the middle and the endgame. |
+| R11 | **Play the table.** With three or four players, whom a seat deals with, refuses and stops is strategy of the first rank: buying toward a group early, buying to deny a strong rival, buying a failing player's property before the bankruptcy, working with the weak against the strong, choosing a partner when ahead, asking again as the position changes, and asking for an alliance, and reading such a request, through offers alone. Agents weigh what a deal does to every seat, not only to the two that make it. The plan looks for such strategy on its own account and does not wait to be told of each. | Each behaviour is a school with a measured result ([M3b](plan/m03b-table-politics.md)); the league reports how often a leader goes on to win; a learned agent's deals are shown to depend on the standing of its partner and never on whether the partner is a person. |
 
 ### Overview
 
@@ -174,7 +188,7 @@ The plan takes one style from a person as a reference ([workstream B](#b-schools
                                                           J. assets/models/ in the client
 ```
 
-The order matters. A, B and C need no neural network and no bridge to Python: they run on the engine alone, at about 44 four-player games a second on one core. They produce the opponents, the valuation and the yardsticks that every later stage is judged by, and they answer R1, R2 and R5 in a first form before any training starts.
+The order matters. A, B and C need no neural network and no bridge to Python: they run on the engine alone, at about 44 four-player games a second on one core. They produce the opponents, the valuation and the yardsticks that every later stage is judged by, and they answer R1, R2 and R5 in a first form before any training starts. Workstream K, table politics, was added on 18 November 2026 and runs on the engine alone as well, after C and before the teachers of F are chosen.
 
 Processes during training:
 
@@ -206,6 +220,7 @@ Proposed layout:
 | `src/sim/style-agent.ts`, `src/sim/styles.ts` | The parameterised rule-based agent and its named presets. | B |
 | `src/sim/parts.ts`, `src/sim/signals.ts`, `src/sim/playbook.ts` | The parts of a style; what a playbook can see of a position; playbooks. | B |
 | `scripts/search-styles.ts` | Searches the style parameters for strong and different styles, and searches for playbooks. | B |
+| `src/sim/deal.ts`, `src/sim/relations.ts`, `scripts/table.ts` | What a deal does to every seat's chance; what has passed between each pair of seats; one named table played many times, with its political measures. | K |
 | `scripts/promote.ts`, `assets/lines.json` | A new version against the best so far; who holds each line. | all |
 | `scripts/league.ts` | Plays every member against every other and rates them. | C |
 | `src/env/` | The environment over the engine: ledger, observation encoder, action codec, potentials. The network's forward pass and the learned agent for the client. | D, E, J |
@@ -298,6 +313,8 @@ About sixty numbers once the per-set values are counted. The agent built from to
 
 A survey of published strategy added schools that these parameters could not express, and ten fields to express them: a preference for chosen sets (`prefer`), mortgaging in order to buy (`mortgageToBuy`), declining so as to buy at auction when rivals are short of cash (`declinePoor`), bidding a rival up on what it needs (`driveUp`), taking one group to the target before the next (`buildSpread`), building only when a rival is within reach (`buildNear`), staying in jail once rivals have built (`jailStayBuilt`), offering property for sale and making low offers to a rival in debt (`sellOffers`, `distressOffers`), refusing to deal with the leader and selling out when lost (`shunLeader`, `giveUpBelow`), and a second set of values once the seat's first group is built (`afterFirstGroup`). The full type, with every default and rule, is in [M2](plan/m02-schools.md).
 
+Twenty-eight more fields are planned for table politics (workstream K): asks priced by what a property is worth and made again as the position changes, asks for a second street, purchases that deny a rival, purchases from a failing player, answers that weigh what a deal does to every seat, offers at the moment a rival cannot pay a debt, invitations to an alliance sent and read through offers alone, and building where a failing player is about to land. They are specified in [M3b](plan/m03b-table-politics.md), and were built and tested there on 18 November 2026. None has yet been measured in a run.
+
 **The reference style.** One style comes from a person: the way the project's author plays the classic game, translated to this board by position. It is recorded here as a preset, and it is the first school the plan implements after the baseline. It is a reference and an opponent, not a target (R1).
 
 | Decision | Reference style |
@@ -310,6 +327,13 @@ A survey of published strategy added schools that these parameters could not exp
 | On completing a group | Builds at once to three on every street, mortgaging idle property to pay for it. Builds first on the squares that cards send players to. |
 | Cash | Keeps about 200, more late in the game, when one landing can cost over 600. |
 | Trading | Trades to complete a set. When a deal completes a set for the other side as well, limits the cash they are left with, so that they can afford only a few buildings. |
+| Buying early | Holding one street of a group of three while a rival holds another and the third is unowned, weighs the group's strength, the table, the positions and the chances of winning, and trades for the second street many rounds ahead. No fixed price: it depends on the position. |
+| Asking again | Who holds the last street matters. Offers for it again and again over many rounds, to test whether the holder will let it go, because a person's answer changes with the game. |
+| Denying | Buys, or trades for, what a strong rival needs, and will pay a high price for a property of no other use. A strong rival is judged by its property, how near a group is to complete, whether it is about to build, whether someone is about to land on it, and its chance of winning. |
+| Estates | Whoever bankrupts a player takes that player's property. So buys a failing player's important property, important to the author or to a strong rival, long before the bankruptcy. A failing player is judged by cash, mortgages, the rents ahead and the chance of winning. |
+| Alliances | When behind, picks weaker players to work with against the strong one. When ahead, picks a partner first, so as not to be ganged up on. Asks for an alliance by the offers he makes and reads the same from others; nothing is said. How far to go against a leader has no fixed answer: as far as helps him win. |
+
+The last five rows were added on 18 November 2026. The Reference preset of M2 predates them and holds only the outline of this style, so its results (about an even share or less) do not describe the author's play; [M3b](plan/m03b-table-politics.md) adds the fuller preset.
 
 The study already bears on most of these beliefs; see [The reference style against the figures](#the-reference-style-against-the-figures).
 
@@ -396,6 +420,9 @@ The league is the set of agents everything is measured against. It starts with t
 
 - *One among copies:* one seat for agent X, the others for copies of agent Y. Played for every ordered pair, it gives a matrix of win shares for each table size.
 - *Mixed:* every seat drawn at random from the league. Closer to real play, and the place where three-way effects such as kingmaking show.
+- *Named:* a table whose seats are chosen, such as a strong member, a baseline and two seats of one political school, set against the same table with two baselines in their place. One seat among copies of another cannot show whether two seats working against a leader gain by it; this table can (K).
+
+**Measures of the table.** Besides who wins, the report gives how often the seat ranked first by the valuation at round 10 and at round 20 goes on to win (among today's agent: 56.8% and 70.5% with four players), how often the lead changes, and what share of bankrupt players' property goes to the seat that was ahead. Where trailing seats work against a leader the first figure falls.
 
 **Rating.** `scripts/league.ts` plays the tables and reports, for each table size: the matrix, each member's worst row (the opponent it does worst against), and a rating fitted to finishing orders by a Plackett-Luce model (Hunter, 2004), which handles games of more than two players and, with every game in hand at once, needs no game-by-game update. Strategies in this game need not be transitive: A may beat B, B beat C and C beat A. A single rating hides that, so the matrix is always reported with it.
 
@@ -437,7 +464,7 @@ interface Step {
 
 **The ledger.** The state says where things stand, not how the table has behaved, and the second is what a player reads to decide whether to play for sets or for passes. The environment therefore keeps a ledger for each game, built from the engine's events, and the encoder reads it. For every seat it holds running counts: properties bought and declined at list price; auctions entered, the highest bid made as a multiple of list price, auctions won; trades proposed, accepted and rejected, as proposer and as receiver; buildings bought and sold; mortgages taken; average cash at the start of its turns. The same ledger code runs in the client, fed by the same events.
 
-**Observation, version 2.** A flat vector of 985 numbers. [plan/m04-environment.md](plan/m04-environment.md) gives every block to the last number; the table here is the outline.
+**Observation, version 3.** A flat vector of 1,023 numbers. [plan/m04-environment.md](plan/m04-environment.md) and [plan/m03b-table-politics.md](plan/m03b-table-politics.md) give every block to the last number; the table here is the outline. Version 2 had 985 numbers. Version 3, built on 18 November 2026, widened the risk block from the observer to every seat and added what table politics needs: what has passed between each pair of seats, and what an offer does to each seat's chance. A model or a decision set of version 2 is refused, not misread.
 
 | Block | Per item | Items | Numbers |
 | --- | --- | ---: | ---: |
@@ -447,7 +474,9 @@ interface Step {
 | Properties | owner (one-hot: bank and four seats), mortgaged, level (one-hot over six), is the subject of the open decision, I would receive it, I would give it | 28 | 420 |
 | Property facts | price, landing rate, rent at the current level, the share of its set I hold, the largest share one rival holds, would complete a set for me, would complete one for a rival | 28 | 196 |
 | Table | phase, doubles so far, round, buildings left in the bank, kind of open decision (one-hot), high bid, who is still bidding, debt and creditor, the offer on the table or being drafted, table size (one-hot), players still in, short or full game, my place in the order of play | 1 | 47 |
-| Risk | the largest rent I could owe on my next roll, and the rent expected | 1 | 2 |
+| Risk | the largest rent or tax the seat could owe on its next roll, the amount expected, and the rent it expects from the others' next rolls | 4 | 12 |
+| Relations | deals between each pair of seats (6); for each rival: offers refused each way, the highest multiple of list price it refused from me, turns since my last offer to it, goodwill each way | 3 | 24 |
+| Deal sheet | what the offer on the table, or my draft so far, does to the seat's chance | 4 | 4 |
 
 Amounts are divided by the starting cash. The property facts repeat what a policy could work out from ownership alone; they are there because they are cheap, and because the study shows they are what winning turns on.
 
@@ -516,6 +545,9 @@ F = β · (γ · Φ(next state) − Φ(state)),   Φ = 0 at the end of the game
 | Supply | The seat's share of the buildings in play, counted only while the bank is short. |
 | Solvency | The share of the seat's property that is not mortgaged. |
 | Eliminations | Rivals the seat has bankrupted, as a share of its rivals. |
+| Threat denial (M3b) | Denial weighted by whom it stops: over the groups where the seat holds the one street a rival lacks, that rival's chance of winning. |
+
+No new term is needed for buying toward a group early. The value potential already pays for a second street by what the valuation says it is worth, which finding S16 puts close to the worth of the last.
 
 Why potentials and not bonuses: a bonus paid when something happens can be farmed. Pay for the third building and a policy can learn to build, sell and build again. A potential pays for holding the thing and takes the payment back when it is lost, so a loop earns nothing. One of the environment's tests checks exactly this.
 
@@ -535,7 +567,7 @@ The list is a start, not the whole of R4. Every measure of standing in workstrea
 
 The schools are free teachers. This stage uses them to prove the pipeline and to give reinforcement learning somewhere to start.
 
-**F1. Data.** Games among league members at all three table sizes give, for every decision that is not forced: the observation, the mask, the action taken, the school that took it, and how the game ended for that seat. Ten thousand four-player games give about 7.8 million decisions, forced ones included; the engine plays them in about four minutes on one core before the cost of encoding. At 985 numbers a decision that is about 2 KB, so the training sets are written once to a large disk by `scripts/make-dataset.ts` and read many times: every run then sees the same data, and a pass over a file is faster than playing the games again. A share of the games has random moves mixed in, so that the data covers positions good players never reach.
+**F1. Data.** Games among league members at all three table sizes give, for every decision that is not forced: the observation, the mask, the action taken, the school that took it, and how the game ended for that seat. Ten thousand four-player games give about 7.8 million decisions, forced ones included; the engine plays them in about four minutes on one core before the cost of encoding. At 1,023 numbers a decision that is about 2 KB, so the training sets are written once to a large disk by `scripts/make-dataset.ts` and read many times: every run then sees the same data, and a pass over a file is faster than playing the games again. A share of the games has random moves mixed in, so that the data covers positions good players never reach.
 
 **F2. Behaviour cloning.** A masked classifier trained to predict the action taken, in two forms.
 
@@ -553,6 +585,8 @@ The schools are free teachers. This stage uses them to prove the pipeline and to
 A clone inherits its teachers' blind spots. Going beyond them is what the next stage is for.
 
 *First results (18 November 2026, the pipeline only; see [m05](plan/m05-supervised.md)).* A clone of the rule-based agent alone, at four players, agrees with it on 92% to 93% of held-out decisions yet wins only 6.8% to 8.5% as one seat among baselines. Agreement is not enough. Handing kinds of decision back to the rules one group at a time shows where the gap is: with only its free turns (building, lifting mortgages, offers, ending the turn) made by the rules it wins 23.8%, level with the rules alone, and the same with only the decisions where it could start an offer; bids, answers to offers, building and lifting mortgages cost little on their own. The clone starts 0.9 offers a game where the rules start 3.1, so it completes fewer groups and builds half as often; but weighting that choice in the loss does not help, because its games seldom reach a position worth an offer (1.3 a game, of which it takes 74%). Small errors after the roll compound into different games, which is what correction in the manner of DAgger is for, and the reward in M6 has to reach the same positions. A flaw in the first decision sets (every decision recorded with two offers left in the turn) was fixed on the way.
+
+*Decided by the author on 18 November 2026.* The cheap remedies still to try are run (more perturbed games, further rounds of correction), and the clone is scored the way M6 will use it, with a school proposing on its behalf. That removes the part of the fault that lies in choosing to offer, which by the tally is the smaller part: the clone already takes 74% of the positions the rules would offer in, and reaches too few of them. M6's code is written meanwhile, and M6 starts from the best clone to hand even if the bar is unmet: a reward reaches positions that imitation does not. The bar stays as written and is reported as it stands. A teacher that asks only when it lacks one street gives a learner three chances a game to see an offer made; the schools of workstream K ask earlier and oftener, and join the teachers when M3b has measured them.
 
 ### G. Reinforcement learning
 
@@ -620,7 +654,7 @@ G5 is passed when, against every school and every past self, the learner wins mo
 
 - *Stalling.* If a cut-off game is worth more than a finished one, the agent learns to stall. Treating a cut as a pause removes the incentive; the share of cut-off games is tracked.
 - *Never trading.* Refusing every offer is safe and, against today's rule-based agent, profitable: it wins 30.4% of four-player games. A learner can settle there, and a table of such learners seldom finishes a game: with nobody trading, 61% of four-player games are still running after 40,000 actions. The league must contain schools that trade well, so that refusing has a price.
-- *Collusion.* Copies of one policy can learn to feed each other through trades. Workstream H measures it.
+- *Collusion.* Copies of one policy can learn to feed each other through trades. Workstream H measures it. Working together against a leader is not collusion and is wanted (R11); the line between them is that a deal may depend on a partner's standing and never on who the partner is. A learner's deals are compared between partners of the same rank who are and are not its copies.
 - *Variance.* One game says little. Batches span many games, and no conclusion rests on fewer than several hundred.
 - *Forgetting.* An agent that has learned to beat its own past may stop beating the baseline. Every checkpoint is evaluated against the fixed tables.
 - *Rewards that outlive their use.* A milestone weight left on too long becomes the goal. The schedules and the ablations are there to catch it.
@@ -643,6 +677,61 @@ What the policy sees about an offer, on the table or in draft: whether it comple
 
 **Gate.** The gates of G hold or improve; bad offers are accepted in under 2% of cases and good ones refused in under 10%; deals between copies are priced no further from value than deals with others; and the agent beats the copy of itself that trades by rule.
 
+The offers a learner can already draft cover every deal of workstream K: any property a rival holds can be asked for on any turn, for cash up to three times its list price or all the seat's spare cash. What a learner lacks is anyone to learn them from, which is what K supplies first.
+
+### K. Table politics
+
+Added on 18 November 2026, from the author's account of his own play (R11) and from what the study already shows (findings S16 to S19). [plan/m03b-table-politics.md](plan/m03b-table-politics.md) is the stage.
+
+**The idea.** With three or four players a deal moves chance of winning from the seats outside it to the seats inside it. Two trailing players who swap streets so that each completes a group gain, and the leader pays most of it. So the choice of partner is a move in its own right, and so is the choice of whom to stop. The agents so far choose neither: every proposer waits until it lacks one street and offers a fixed multiple of list price to whoever holds it.
+
+**The deal sheet.** For any deal, the change in every seat's chance by the valuation. It is the one number the behaviours below price by, and what a learner sees of an offer from layout version 3.
+
+**The behaviours,** each a field of a style and so a school that can be measured:
+
+| Behaviour | What it does | Evidence in hand |
+| --- | --- | --- |
+| Early asks | Asks for a second street of a group, many rounds before the group lacks one. | S16: pays at three and four players before round 5 to 8 |
+| Value pricing, asking again | An ask is priced as a share of what the property is worth to the seat, raised after a refusal, and made again when the holder's position worsens. | The author's account. Loses when it prices the completing street low (S20), so that street keeps today's price |
+| Denying | Buys what the strongest rival is about to gain, paying up to what the denial saves the buyer. | S19: worth about a point, whoever buys |
+| Estates, rescue, hunting | Buys from a failing player before the bankruptcy; pays to keep an estate from the leader; builds where a failing player is about to land. | S17; hunting adds nothing (S22) |
+| Answering by the sheet | Accepts by what a deal does to itself, to the strongest rival and to a weak partner. Covers working with the weak against the strong, favouring the second when third, and choosing a partner when ahead. | S18: one seat alone loses; S22: answering by the sheet alone is worth 4 to 6 points |
+| Reciprocity | Asks more of a seat that has refused it and less of one it has dealt with. | Published strategy |
+| Signals | Sends an invitation, an offer that plainly favours the seat it wants as a partner, and reads one by the goodwill a seat has shown it. An agreement is a favour returned. | The author's account |
+| The debt window | Offers for a debtor's property at the moment it cannot pay, and, as a debtor, sells to a seat other than the creditor to stay in. | S17; the rules allow it and no agent does it |
+
+**Rules the design keeps.**
+
+- *By standing, not by name.* A seat is treated by its rank in the valuation and by what has passed between the two seats in this game. Whether it is a person or a program is not an input. A test permutes the seats and requires the permuted action.
+- *No promises.* The rules have offers and answers only. An alliance here is a pattern of deals, and it ends when the position that made it ends.
+- *Signals, not speech.* Decided by the author on 18 November 2026: nothing is added to the game for players to talk with. A seat asks for an alliance with an offer and is answered with one, and the design has two halves, sending and reading. A person's offers are read by the same rule as a program's.
+- *As far as it wins.* Decided the same day: there is no setting for how hard a seat works against a leader, a person included. It goes as far as serves its own chance of winning and no further, so the weights are set by the seat's own win share and not by taste.
+- *Measured at the right table.* One political seat among baselines shows little, because nobody answers in kind. Named tables with two such seats, and the leader's conversion there, are the measure.
+
+**What is published agrees.** A book of strategy for the classic game (Walker and Lehman, 1975) gives a chapter to the balance of power. It sorts a table into four states (nobody ahead; ahead and unnoticed; ahead and worked against; a rival ahead), tells a co-leader to undermine the other leader by working with the trailing players, tells a trailing player to set the leaders against each other, and holds that the best thing for a leader is that the table believes someone else is ahead. Work on learned trading in another game of several players found that an agent trades better when it keeps a model of what its opponent wants (Efstathiou and Lemon, 2016; Cuayáhuitl and others, 2015). M3b's Statesman is written over the four states.
+
+**Further strategy the plan has looked for** beyond the author's list. Each is present, planned, or set aside with its reason.
+
+| Strategy | State |
+| --- | --- |
+| Favour the second when third, so that the two leaders wear each other down | Covered by answering by the sheet. |
+| The creditor's seat: build where a failing player is about to land | Planned (`huntFailing`). `buildNear` builds near any rival and does not pick the failing one. |
+| Rescue: keep a failing player's estate from the leader | Planned (`rescue`). |
+| The end of the short game, which comes at the second bankruptcy: hasten it when ahead, delay it when behind | A playbook rule over the new signals; no new field. |
+| Reciprocity and grudges | Planned (`reciprocity`), with a record of what has passed between each pair of seats. |
+| A model of each rival's price | Planned in a first form: the record of each ask and its refusals, and each seat's rate of accepting. |
+| Hiding a lead so as not to be worked against | Set aside until a table that works against leaders exists; then specified if the leader's conversion there falls by 5 points. |
+| Choosing whom to hand the game to when lost | Exists as Kingmaker. People dislike being decided by a player who is out of it, so its use against a person is a question for M10. |
+| Draining a rival's cash at auctions, leaving a partner too poor to build, cornering the buildings | Exist: `driveUp`, `leaveCash`, the Cornerer. |
+| Offers out of turn | In the rules, and unused by every agent. Used at a rival's debt only (the debt window), until that is measured. |
+| Deals among three seats; speech | Not in the rules, and by the author's decision speech is not added. |
+
+**Gate.** The deal sheet agrees with deals measured by intervention; every school shows its behaviour; buying early beats the baseline at three and four players over 5,000 paired games; and every other behaviour, with the tables of two, is measured and recorded whichever way it falls.
+
+*State on 18 November 2026.* The code of the stage is written and tested: the deal sheet, the relations, twenty-eight fields and their behaviours, the debt window, fifteen presets and a playbook, the measures and the script for named tables, the probe of deals, the genome, layout version 3 and the thirteenth potential. Writing it showed one thing about the valuation: what a property is worth to a seat when the cash leaves the game is about twice what the seat can pay another seat for it, because cash paid to a rival strengthens the rival (M3b, "Paying a rival is not paying the bank").
+
+*State on 19 November 2026,* after the first night of runs ([M3b's Result](plan/m03b-table-politics.md#result)). The deal sheet passed its check against measured deals (96% of clear cells with the right sign, rank correlation 0.87). Every school shows its behaviour. Buying early pays at three and four players once the completing street keeps today's price (S16, S20). The Statesman, Hunter and Grudger beat the baseline by 5 to 13 points, mostly through mortgaging to build and answering by the sheet (S22); the Statesman is level with Sky rush, its base, once its pricing is fixed. Denying is worth little (S19). Among the strong style holders every political school measured wins clearly (S21). With the pricing fixed, each of the six value-pricing schools run again beats the baseline at four players by 3 to 6 points (S20). At four players two Balancers cut the holder's share and the leader's conversion; at three players they lose (S18). Signals pay at three players and cost at four (S23); reading them is safe at three players and, by 2.3 points, not at four. Waiting: the settings of `againstLeader`, the runs among refusers, and the search with the new genome.
+
 ### I. Looking ahead
 
 The engine is deterministic and fast, and a state is plain data that can be copied. With a value network, an agent can test a decision before making it: for each candidate action, play a few dozen short continuations with the dice re-rolled and the unseen cards reshuffled, and average the value at the end. This is most useful for the few decisions that are both rare and large, such as an expensive purchase, a high bid or a trade.
@@ -657,6 +746,7 @@ It is optional, and it costs time at every decision. It belongs after G, and onl
 - The mask is applied in the browser as in training, so a model can never play an illegal move. If a model fails to load, the seat falls back to the rule-based agent.
 - Every file in `assets/models/` carries a record: the commit and configuration it was trained from, its layout and action versions, its results on the standard tables, and the date.
 - Before a model is offered, a person plays it. [plan/m10-in-the-client.md](plan/m10-in-the-client.md) has the questions that check asks.
+- Opponents that play the table (workstream K) treat a person exactly as they treat a program of the same standing, and work against a leader as far as it helps them win. There is no setting for it and no channel for speech, by the author's decisions of 18 November 2026. What the client owes the player is that an invitation made with an offer can be read as one; M10's check asks whether it can.
 
 ### Evaluation protocol
 
@@ -690,6 +780,7 @@ The same protocol for every claim, in this document and afterwards.
 | M1 | The study's snapshot file; valuation V0 and V1, for each table size; the measurement by intervention | A | The gate of A | [m01](plan/m01-valuation.md) |
 | M2 | The parameterised agent, the reference style and the named schools | B | Gates 1 and 2 of B; the study rerun with each school | [m02](plan/m02-schools.md) |
 | M3 | The style search, the playbook search and the first league report | B, C | Gates 3 and 4 of B; the gate of C | [m03](plan/m03-search-and-league.md) |
+| M3b | The deal sheet, the political schools, the measures of the table, layout version 3 | K | The gate of K | [m03b](plan/m03b-table-politics.md) |
 | M4 | The environment, the ledger, the server, a throughput figure for the bridge | D, E | The environment's tests pass and the figure is written here | [m04](plan/m04-environment.md) |
 | M5 | Held-out sets, the starting policy, the style-conditioned policy, the value network; a clone playing in the client | F, J | The gates of F | [m05](plan/m05-supervised.md) |
 | M6 | PPO: two players, then four in the short game, then three | G | G1 to G3 | [m06](plan/m06-first-games.md) |
@@ -698,7 +789,7 @@ The same protocol for every claim, in this document and afterwards.
 | M9 | Learned proposals and the trading measures | H | The gate of H | [m09](plan/m09-trading.md) |
 | M10 | Opponents selectable in the client, by level and by character | J | A person has played them; the baselines table has new rows | [m10](plan/m10-in-the-client.md) |
 
-M1 to M3 depend only on the engine. M4 can proceed alongside them. Nothing from M5 on should start before M3 and M4 are done, because they supply its opponents, its data and its tests.
+M1 to M3b depend only on the engine. M4 can proceed alongside them. Nothing from M5 on should start before M3 and M4 are done, because they supply its opponents, its data and its tests. One exception was decided on 18 November 2026: M6 may be written, and started from the best clone to hand, while M5's bar for the starting policy is unmet (see F). M5's full sets of decisions wait for M3b, which changes the teachers and the layout.
 
 ### Risks
 
@@ -711,15 +802,21 @@ M1 to M3 depend only on the engine. M4 can proceed alongside them. Nothing from 
 | Results that are luck | A gate passes once and fails on new seeds | Evaluation seeds are separate; gates are rerun on fresh seeds before a milestone closes |
 | Strength without variety | Every league member converges on one way of playing | The archive keeps styles by kind, not by rank; style learners keep their own rewards |
 | A strong agent that is no fun | The person's check | Ship several levels and characters, chosen for how they play as well as how often they win |
+| Computer players that gang up on the person | The person's check; a learner's deals differing between a person and a program of the same rank | Treatment by standing only, tested by permuting seats. An opponent works against a leader as far as it helps it win and no further; a player who wants a gentler table chooses opponents that do not play this layer |
+| Political schools that only exploit today's cheap seller | A school beats the baseline and loses among refusers | Every behaviour of K is also measured among refusers and among the best found styles, and what it exploits is written into its record |
+| A valuation that misprices deals it never saw | The deal sheet disagrees with deals measured by intervention | The probe of M3b; prices from the probe where the sheet fails; a refit of the valuation on games that contain such deals |
 
 ### Open questions
 
 - **How much compute reinforcement learning needs** is not known. M4 answers the first half of the question.
 - **Whether winner-takes-all or by-place rewards make the better opponent** at three and four players. The first is truer to the rules; the second may play more like a person who would rather come second than last.
 - **How far the four-player short game transfers to the full one.** The curriculum assumes it does. The short game ends by ranking on net worth, which the study shows to be a poor guide to who is winning.
-- **What holding a rival's missing street is worth once agents bargain.** Among today's agents it is a bad sign, because they sell it cheaply (finding S5). The measures of bargaining position are kept and measured again as the league improves.
+- **What holding a rival's missing street is worth once agents bargain.** Among today's agents it is a bad sign, because they sell it cheaply (finding S5). The measures of bargaining position are kept and measured again as the league improves. Buying it to deny the rival was worth about a point among today's agent, whatever the buyer's rank (finding S19); that probe played on with agents that sell such a street on, so a denial that is held is still unmeasured.
+- **Whether working against a leader pays at all among these agents.** One seat doing it loses (finding S18). Whether two gain by it is what M3b's tables of two are for; if they do not, the question passes to the learners of M8.
+- **Whether a person can read an invitation made with an offer, and whether a computer seat reads a person's.** The signals are meant to be plain: a street one needs, at its list price, from a seat that also trails. Only play will tell, and M10's check asks.
+- **What the debt window does to the game.** By the rules any seat may buy from a debtor at the moment of the debt. Among agents that do, fewer estates should reach the creditor and fewer players should be eliminated early; whether games then run too long is measured in M3b.
+- **Whether a second street is worth what finding S16 says once the last street cannot be bought cheaply.** Partly answered: among the strong style holders, who do not sell cheaply, Early bird wins 24.7% and 33.4% against the baseline's 19.8% and 11.0%; among refusers it draws (−1.4 and +0.2 points).
 - **Why a single street of House of Sima is worth so much with four players,** and holding both so little more. The study shows it and does not explain it.
-- **Whether mortgaging in order to build pays.** Today's agents mortgage only to pay a debt, so the study cannot say.
 - **Whether refitting V1 as the league changes helps or chases its own tail.** The value of a holding depends on how the table plays, and the table is what is being trained.
 - **Whether changing plan by rule beats holding one plan,** and whether learned switching beats written rules. M3 and M8 each measure it; the first search's fixed styles may turn out to be hard to beat.
 - **What "strong" should mean in a game people play for fun.** An agent that never trades, or that always blocks, may win and still be poor company.
@@ -730,8 +827,10 @@ M1 to M3 depend only on the engine. M4 can proceed alongside them. Nothing from 
 - R. Ash, R. Bishop. "Monopoly as a Markov process." Mathematics Magazine 45(1), 1972.
 - P. Bailis, A. Fachantidis, I. Vlahavas. "Learning to play Monopoly: A Reinforcement Learning approach." AISB 2014. [PDF](https://www.doc.gold.ac.uk/aisb50/AISB50-S02/AISB50-S2-Bailis-paper.pdf)
 - T. Bonjour, M. Haliem, A. Alsalem, S. Thomas, H. Li, V. Aggarwal, M. Kejriwal, B. Bhargava. "Decision Making in Monopoly using a Hybrid Deep Reinforcement Learning Approach." IEEE Transactions on Emerging Topics in Computational Intelligence 6(6), 2022. [arXiv:2103.00683](https://arxiv.org/abs/2103.00683)
+- H. Cuayáhuitl, S. Keizer, O. Lemon. "Strategic dialogue management via deep reinforcement learning." 2015. [arXiv:1511.08099](https://arxiv.org/abs/1511.08099)
 - S. Devlin, D. Kudenko. "Theoretical considerations of potential-based reward shaping for multi-agent systems." AAMAS 2011. [PDF](https://eprints.whiterose.ac.uk/id/eprint/75111/1/aamas11.pdf)
 - S. Devlin, D. Kudenko. "Dynamic potential-based reward shaping." AAMAS 2012. [PDF](https://eprints.whiterose.ac.uk/75121/2/p433_devlin.pdf)
+- I. Efstathiou, O. Lemon. "Learning better trading dialogue policies by inferring opponent preferences." AAMAS 2016 (extended abstract). [PDF](https://ifaamas.org/Proceedings/aamas2016/pdfs/p1403.pdf)
 - D. Hunter. "MM algorithms for generalized Bradley-Terry models." The Annals of Statistics 32(1), 2004. [Project Euclid](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full)
 - S. Huang, R. Dossa, A. Raffin, A. Kanervisto, W. Wang. "The 37 implementation details of Proximal Policy Optimization." ICLR Blog Track, 2022. [Post](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details)
 - S. Huang, S. Ontañón. "A Closer Look at Invalid Action Masking in Policy Gradient Algorithms." FLAIRS 2022. [arXiv:2006.14171](https://arxiv.org/abs/2006.14171)
@@ -744,3 +843,4 @@ M1 to M3 depend only on the engine. M4 can proceed alongside them. Nothing from 
 - J. Schulman, P. Moritz, S. Levine, M. Jordan, P. Abbeel. "High-dimensional continuous control using generalized advantage estimation." 2015. [arXiv:1506.02438](https://arxiv.org/abs/1506.02438)
 - J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov. "Proximal Policy Optimization Algorithms." 2017. [arXiv:1707.06347](https://arxiv.org/abs/1707.06347)
 - O. Vinyals and others. "Grandmaster level in StarCraft II using multi-agent reinforcement learning." Nature 575, 2019.
+- J. Walker, J. Lehman. "1000 Ways to Win Monopoly Games." 1975. Chapter 11, "The balance of power". [PDF of chapters 11 and 12](https://www.jeffreylehman.com/pdf_files_collection/1000-ways-chapters-11-12.pdf)
