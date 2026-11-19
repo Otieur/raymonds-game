@@ -11,10 +11,13 @@ export const PARTS: Record<Part, (keyof Style)[]> = {
   value: ['valuation', 'partFactor', 'completeFactor', 'passStep', 'worksStep', 'prefer'],
   buy: ['buy', 'buyKeep', 'mortgageToBuy', 'declinePoor'],
   bid: ['bidCap', 'bidCeiling', 'blockBonus', 'bidKeep', 'bidStep', 'driveUp', 'buildingBid'],
-  build: ['buildTarget', 'buildBeyond', 'buildOrder', 'buildSpread', 'buildNear', 'mortgageToBuild', 'holdHouses'],
+  build: ['buildTarget', 'buildBeyond', 'buildOrder', 'buildSpread', 'buildNear', 'mortgageToBuild', 'holdHouses', 'huntFailing'],
   cash: ['reserve', 'reserveBuilt', 'reserveThreat', 'redeemSpare', 'jailStay', 'jailStayBuilt'],
-  offer: ['proposeRate', 'offerLow', 'offerHigh', 'offerFloor', 'swaps', 'sellOffers', 'distressOffers', 'leaveCash', 'giveUpBelow'],
-  answer: ['acceptMargin', 'completionPenalty', 'neverSell', 'shunLeader'],
+  offer: ['proposeRate', 'offerLow', 'offerHigh', 'offerFloor', 'swaps', 'sellOffers', 'distressOffers', 'leaveCash', 'giveUpBelow',
+    'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
+    'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
+    'courtAllies', 'giftEdge', 'allyAt', 'allyTurns'],
+  answer: ['acceptMargin', 'completionPenalty', 'neverSell', 'shunLeader', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity'],
 };
 
 /** Fields about the style as a whole rather than one kind of decision. */

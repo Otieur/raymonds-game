@@ -10,13 +10,13 @@ import { choosePlaybookAction, resolvePlaybook } from './playbook.ts';
 import type { Playbook, Rule } from './playbook.ts';
 import { BASELINE, CHEAP, DEAR, SETS, styleFrom } from './style.ts';
 import type { SetId, Style } from './style.ts';
-import { createStyleMemory, decide, observe } from './style-agent.ts';
+import { createStyleMemory, debtOfferFor, decide, observe, resolveStyle } from './style-agent.ts';
 
 export interface Preset {
   name: string;
-  family: 'buy' | 'build' | 'cash' | 'bid' | 'trade' | 'whole';
+  family: 'buy' | 'build' | 'cash' | 'bid' | 'trade' | 'whole' | 'table';
   sizes: (2 | 3 | 4)[];
-  /** Where the idea comes from: P this plan, A the author's style, S1 to S4 the sources of M2. */
+  /** Where the idea comes from: P this plan, A the author's style, L published strategy, S1 to S4 the sources of M2. */
   from: string;
   describe: string;
   playbook: Playbook;
@@ -200,6 +200,63 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
     family: 'whole', sizes: [2], from: 'P', describe: 'With one rival: never lets a property go cheaply at auction, never helps the only opponent.',
     changes: { bySize: { 2: { bidCap: sets(1.3) as Style['bidCap'], buyKeep: 0, mortgageToBuy: true, acceptMargin: Infinity } } },
   },
+  // Playing the table (docs/plan/m03b-table-politics.md). Each of the first twelve is the baseline with one behaviour.
+  'early-bird': {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Asks for a second street of a group many rounds before it lacks one, priced by what the street is worth to it.',
+    changes: { valuation: 'v1', offerBy: 'value', earlyOffers: true },
+  },
+  'early-bird-2': {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Early bird as the runs of 19 November corrected it: today\'s price for the last street, value only for early asks, and none after round 5.',
+    changes: { valuation: 'v1', offerBy: 'value', completeBy: 'list', earlyOffers: true, earlyBefore: 5 },
+  },
+  prober: {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Early bird that opens low and asks again and again, a little higher each time.',
+    changes: { valuation: 'v1', offerBy: 'value', earlyOffers: true, openShare: 0.2, raiseStep: 0.1, probeGap: 2 },
+  },
+  warden: {
+    family: 'table', from: 'A', describe: 'Buys what the strongest rival wants, at up to all that stopping it is worth.',
+    changes: { valuation: 'v1', offerBy: 'value', denyOffers: true, denyShare: 1, maxShare: 1 },
+  },
+  undertaker: {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Buys a failing rival\'s property before the bankruptcy that would hand it to the creditor.',
+    changes: { valuation: 'v1', offerBy: 'value', estateOffers: 'self' },
+  },
+  broker: {
+    family: 'table', sizes: LARGE, from: 'A, P', describe: 'Undertaker that also buys what the strongest rival would inherit, and pays a failing rival enough to stay in.',
+    changes: { valuation: 'v1', offerBy: 'value', estateOffers: 'both', rescue: true },
+  },
+  balancer: {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Weighs every deal by what it does to the strongest rival: easy terms for the weak, hard ones for the leader.',
+    changes: { valuation: 'v1', answerBy: 'sheet', offerBy: 'value', againstLeader: 1 },
+  },
+  patron: {
+    family: 'table', sizes: LARGE, from: 'A, L', describe: 'Balancer that also gives a weaker partner good terms, so that it has a stake of its own.',
+    changes: { valuation: 'v1', answerBy: 'sheet', offerBy: 'value', againstLeader: 0.5, forWeak: 0.5 },
+  },
+  grudger: {
+    family: 'table', from: 'P, L', describe: 'Asks more of a seat that has refused or blocked it, and less of one that has dealt fairly.',
+    changes: { answerBy: 'sheet', reciprocity: 1 },
+  },
+  hunter: {
+    family: 'table', sizes: LARGE, from: 'P', describe: 'Builds first where a failing rival is about to land, to be the creditor that takes its estate.',
+    changes: { huntFailing: true, mortgageToBuild: true },
+  },
+  envoy: {
+    family: 'table', sizes: LARGE, from: 'A', describe: 'Asks for an alliance with its offers, and reads the same from others.',
+    changes: { valuation: 'v1', answerBy: 'sheet', offerBy: 'value', againstLeader: 1, courtAllies: true, reciprocity: 1 },
+  },
+  scavenger: {
+    family: 'table', from: 'P', describe: 'Offers for a rival\'s property at the moment that rival cannot pay a debt.',
+    changes: { valuation: 'v1', offerBy: 'value', debtOffers: true },
+  },
+  debtor: {
+    family: 'table', from: 'P', describe: 'In a debt it cannot cover, sells to a seat other than its creditor to stay in.',
+    changes: { debtSales: true },
+  },
+  'false-friend': {
+    family: 'table', sizes: LARGE, from: 'P', describe: 'Sends invitations, takes what comes back and returns nothing. A test opponent, not a school to play.',
+    changes: { courtAllies: true },
+  },
 };
 
 const plain: Record<string, Style> = Object.fromEntries(Object.entries(STYLES).map(([name, spec]) => [name, styleFrom(name, spec.changes)]));
@@ -260,6 +317,44 @@ const COMPOSED: Record<string, { describe: string; style: Style }> = {
   },
 };
 
+/** The author's trading as told on 18 November 2026, over the Reference preset. */
+const REFERENCE_2 = styleFrom(
+  'reference-2',
+  {
+    offerBy: 'value', earlyOffers: true, denyOffers: true, denyShare: 1, maxShare: 1, estateOffers: 'both', debtOffers: true,
+    answerBy: 'sheet', againstLeader: 0.5, forWeak: 0.5, courtAllies: true, reciprocity: 1,
+  },
+  plain.reference,
+);
+
+/**
+ * The Statesman: offers from the Prober with denying, estates, invitations and both sides of the
+ * debt window; answers from the Patron, reading signals; building from the Hunter; the rest from Sky
+ * rush, which holds the style line at four players.
+ */
+const STATESMAN = compose(
+  COMPOSED['sky-rush'].style,
+  {
+    offer: styleFrom('', { denyOffers: true, estateOffers: 'both', courtAllies: true, debtOffers: true, debtSales: true }, plain.prober),
+    answer: styleFrom('', { reciprocity: 1 }, plain.patron),
+    build: plain.hunter,
+  },
+  'statesman',
+);
+
+/** The Statesman as a playbook over the four states of a table (Walker and Lehman, 1975). */
+const STATESMAN_RULES: Rule[] = [
+  { name: 'nobody ahead', when: [{ signal: 'threat', is: '<', value: 1.3 }, { signal: 'gap', is: '>=', value: -0.3 }], set: { denyOffers: false }, hold: 2 },
+  {
+    name: 'a rival ahead',
+    when: [{ signal: 'threat', is: '>=', value: 1.3 }, { signal: 'gap', is: '<', value: 0 }],
+    set: { againstLeader: 1, denyOffers: true, estateOffers: 'both', rescue: true },
+    hold: 2,
+  },
+  { name: 'ahead', when: [{ signal: 'gap', is: '>=', value: 0.3 }], set: { forWeak: 0.5, againstLeader: 0.5, huntFailing: true }, hold: 2 },
+  { name: 'ahead and worked against', when: [{ signal: 'gap', is: '>=', value: 0.3 }, { signal: 'shunned', is: '>=', value: 0.67 }], set: { forWeak: 1, maxShare: 1 }, hold: 2 },
+];
+
 export const PRESETS: Record<string, Preset> = {
   ...Object.fromEntries(
     Object.entries(STYLES).map(([name, spec]) => [
@@ -281,6 +376,30 @@ export const PRESETS: Record<string, Preset> = {
     describe: 'A playbook of ten rules: holds no plan longer than the position supports it.',
     playbook: { name: 'opportunist', base: styleFrom('opportunist', { valuation: 'v1', buildTarget: 3 }), rules: OPPORTUNIST_RULES },
   },
+  statesman: {
+    name: 'statesman',
+    family: 'table',
+    sizes: LARGE,
+    from: 'P',
+    describe: 'Plays the table: asks early and again, denies, buys estates, invites and reads invitations, hunts; the rest as Sky rush.',
+    playbook: { name: 'statesman', base: STATESMAN, rules: [] },
+  },
+  'statesman-book': {
+    name: 'statesman-book',
+    family: 'table',
+    sizes: LARGE,
+    from: 'P, L',
+    describe: 'The Statesman changing with the state of the table: nobody ahead, a rival ahead, ahead, ahead and worked against.',
+    playbook: { name: 'statesman-book', base: { ...STATESMAN, name: 'statesman-book', againstLeader: 0, forWeak: 0 }, rules: STATESMAN_RULES },
+  },
+  'reference-2': {
+    name: 'reference-2',
+    family: 'table',
+    sizes: ALL,
+    from: 'A',
+    describe: "The Reference preset with the author's trading: early asks, denying at a high price, estates, alliances by offers.",
+    playbook: { name: 'reference-2', base: REFERENCE_2, rules: [] },
+  },
 };
 
 /** An agent for one seat of one game, playing a preset. */
@@ -289,6 +408,8 @@ export interface SeatAgent {
   observe(events: GameEvent[], state: GameState): void;
   /** For a playbook: every rule that has come on in this game, and the rules on at its last decision. */
   rules(): { ever: string[]; last: string[] };
+  /** At a rival's debt: an offer to the debtor, if the seat makes one. See `src/sim/window.ts`. */
+  window?(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null;
 }
 
 export function presetAgent(name: string): SeatAgent {
@@ -308,5 +429,9 @@ export function presetAgent(name: string): SeatAgent {
     },
     observe: (events, state) => observe(memory, events, state),
     rules: () => ({ ever: [...ever], last }),
+    window: (engine, state, actor) => {
+      const style = preset.playbook.rules.length === 0 ? resolveStyle(engine, state, actor, preset.playbook.base, memory) : resolvePlaybook(engine, state, actor, preset.playbook, memory, school).style;
+      return debtOfferFor(engine, state, actor, style, memory);
+    },
   };
 }

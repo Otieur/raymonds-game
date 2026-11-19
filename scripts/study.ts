@@ -54,6 +54,9 @@ import { snapshotOf as snapshotRow } from '../src/sim/snapshot.ts';
 import { PRESETS, presetAgent } from '../src/sim/styles.ts';
 import { v1 } from '../src/sim/valuation.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
+import { createDebtWindows, debtWindow } from '../src/sim/window.ts';
+import { addPolitics, createPoliticsWatch, emptyTablePolitics, flatPolitics, namedPolitics, POLITICS_KEYS } from '../src/sim/politics.ts';
+import type { TablePolitics } from '../src/sim/politics.ts';
 import type { OpenRow, SnapshotRow } from '../src/sim/snapshot.ts';
 import type { View } from '../src/sim/measures.ts';
 
@@ -281,12 +284,16 @@ interface Behaviour {
   /** Games in which its chance by V1 fell under 5% at a round's start; sales after that to the weakest rival at list price or less. */
   hopeless: number;
   hopelessSales: number;
+  /** The measures of table politics for the seat, in the order of POLITICS_KEYS (src/sim/politics.ts). */
+  politics: number[];
 }
 
 interface StyleTally {
   odd: Behaviour;
   ordinary: Behaviour;
   bankEmpty: number;
+  /** The table's measures of politics. Absent from runs saved before M3b. */
+  table?: TablePolitics;
 }
 
 const emptyBehaviour = (): Behaviour => ({
@@ -342,6 +349,7 @@ const emptyBehaviour = (): Behaviour => ({
   deals: 0,
   hopeless: 0,
   hopelessSales: 0,
+  politics: POLITICS_KEYS.map(() => 0),
 });
 
 const SET_ORDER = ['han', 'chain', 'yuan', 'wei', 'shu', 'wu', 'conquest', 'sima', 'passes', 'works'];
@@ -403,6 +411,8 @@ function makeTables(games: number): Table[] {
       add(`${odd}-among-rules-${n}`, `Full game, one ${odd} player among ${n - 1} rule-based`, full, oneAmong(odd, 'rules', n), fewer, false);
     }
   }
+  // M6 task 6: the refuser in the four-player short game, the second bar of G2's gate.
+  add('refuser-among-rules-short-4', 'Short game, one refuser player among 3 rule-based', short, oneAmong('refuser', 'rules', 4), fewer, false);
   return tables;
 }
 
@@ -501,7 +511,7 @@ function emptyTally(table: Table): Tally {
   const wins = {} as Tally['wins'];
   for (const policy of new Set([...POLICIES, ...table.seats])) wins[policy] = 0;
 
-  const styles = table.seats[0].startsWith('style:') ? { styles: { odd: emptyBehaviour(), ordinary: emptyBehaviour(), bankEmpty: 0 } } : {};
+  const styles = table.seats[0].startsWith('style:') ? { styles: { odd: emptyBehaviour(), ordinary: emptyBehaviour(), bankEmpty: 0, table: emptyTablePolitics() } } : {};
   return {
     ...styles,
     games: 0,
@@ -811,11 +821,15 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
   const flags = new Set<string>();
   const answers: boolean[] = [];
   let bankEmpty = false;
+  const windows = createDebtWindows();
+  const politics = tally.styles ? createPoliticsWatch(table.ctx, ids, v1(ids.length)) : null;
   let state = engine.newGame({ players: ids, seed });
   let actions = 0;
   while (state.winner === null && actions < ACTION_LIMIT) {
     const waiting = engine.awaiting(state);
-    const actor = waiting[Math.floor(random() * waiting.length)];
+    // At a debt the debtor cannot cover, seats that offer for its property are asked first.
+    const early = debtWindow(engine, state, (id) => agents.get(id), random, windows);
+    const actor = early ? early.actor : waiting[Math.floor(random() * waiting.length)];
 
     if (table.detail) {
       const legal = engine.legalActions(state, actor).length;
@@ -825,7 +839,7 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
       entry.maxLegal = Math.max(entry.maxLegal, legal);
     }
 
-    const action = choose(policyOf.get(actor) ?? 'rules', table, state, actor, random, memory, agents.get(actor));
+    const action = early ? early.action : choose(policyOf.get(actor) ?? 'rules', table, state, actor, random, memory, agents.get(actor));
     if (!action) throw new Error(`${table.key}, seed ${seed}: ${actor} has no action. Pending: ${JSON.stringify(state.pending)}`);
     const result = engine.apply(state, action);
     if (!result.ok) {
@@ -835,6 +849,7 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
     state = result.state;
     actions += 1;
     for (const agent of agents.values()) agent.observe(result.events, state);
+    politics?.note(before, result.events, state);
     if (watch) watchBehaviour(table, watch, peaks, flags, answers, before, state, result.events);
     if (watch && state.bank.houses === 0) bankEmpty = true;
     for (const event of result.events) {
@@ -866,6 +881,12 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
     }
     const odd = watch.get(ids[0]) as Behaviour;
     odd.rulesOn += agents.get(ids[0])?.rules().ever.length ?? 0;
+    if (politics) {
+      const seen = politics.finish(state);
+      odd.politics = flatPolitics(seen.seats[ids[0]]);
+      (watch.get(ids[1]) as Behaviour).politics = flatPolitics(seen.seats[ids[1]]);
+      tally.styles.table = addPolitics(tally.styles.table ?? emptyTablePolitics(), seen.table);
+    }
     tally.styles.odd = merged(tally.styles.odd, odd) as Behaviour;
     tally.styles.ordinary = merged(tally.styles.ordinary, watch.get(ids[1])) as Behaviour;
     if (bankEmpty) tally.styles.bankEmpty += 1;
@@ -1612,6 +1633,88 @@ function reportStyles(tables: Table[], tallies: Tally[]): void {
       'Rules on',
     ],
     rows,
+  );
+
+  // The measures of table politics (M3b), for runs that kept them.
+  const seats: (string | number)[][] = [];
+  const whole: (string | number)[][] = [];
+  const over = (a: number, b: number, digits = 2) => (b > 0 ? fixed(a / b, digits) : 'n/a');
+  const part = (a: number, b: number) => (b > 0 ? percent(a / b) : 'n/a');
+  tables.forEach((table, i) => {
+    const t = tallies[i].styles;
+    if (!t?.table || !t.odd.politics) return;
+    const bankruptcies = t.table.bankruptcies;
+    const line = (b: Behaviour, label: string): (string | number)[] => {
+      const p = namedPolitics(b.politics);
+      return [
+        label,
+        over(p.earlyDeals, p.games),
+        over(p.earlyRounds, p.earlyDeals, 1),
+        over(p.denyingDeals, p.games),
+        over(p.estateValue, p.games, 0),
+        `${over(p.paidEarly, p.listEarly)} / ${over(p.paidCompleting, p.listCompleting)} / ${over(p.paidDenying, p.listDenying)} / ${over(p.paidEstate, p.listEstate)}`,
+        over(p.asks, p.purchases),
+        part(p.dealsWithFirst, p.deals),
+        part(p.dealsWithLast, p.deals),
+        over(p.outsiderDelta, p.outsiderDeals),
+        part(p.creditorOf, bankruptcies),
+        over(p.invitations, p.games),
+        part(p.agreements, p.invitationsAccepted),
+        over(p.debtOffers, p.games),
+        part(p.ownDebtsSurvived, p.ownDebts),
+        part(p.spurnedAccepted, p.spurnedOffers),
+      ];
+    };
+    seats.push(line(t.odd, `${table.label}: the school`));
+    seats.push(line(t.ordinary, `${table.label}: an ordinary seat`));
+    whole.push([
+      table.label,
+      share(t.table.leader10Wins, t.table.leader10),
+      share(t.table.leader20Wins, t.table.leader20),
+      over(t.table.leadChanges, t.table.games),
+      part(t.table.toLeaderValue, t.table.bankruptValue),
+      part(t.table.soldAtDebtValue, t.table.soldAtDebtValue + t.table.bankruptValue),
+      part(t.table.soldBeforeValue, t.table.soldBeforeValue + t.table.bankruptValue),
+    ]);
+  });
+  if (seats.length === 0) return;
+  console.log('\n### How the named schools played the table\n');
+  console.log(
+    'An early deal is an accepted ask after which the proposer, who held part of the group, still lacks a street of it. A denying deal is an accepted ask for the property its strongest rival wanted. Estate bought is property, by list price, bought from seats that went bankrupt within ten rounds. Prices are cash paid over list price. The outsider is the best-ranked seat outside a deal, and its change is in points of chance by the deal sheet.\n',
+  );
+  markdown(
+    [
+      'Seat',
+      'Early deals a game',
+      'Their mean round',
+      'Denying deals a game',
+      'Estate bought a game',
+      'Price over list: early / completing / denying / estate',
+      'Asks per purchase',
+      'Deals with the seat ranked first',
+      'Deals with the seat ranked last',
+      'Outsider\'s change a deal',
+      'Creditor in the table\'s bankruptcies',
+      'Invitations a game',
+      'Accepted invitations answered in kind',
+      'Offers at a debt a game',
+      'Own uncovered debts survived',
+      'Accepted of offers from seats that refused it',
+    ],
+    seats,
+  );
+  console.log('\nThe tables as wholes:\n');
+  markdown(
+    [
+      'Table',
+      'The leader at round 10 won',
+      'The leader at round 20 won',
+      'Changes of lead a game',
+      'Estates to the leader',
+      'Sold at a debt',
+      'Sold in the ten rounds before a bankruptcy',
+    ],
+    whole,
   );
 }
 

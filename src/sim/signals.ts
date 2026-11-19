@@ -5,6 +5,9 @@ import type { Engine } from '../engine/engine.ts';
 import { buildingStep, ownsGroup } from '../engine/queries.ts';
 import type { GameState, PlayerId } from '../types.ts';
 import { duesInReach, holds, nearSets, reachRoll, viewOf, wanted } from './measures.ts';
+import { distressOf, isFailing, threatOf } from './deal.ts';
+import { shunnedShare } from './relations.ts';
+import { BASELINE } from './style.ts';
 import { contextOf, moodOf } from './style-agent.ts';
 import type { StyleMemory } from './style-agent.ts';
 import { v1 } from './valuation.ts';
@@ -31,11 +34,20 @@ export interface Signals {
   rivalPoor: number;
   bankHouses: number;
   mood: number;
+  /** The strongest rival's chance after the one acquisition that would raise it most, over an even share. */
+  threat: number;
+  /** The seat's chance less the highest rival's, both over an even share. */
+  gap: number;
+  /** 1 when some rival is failing: a chance under 0.4 of an even share, and short of cash or falling. */
+  failing: number;
+  /** The share refused of the seat's latest six offers; 0.5 until there are six. */
+  shunned: number;
 }
 
 export const SIGNAL_NAMES: readonly (keyof Signals)[] = [
   'tableSize', 'players', 'round', 'owned', 'chance', 'rank', 'leader', 'rentShare', 'groups', 'unbuilt', 'nearSets',
   'needs', 'wanted', 'passes', 'spare', 'danger', 'rivalLevel', 'rivalNear', 'rivalPoor', 'bankHouses', 'mood',
+  'threat', 'gap', 'failing', 'shunned',
 ];
 
 /** The signals for `actor`. `moodWindow` is how many of the table's latest offers the mood counts. */
@@ -71,6 +83,10 @@ export function signalsOf(engine: Engine, state: GameState, actor: PlayerId, mem
   const rivalPoor = rivals.some((p) => p.cash < duesInReach(view, p).largest);
   const owned = ctx.propertyOrder.filter((sq) => state.properties[sq.id].owner !== null).length / ctx.propertyOrder.length;
   const dues = duesInReach(view, me).largest;
+  const valuation = v1(state.players.length);
+  // The two signals that cost several readings of the valuation are worked out only when a rule reads them.
+  let threat: number | undefined;
+  let failing: number | undefined;
   return {
     tableSize: state.players.length,
     players: alive.length,
@@ -93,5 +109,15 @@ export function signalsOf(engine: Engine, state: GameState, actor: PlayerId, mem
     rivalPoor: rivalPoor ? 1 : 0,
     bankHouses: state.bank.houses,
     mood: moodOf(memory, moodWindow) ?? 0.5,
+    get threat() {
+      threat ??= Math.max(0, ...rivals.map((p) => threatOf(ctx, state, p.id, valuation, chances).potential));
+      return threat;
+    },
+    gap: (mine - leader) / even,
+    get failing() {
+      failing ??= rivals.some((p) => isFailing(distressOf(ctx, state, p.id, valuation, memory.relations.chances[p.id] ?? [], chances), BASELINE.failBelow)) ? 1 : 0;
+      return failing;
+    },
+    shunned: shunnedShare(memory.relations, actor),
   };
 }

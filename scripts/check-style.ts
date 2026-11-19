@@ -20,6 +20,8 @@ import { BASELINE } from '../src/sim/style.ts';
 import { chooseStyledAction, createStyleMemory, observe } from '../src/sim/style-agent.ts';
 import { PRESETS, presetAgent } from '../src/sim/styles.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
+import { createDebtWindows, debtWindow } from '../src/sim/window.ts';
+import { namedPolitics } from '../src/sim/politics.ts';
 
 /** Plays one game and returns the first difference, or null. Also returns the decisions compared. */
 export function compareWithBaseline(engine: Engine, players: number, seed: number): { difference: string | null; decisions: number } {
@@ -64,11 +66,14 @@ export function playPreset(engine: Engine, name: string, players: number, seed: 
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: players }, (_, i) => `p${i + 1}`);
   const agents = new Map<string, SeatAgent>(ids.map((id, i) => [id, presetAgent(i === 0 ? name : 'baseline')]));
+  const windows = createDebtWindows();
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < 40000; actions++) {
     const waiting = engine.awaiting(state);
-    const actor = waiting[Math.floor(random() * waiting.length)];
-    const action = agents.get(actor)?.choose(engine, state, actor, random);
+    // At a debt the debtor cannot cover, seats that offer for its property are asked first.
+    const early = debtWindow(engine, state, (id) => agents.get(id), random, windows);
+    const actor = early ? early.actor : waiting[Math.floor(random() * waiting.length)];
+    const action = early ? early.action : agents.get(actor)?.choose(engine, state, actor, random);
     const where = `${name}, ${players} players, seed ${seed}, action ${actions + 1}`;
     if (!action) return { problem: `${where}: ${actor} has no action`, finished: false, won: false };
     const result = engine.apply(state, action);
@@ -83,6 +88,91 @@ export function playPreset(engine: Engine, name: string, players: number, seed: 
 
 /** One seat's behaviour summed over games, as the study saves it. */
 type B = Record<string, number> & { acquiredBySet: number[]; heldAt20BySet: number[] };
+
+/** Early bird's price over list for early purchases, set when the gate is read, for the Prober's bar. */
+let earlyBirdPrice: number | null = null;
+
+/** M3b's bars: the behaviour each school of table politics must show against the baseline in the same seat. */
+function tableBar(name: string, odd: B, ord: B, games: number): { bar: string; measured: string; pass: boolean | null } {
+  const raw = (odd as unknown as { politics?: number[] }).politics;
+  if (!raw) return { bar: 'Needs a run that keeps the measures of table politics', measured: '', pass: null };
+  const p = namedPolitics(raw);
+  const q = namedPolitics((ord as unknown as { politics?: number[] }).politics);
+  const game = (v: number) => (v / games).toFixed(2);
+  const over = (a: number, b: number) => (b > 0 ? a / b : 0);
+  const pc = (a: number, b: number) => `${(over(a, b) * 100).toFixed(1)}%`;
+  switch (name) {
+    case 'early-bird':
+      return {
+        bar: 'More early deals a game',
+        measured: `${game(p.earlyDeals)} a game at round ${over(p.earlyRounds, p.earlyDeals).toFixed(1)} on average, against ${game(q.earlyDeals)} for the baseline`,
+        pass: p.earlyDeals > 0 && p.earlyDeals > q.earlyDeals,
+      };
+    case 'prober': {
+      const price = over(p.paidEarly, p.listEarly);
+      return {
+        bar: "More asks per purchase than the baseline, and a lower price for early purchases than Early bird's",
+        measured: `${over(p.asks, p.purchases).toFixed(2)} asks a purchase against ${over(q.asks, q.purchases).toFixed(2)}; ${price.toFixed(2)} times list for early purchases against ${earlyBirdPrice === null ? 'n/a' : earlyBirdPrice.toFixed(2)} for Early bird`,
+        pass: over(p.asks, p.purchases) > over(q.asks, q.purchases) && earlyBirdPrice !== null && p.listEarly > 0 && price < earlyBirdPrice,
+      };
+    }
+    case 'warden':
+      return { bar: 'More denying deals a game', measured: `${game(p.denyingDeals)} against ${game(q.denyingDeals)}`, pass: p.denyingDeals > 0 && p.denyingDeals > q.denyingDeals };
+    case 'undertaker':
+    case 'broker':
+      return {
+        bar: 'More property bought from seats that then went bankrupt',
+        measured: `${game(p.estateValue)} coins of list price a game against ${game(q.estateValue)}`,
+        pass: p.estateValue > 0 && p.estateValue > q.estateValue,
+      };
+    case 'balancer':
+      return {
+        bar: 'A smaller share of its deals with the seat ranked first, and at least four fifths as many deals',
+        measured: `${pc(p.dealsWithFirst, p.deals)} of ${game(p.deals)} deals a game, against ${pc(q.dealsWithFirst, q.deals)} of ${game(q.deals)}`,
+        pass: p.deals > 0 && over(p.dealsWithFirst, p.deals) < over(q.dealsWithFirst, q.deals) && p.deals >= 0.8 * q.deals,
+      };
+    case 'patron':
+      return {
+        bar: 'A larger share of its deals with the seat ranked last',
+        measured: `${pc(p.dealsWithLast, p.deals)} against ${pc(q.dealsWithLast, q.deals)}`,
+        pass: p.deals > 0 && over(p.dealsWithLast, p.deals) > over(q.dealsWithLast, q.deals),
+      };
+    case 'grudger':
+      return {
+        bar: 'A lower share accepted of offers from seats that have refused it',
+        measured: `${pc(p.spurnedAccepted, p.spurnedOffers)} of ${game(p.spurnedOffers)} a game, against ${pc(q.spurnedAccepted, q.spurnedOffers)}`,
+        pass: p.spurnedOffers > 0 && over(p.spurnedAccepted, p.spurnedOffers) < over(q.spurnedAccepted, q.spurnedOffers),
+      };
+    case 'hunter':
+      return { bar: 'The creditor in more bankruptcies', measured: `${game(p.creditorOf)} a game against ${game(q.creditorOf)}`, pass: p.creditorOf > q.creditorOf };
+    case 'envoy':
+      return {
+        bar: 'Invitations sent in most games, and more of its deals with a seat allied at the time',
+        measured: `${game(p.invitations)} invitations a game against ${game(q.invitations)}; ${pc(p.dealsAllied, p.deals)} of its deals with an ally against ${pc(q.dealsAllied, q.deals)}`,
+        pass: p.invitations / games >= 0.5 && over(p.dealsAllied, p.deals) > over(q.dealsAllied, q.deals),
+      };
+    case 'false-friend':
+      return { bar: 'Invitations sent, and none answered by it', measured: `${game(p.invitations)} invitations a game against ${game(q.invitations)}`, pass: p.invitations > q.invitations };
+    case 'scavenger':
+      return {
+        bar: 'Offers at a rival\'s debt, and property bought there',
+        measured: `${game(p.debtOffers)} offers a game, ${game(p.debtOffersAccepted)} accepted, against ${game(q.debtOffers)}`,
+        pass: p.debtOffers > q.debtOffers && p.debtOffersAccepted > 0,
+      };
+    case 'debtor':
+      return {
+        bar: 'A larger share of its uncovered debts survived',
+        measured: `${pc(p.ownDebtsSurvived, p.ownDebts)} of ${game(p.ownDebts)} a game, against ${pc(q.ownDebtsSurvived, q.ownDebts)}`,
+        pass: p.ownDebts > 0 && over(p.ownDebtsSurvived, p.ownDebts) > over(q.ownDebtsSurvived, q.ownDebts),
+      };
+    default:
+      return {
+        bar: 'The behaviour of each school it is made of: early deals, denying deals and invitations',
+        measured: `${game(p.earlyDeals)} early and ${game(p.denyingDeals)} denying deals and ${game(p.invitations)} invitations a game, against ${game(q.earlyDeals)}, ${game(q.denyingDeals)} and ${game(q.invitations)}`,
+        pass: p.earlyDeals > q.earlyDeals && p.denyingDeals > q.denyingDeals && p.invitations > q.invitations,
+      };
+  }
+}
 
 /** M2's bars, each on the summed behaviour of the school and of an ordinary seat at the same tables. */
 function gateBars(name: string, odd: B, ord: B, games: number, bankEmpty: number, baselineBankEmpty: number): { bar: string; measured: string; pass: boolean | null } {
@@ -238,6 +328,23 @@ function gateBars(name: string, odd: B, ord: B, games: number, bankEmpty: number
         measured: `${odd.hopelessSales} in ${odd.hopeless} hopeless games, against ${f(share(ord.hopelessSales, ord.hopeless), 3)} a game for the baseline`,
         pass: odd.hopelessSales > 0 && share(odd.hopelessSales, odd.hopeless) > share(ord.hopelessSales, ord.hopeless),
       };
+    case 'early-bird':
+    case 'prober':
+    case 'warden':
+    case 'undertaker':
+    case 'broker':
+    case 'balancer':
+    case 'patron':
+    case 'grudger':
+    case 'hunter':
+    case 'envoy':
+    case 'scavenger':
+    case 'debtor':
+    case 'false-friend':
+    case 'statesman':
+    case 'statesman-book':
+    case 'reference-2':
+      return tableBar(name, odd, ord, games);
     case 'baseline':
       return { bar: 'None (the reference point)', measured: '', pass: null };
     default:
@@ -295,6 +402,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href && process.arg
     for (const [k, v] of Object.entries(b)) (scaled as Record<string, unknown>)[k] = Array.isArray(v) ? (v as number[]).map((x) => (x * games) / g) : ((v as number) * games) / g;
     return { b: scaled, games };
   };
+  const bird = namedPolitics((byName.get('early-bird')?.odd as unknown as { politics?: number[] } | undefined)?.politics);
+  earlyBirdPrice = bird.listEarly > 0 ? bird.paidEarly / bird.listEarly : null;
   console.log('| School | Win share as the odd player | Bar | Measured | Passes |');
   console.log('| --- | --- | --- | --- | --- |');
   let passed = 0;

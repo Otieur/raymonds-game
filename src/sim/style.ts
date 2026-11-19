@@ -113,6 +113,70 @@ export interface Style {
   /** At a table of three or four, below this chance of winning it sells to the weakest rival. */
   giveUpBelow: number | null;
 
+  // Playing the table: offers (docs/plan/m03b-table-politics.md)
+  /** 'value' prices an ask by what the property is worth to the seat by the deal sheet, not by a multiple of list price. */
+  offerBy: 'list' | 'value';
+  /** With offerBy 'value': 'list' keeps today's price, a multiple of list price, for the street that completes a group, and prices only the other asks by value. */
+  completeBy: 'list' | 'value';
+  /** The first ask, as a share of that worth. */
+  openShare: number;
+  /** The most it offers, as that share. */
+  maxShare: number;
+  /** Added to the share each time the same ask is refused. */
+  raiseStep: number;
+  /** Own turns before a refused ask is made again. */
+  probeGap: number;
+  /** A fall in the holder's chance since the last ask that renews it at once. */
+  probeDrop: number;
+  /** Asks for streets of groups it holds part of, not only for a last street. */
+  earlyOffers: boolean;
+  /** The round after which early asks stop. */
+  earlyBefore: number;
+  /** The least chance of getting the rest of the group for an early ask. */
+  earlyNeed: number;
+  /** Buys what the strongest rival wants. */
+  denyOffers: boolean;
+  /** The rival's potential chance, over an even share, from which it acts. */
+  denyThreat: number;
+  /** The most it pays to deny, as a share of what the denial is worth to it. */
+  denyShare: number;
+  /** Denies only while ranked at or above this place. */
+  denyRank: number;
+  /** Buys from a failing rival: what it wants itself, or also what the strongest rival wants. */
+  estateOffers: 'off' | 'self' | 'both';
+  /** A rival is failing below this chance over an even share, when also short of cash or falling. */
+  failBelow: number;
+  /** Pays a failing rival enough to meet its largest due when the creditor is the strongest rival. */
+  rescue: boolean;
+  /** Offers for a rival's property at the moment that rival cannot pay a debt. */
+  debtOffers: boolean;
+  /** In a debt it cannot cover, offers its own property to a seat other than the creditor. */
+  debtSales: boolean;
+  /** Sends invitations: offers that favour a seat it wants as a partner. */
+  courtAllies: boolean;
+  /** Points by which an invitation favours the receiver. */
+  giftEdge: number;
+  /** Goodwill each way from which two seats are allied. */
+  allyAt: number;
+  /** Rounds an invitation waits for an answer, and the rounds in which goodwill halves. */
+  allyTurns: number;
+
+  // Playing the table: answers
+  /** 'sheet' accepts by the deal's score, not by the factors. */
+  answerBy: 'factors' | 'sheet';
+  /** Points a deal's score must reach. */
+  acceptEdge: number;
+  /** The strongest rival's gain counts against a deal by this weight. */
+  againstLeader: number;
+  /** The gain of a partner ranked below both the seat and the strongest rival counts for a deal by this weight. */
+  forWeak: number;
+  /** The weight of a partner's goodwill in a deal's score: how far it reads signals. */
+  reciprocity: number;
+
+  // Playing the table: building
+  /** Builds first where a failing rival is about to land. */
+  huntFailing: boolean;
+
   // Reading the table
   /** Offers watched; 0 never changes mode. */
   moodWindow: number;
@@ -177,12 +241,56 @@ export const BASELINE: Style = {
   distressOffers: false,
   shunLeader: false,
   giveUpBelow: null,
+  offerBy: 'list',
+  completeBy: 'value',
+  openShare: 0.3,
+  maxShare: 0.8,
+  raiseStep: 0.15,
+  probeGap: 3,
+  probeDrop: 0.05,
+  earlyOffers: false,
+  earlyBefore: 20,
+  earlyNeed: 0,
+  denyOffers: false,
+  denyThreat: 1.3,
+  denyShare: 0.8,
+  denyRank: 4,
+  estateOffers: 'off',
+  failBelow: 0.4,
+  rescue: false,
+  debtOffers: false,
+  debtSales: false,
+  courtAllies: false,
+  giftEdge: 2,
+  allyAt: 3,
+  allyTurns: 4,
+  answerBy: 'factors',
+  acceptEdge: 0,
+  againstLeader: 0,
+  forWeak: 0,
+  reciprocity: 0,
+  huntFailing: false,
   moodWindow: 0,
   moodFloor: 0,
   blockMode: null,
   afterFirstGroup: null,
   bySize: {},
 };
+
+/** The fields added for playing the table (M3b). */
+export const TABLE_FIELDS = [
+  'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
+  'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
+  'courtAllies', 'giftEdge', 'allyAt', 'allyTurns', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity', 'huntFailing',
+] as const satisfies readonly (keyof Style)[];
+
+/** A style as it may have been stored before the table fields existed. */
+export type StoredStyle = Omit<Style, (typeof TABLE_FIELDS)[number]> & Partial<Pick<Style, (typeof TABLE_FIELDS)[number]>>;
+
+/** A stored style with every field it lacks at the baseline's value, so that it plays as it did when it was stored. */
+export function completeStyle(stored: StoredStyle): Style {
+  return { ...BASELINE, ...stored };
+}
 
 /** A style from the baseline and some changes. Record fields such as `buy` are merged set by set. */
 export function styleFrom(name: string, changes: Partial<Style>, base: Style = BASELINE): Style {
@@ -230,6 +338,24 @@ const RANGES: Partial<Record<keyof Style, [number, number]>> = {
   completionPenalty: [0, 100],
   moodWindow: [0, 100],
   moodFloor: [0, 1],
+  openShare: [0, 2],
+  maxShare: [0, 2],
+  raiseStep: [0, 1],
+  probeGap: [1, 40],
+  probeDrop: [0, 1],
+  earlyBefore: [0, 200],
+  earlyNeed: [0, 1],
+  denyThreat: [0, 4],
+  denyShare: [0, 2],
+  denyRank: [1, 4],
+  failBelow: [0, 4],
+  giftEdge: [0, 20],
+  allyAt: [0, 20],
+  allyTurns: [1, 40],
+  acceptEdge: [-20, 20],
+  againstLeader: [0, 5],
+  forWeak: [0, 5],
+  reciprocity: [0, 5],
 };
 
 /** The problems with a style, one message each; empty when it is sound. */
@@ -248,6 +374,11 @@ export function validateStyle(style: Style): string[] {
     }
   }
   if (style.offerHigh < style.offerLow) problems.push('offerHigh must not be below offerLow');
+  if (style.maxShare < style.openShare) problems.push('maxShare must not be below openShare');
+  if (style.offerBy !== 'list' && style.offerBy !== 'value') problems.push("offerBy must be 'list' or 'value'");
+  if (style.completeBy !== 'list' && style.completeBy !== 'value') problems.push("completeBy must be 'list' or 'value'");
+  if (style.answerBy !== 'factors' && style.answerBy !== 'sheet') problems.push("answerBy must be 'factors' or 'sheet'");
+  if (!['off', 'self', 'both'].includes(style.estateOffers)) problems.push("estateOffers must be 'off', 'self' or 'both'");
   if (!(style.acceptMargin > 0)) problems.push('acceptMargin must be above 0');
   if (style.buildBeyond !== null && !(style.buildBeyond >= 0)) problems.push('buildBeyond must be 0 or more, or null');
   if (style.declinePoor !== null && !(style.declinePoor > 0)) problems.push('declinePoor must be above 0, or null');

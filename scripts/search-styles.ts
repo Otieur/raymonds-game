@@ -22,6 +22,7 @@ import type { Engine, PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { memberAgent, playbookAgent } from '../src/sim/league.ts';
 import type { FoundStyle } from '../src/sim/league.ts';
+import { createDebtWindows, debtWindow } from '../src/sim/window.ts';
 import type { Part } from '../src/sim/parts.ts';
 import type { Condition, Playbook, Rule } from '../src/sim/playbook.ts';
 import type { Signals } from '../src/sim/signals.ts';
@@ -97,12 +98,86 @@ const PER_SET: [string, number, number][] = [
   ['prefer', 0.5, 2],
 ];
 
+/**
+ * The fields of table politics (M3b). They are in the genome only with --politics, so that a search
+ * made before them repeats draw for draw and its saved genomes still decode. The fourth entry marks a
+ * field that is a whole number.
+ */
+const POLITICS = process.argv.includes('--politics');
+const TABLE_NUMBERS: [keyof Style, number, number, boolean?][] = [
+  ['openShare', 0.1, 1],
+  ['maxShare', 0.3, 1.5],
+  ['raiseStep', 0, 0.5],
+  ['probeGap', 1, 8, true],
+  ['probeDrop', 0, 0.2],
+  ['earlyBefore', 5, 40, true],
+  ['earlyNeed', 0, 1],
+  ['denyThreat', 1, 3],
+  ['denyShare', 0, 1.5],
+  ['denyRank', 1, 4, true],
+  ['failBelow', 0.1, 1],
+  ['giftEdge', 0.5, 6],
+  ['allyAt', 0.5, 8],
+  ['allyTurns', 1, 10, true],
+  ['acceptEdge', -2, 5],
+  ['againstLeader', 0, 2],
+  ['forWeak', 0, 2],
+  ['reciprocity', 0, 2],
+];
+const TABLE_SWITCHES = ['offerByValue', 'completeByList', 'earlyOffers', 'denyOffers', 'useEstates', 'estatesBoth', 'rescue', 'debtOffers', 'debtSales', 'courtAllies', 'answerBySheet', 'huntFailing'];
+
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const unscale = (value: number, low: number, high: number) => clamp((value - low) / (high - low));
 const scale = (gene: number, low: number, high: number) => low + clamp(gene) * (high - low);
 
-export function encode(style: Style): Genome {
+/** The genes of table politics for a style. */
+function encodeTable(style: Style): Genome {
   const g: Genome = {};
+  const on = (b: boolean) => (b ? 1 : 0);
+  for (const [key, low, high] of TABLE_NUMBERS) g[key] = unscale(style[key] as number, low, high);
+  g.offerByValue = on(style.offerBy === 'value');
+  g.completeByList = on(style.completeBy === 'list');
+  g.earlyOffers = on(style.earlyOffers);
+  g.denyOffers = on(style.denyOffers);
+  g.useEstates = on(style.estateOffers !== 'off');
+  g.estatesBoth = on(style.estateOffers === 'both');
+  g.rescue = on(style.rescue);
+  g.debtOffers = on(style.debtOffers);
+  g.debtSales = on(style.debtSales);
+  g.courtAllies = on(style.courtAllies);
+  g.answerBySheet = on(style.answerBy === 'sheet');
+  g.huntFailing = on(style.huntFailing);
+  return g;
+}
+const TABLE_DEFAULTS = encodeTable(BASELINE);
+
+/** The fields of table politics from a genome; a gene it lacks is read at the baseline's value. */
+function decodeTable(g: Genome): Partial<Style> {
+  const gene = (key: string) => g[key] ?? TABLE_DEFAULTS[key];
+  const out: Record<string, unknown> = {};
+  for (const [key, low, high, whole] of TABLE_NUMBERS) {
+    const value = scale(gene(key), low, high);
+    out[key] = whole ? Math.round(value) : Math.round(value * 1000) / 1000;
+  }
+  const on = (key: string) => gene(key) >= 0.5;
+  const fields = out as Partial<Style>;
+  fields.maxShare = Math.max(fields.maxShare as number, fields.openShare as number);
+  fields.offerBy = on('offerByValue') ? 'value' : 'list';
+  fields.completeBy = on('completeByList') ? 'list' : 'value';
+  fields.earlyOffers = on('earlyOffers');
+  fields.denyOffers = on('denyOffers');
+  fields.estateOffers = on('useEstates') ? (on('estatesBoth') ? 'both' : 'self') : 'off';
+  fields.rescue = on('rescue');
+  fields.debtOffers = on('debtOffers');
+  fields.debtSales = on('debtSales');
+  fields.courtAllies = on('courtAllies');
+  fields.answerBy = on('answerBySheet') ? 'sheet' : 'factors';
+  fields.huntFailing = on('huntFailing');
+  return fields;
+}
+
+export function encode(style: Style, politics = POLITICS): Genome {
+  const g: Genome = politics ? encodeTable(style) : {};
   for (const [key, low, high] of NUMBERS) {
     let value: number;
     if (key === 'offerSpread') value = style.offerHigh - style.offerLow;
@@ -209,6 +284,7 @@ export function decode(g: Genome, name: string): Style {
     blockMode: on('readsTable') ? REFERENCE_BLOCK : null,
     afterFirstGroup: null,
     bySize: {},
+    ...('offerByValue' in g ? decodeTable(g) : {}),
   };
   const problems = validateStyle(style);
   if (problems.length > 0) throw new Error(`Decoded style ${name} is unsound: ${problems.join('; ')}`);
@@ -225,7 +301,7 @@ function gaussian(random: () => number): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * random());
 }
 
-export function perturb(g: Genome, sigma: number, random: () => number): Genome {
+export function perturb(g: Genome, sigma: number, random: () => number, politics = POLITICS): Genome {
   const out = { ...g };
   for (const [key] of NUMBERS) out[key] = clamp(out[key] + sigma * gaussian(random));
   for (const key of SWITCHES) if (random() < 0.1) out[key] = out[key] >= 0.5 ? 0 : 1;
@@ -237,12 +313,20 @@ export function perturb(g: Genome, sigma: number, random: () => number): Genome 
       out[`${field}.${set}`] = clamp(out[`${field}.${set}`] + 2 * sigma * gaussian(random));
     }
   }
+  if (politics) {
+    // After everything else, so that the draws before this point are those of a search without politics.
+    for (const [key] of TABLE_NUMBERS) out[key] = clamp((out[key] ?? TABLE_DEFAULTS[key]) + sigma * gaussian(random));
+    for (const key of TABLE_SWITCHES) {
+      const now = out[key] ?? TABLE_DEFAULTS[key];
+      out[key] = random() < 0.1 ? (now >= 0.5 ? 0 : 1) : now;
+    }
+  }
   return out;
 }
 
 function crossover(a: Genome, b: Genome, random: () => number): Genome {
   const out: Genome = {};
-  for (const key of Object.keys(a)) out[key] = random() < 0.5 ? a[key] : b[key];
+  for (const key of Object.keys(a)) out[key] = random() < 0.5 ? a[key] : (b[key] ?? a[key]);
   return out;
 }
 
@@ -286,11 +370,14 @@ function scoreGame(engine: Engine, job: ScoreJob, seed: number, out: Score): voi
     const style = job.poolStyles[name];
     agents.set(id, style ? playbookAgent({ name, base: style, rules: [] }) : memberAgent(name));
   }
+  const windows = createDebtWindows();
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < ACTION_LIMIT; actions++) {
     const waiting = engine.awaiting(state);
-    const actor = waiting[Math.floor(random() * waiting.length)];
-    const action = agents.get(actor)?.choose(engine, state, actor, random);
+    // At a debt the debtor cannot cover, seats that offer for its property are asked first.
+    const early = debtWindow(engine, state, (id) => agents.get(id), random, windows);
+    const actor = early ? early.actor : waiting[Math.floor(random() * waiting.length)];
+    const action = early ? early.action : agents.get(actor)?.choose(engine, state, actor, random);
     if (!action) throw new Error(`${job.id}, seed ${seed}: ${actor} has no action.`);
     const result = engine.apply(state, action);
     if (!result.ok) throw new Error(`${job.id}, seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
@@ -511,8 +598,11 @@ const SIGNAL_RANGES: Record<keyof Signals, [number, number]> = {
   tableSize: [2, 4], players: [1, 4], round: [0, 80], owned: [0, 1], chance: [0, 3], rank: [1, 4], leader: [0, 3],
   rentShare: [0, 1], groups: [0, 4], unbuilt: [0, 3], nearSets: [0, 3], needs: [0, 3], wanted: [0, 3], passes: [0, 4],
   spare: [0, 2], danger: [0, 3], rivalLevel: [0, 5], rivalNear: [0, 1], rivalPoor: [0, 1], bankHouses: [0, 32], mood: [0, 1],
+  threat: [0, 4], gap: [-3, 3], failing: [0, 1], shunned: [0, 1],
 };
-const SIGNALS = Object.keys(SIGNAL_RANGES) as (keyof Signals)[];
+/** The four signals of table politics join the search only with --politics, so that an earlier search can be repeated draw for draw. */
+const TABLE_SIGNALS: (keyof Signals)[] = ['threat', 'gap', 'failing', 'shunned'];
+const SIGNALS = (Object.keys(SIGNAL_RANGES) as (keyof Signals)[]).filter((signal) => process.argv.includes('--politics') || !TABLE_SIGNALS.includes(signal));
 const PART_NAMES: Part[] = ['value', 'buy', 'bid', 'build', 'cash', 'offer', 'answer'];
 
 interface PlaybookGenome {
