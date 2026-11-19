@@ -8,6 +8,12 @@ network by proximal policy optimization, move the schedules, write metrics and c
 A run directory holds the configuration it ran from, the commit, `metrics.jsonl` with one line an
 update, `checks.jsonl` with the scores of exported checkpoints, `weights.pt` (the latest) and
 `checkpoints/`. A run stopped at any point resumes from its last checkpoint.
+
+Past selves (M7): with `past_selves` set, the learner's weights are exported to `selves/` every
+`every` updates and join the league members its tables are drawn from, as `model:<path>`. At most
+`newest` + `spread` are seated: the newest ones, and the rest spread evenly over the run's history.
+Holders of a line are named in `members` or `holder` and are not counted against that number.
+A branch (train/branch.py) carries its parent's selves.
 """
 from __future__ import annotations
 
@@ -61,6 +67,8 @@ DEFAULTS = {
     "checks": None,
     # A fixed list of opponents for every table, in place of the four kinds drawn by their shares (step 0c, and the trials of 0d).
     "opponents": None,
+    # Past selves among the league members (M7): {"every": 200, "newest": 4, "spread": 4}.
+    "past_selves": None,
 }
 
 
@@ -88,9 +96,47 @@ def schedules(cfg: dict, fraction: float) -> dict:
     }
 
 
-def draw_tables(cfg: dict, book: Book, rng: np.random.Generator) -> tuple[list[dict], list[str]]:
+def kept_selves(history: list[str], newest: int, spread: int) -> list[str]:
+    """The past selves seated: the newest `newest`, and `spread` more spread evenly over the older ones, in the order they were made."""
+    recent = history[len(history) - newest:] if newest > 0 else []
+    older = history[: len(history) - len(recent)]
+    if spread <= 0 or not older:
+        picks: list[str] = []
+    elif len(older) <= spread:
+        picks = older
+    elif spread == 1:
+        picks = [older[0]]
+    else:
+        picks = [older[round(i * (len(older) - 1) / (spread - 1))] for i in range(spread)]
+    chosen = set(picks) | set(recent)
+    return [self for self in history if self in chosen]
+
+
+def members_now(cfg: dict, state: dict) -> list[str]:
+    """The league members tables are drawn from: the configured ones, and the past selves seated now."""
+    selves = cfg.get("past_selves")
+    if not selves:
+        return list(cfg["members"])
+    kept = kept_selves(state.get("selves", []), selves.get("newest", 4), selves.get("spread", 4))
+    return list(cfg["members"]) + [f"model:{path}" for path in kept]
+
+
+def add_self(run: Path, net, state: dict) -> str:
+    """Exports the current weights as a past self and records it; returns the exported file."""
+    torch.save(net.state_dict(), run / "weights.pt")
+    out = run / "selves" / f"{state['update']:05d}"
+    out.parent.mkdir(exist_ok=True)
+    subprocess.run([sys.executable, str(ROOT / "train" / "export.py"), "--run", str(run), "--out", str(out)], check=True, cwd=ROOT, capture_output=True)
+    path = str(out.resolve()) + ".ts"
+    state.setdefault("selves", []).append(path)
+    return path
+
+
+def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[str] | None = None) -> tuple[list[dict], list[str]]:
     """One environment configuration for each worker: a game (table size and rules) and a kind of table, each drawn by its share."""
     from opponents import sample_kind
+
+    members = cfg["members"] if members is None else members
 
     games = cfg["games"]
     shares = np.array([g["share"] for g in games], dtype=np.float64)
@@ -104,7 +150,7 @@ def draw_tables(cfg: dict, book: Book, rng: np.random.Generator) -> tuple[list[d
             configs.append({**base, "learners": 1, "opponents": cfg["opponents"]})
         else:
             kind = sample_kind(rng)
-            configs.append(table_config(kind, base, game["players"], cfg["members"], book, cfg["holder"]))
+            configs.append(table_config(kind, base, game["players"], members, book, cfg["holder"]))
         labels.append(f"{game['players']}p {game['rules']} {kind}")
     return configs, labels
 
@@ -153,7 +199,7 @@ def main(argv: list[str] | None = None) -> None:
             p.requires_grad_(False)
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg["lr"])
     book = Book()
-    state = {"update": 0, "decisions": 0, "games": 0, "next_seed": cfg["seeds"]}
+    state = {"update": 0, "decisions": 0, "games": 0, "next_seed": cfg["seeds"], "selves": []}
 
     checkpoint = latest(run) if args.resume else None
     if checkpoint:
@@ -166,7 +212,7 @@ def main(argv: list[str] | None = None) -> None:
 
     n = cfg["workers"] * cfg["envs_per_worker"]
     block = n * 10_000  # seeds set aside for one drawing of the tables
-    configs, labels = draw_tables(cfg, book, rng)
+    configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state))
     env = VecEnv(cfg["workers"], cfg["envs_per_worker"], {"potentials": cfg["potentials"], "seeds": {"start": state["next_seed"], "step": 1}}, configs)
     state["next_seed"] += block
     collector = Collector(schedules(cfg, 0.0)["weights"], cfg["gamma"], cfg["lam"])
@@ -225,12 +271,14 @@ def main(argv: list[str] | None = None) -> None:
                 f.write(json.dumps(line) + "\n")
             print(f"update {line['update']}: {line['decisions']} decisions, {finished} games, wins {line['wins']}, entropy {terms.get('entropy', 0):.3f}, {line['per_second']:.0f} a second", flush=True)
 
+            if cfg.get("past_selves") and state["update"] % cfg["past_selves"]["every"] == 0:
+                add_self(run, net, state)
             if state["update"] % cfg["checkpoint_every"] == 0:
                 save(run, net, optimizer, state, book, rng)
                 if cfg.get("checks"):
                     checks.append((state["update"], start_check(run, cfg, state["update"])))
             if state["update"] % cfg["tables_every"] == 0:
-                configs, labels = draw_tables(cfg, book, rng)
+                configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state))
                 env.remake(configs, state["next_seed"])
                 state["next_seed"] += block
                 collector.open.clear()
@@ -244,15 +292,24 @@ def main(argv: list[str] | None = None) -> None:
         collect_checks(run, checks)
 
 
+def check_list(cfg: dict) -> list[dict]:
+    """The checks a run makes of each exported checkpoint: `checks` is one setting or a list of them (one for each table size, in M7)."""
+    checks = cfg.get("checks")
+    if not checks:
+        return []
+    return list(checks) if isinstance(checks, list) else [checks]
+
+
 def start_check(run: Path, cfg: dict, update: int) -> subprocess.Popen:
-    """Exports the latest weights and scores them in the background, without the bridge."""
-    check = cfg["checks"]
+    """Exports the latest weights and scores them in the background, without the bridge, once for each check setting."""
     out = run / "exports" / f"{update:05d}"
-    command = (
-        f"{sys.executable} {ROOT / 'train' / 'export.py'} --run {run} --out {out} && "
+    offers = f" --proposer {cfg['proposer']}" if cfg.get("proposer") else " --no-proposals"
+    scores = " && ".join(
         f"node {ROOT / 'scripts' / 'evaluate.ts'} --model {out}.ts --against {check.get('against', 'baseline')} --size {check['size']} "
-        f"--games {check.get('games', 500)} --seeds {check.get('seeds', 2_500_000)}" + (f" --proposer {cfg['proposer']}" if cfg.get("proposer") else " --no-proposals")
+        f"--games {check.get('games', 500)} --seeds {check.get('seeds', 2_500_000)}{offers}"
+        for check in check_list(cfg)
     )
+    command = f"{sys.executable} {ROOT / 'train' / 'export.py'} --run {run} --out {out} && {scores}"
     return subprocess.Popen(command, shell=True, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
 
@@ -264,8 +321,13 @@ def collect_checks(run: Path, checks: list) -> list:
             running.append((update, proc))
             continue
         output = proc.stdout.read() if proc.stdout else ""
+        if proc.stdout:
+            proc.stdout.close()
+        lines = output.strip().splitlines()
+        # Every score's line (one for each check setting), or the last lines when there is none (an error).
+        scored = [line for line in lines if " as the one among " in line]
         with (run / "checks.jsonl").open("a") as f:
-            f.write(json.dumps({"update": update, "code": proc.returncode, "output": output.strip().splitlines()[-3:]}) + "\n")
+            f.write(json.dumps({"update": update, "code": proc.returncode, "output": scored or lines[-3:]}) + "\n")
     return running
 
 

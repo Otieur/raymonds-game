@@ -422,3 +422,12 @@ node scripts/compare-tables.ts $DATA_DIR/tables/gate7-envoy-4.json $DATA_DIR/tab
 ```
 
 Step 4 should reproduce the night's shares exactly (23.8% and 26.1%) if the night's two tables were played on these seeds, which `queue/m3b-rest3.sh` on the disk shows (to be checked first), since the first forms of the presets have not changed. If the shares differ on the same seeds, that is a finding in itself, to be explained before the paired figure is used.
+
+### Code: M7's branching and members in the study
+
+On branch `ai/m7-branch-and-members`, at the author's word to go on with what needs no disk:
+
+- `train/branch.py` (M7 task 1): a run from another run's checkpoint with a new configuration; the branch's first check is compared with the parent's check of the same checkpoint. `train/run.py`: past selves (`past_selves`), checks at several sizes (`checks` as a list), and the check's output pipe is now closed. `train/opponents.py`: a learned holder can be seated by name. `scripts/env-server.ts` imports the model loader, so the environment can seat `model:<path>` members. Configurations `g4.json`, `specialist-2.json` to `-4.json`, `shared-continued.json`.
+- `scripts/study.ts --members` (M7 task 6), with `--sizes`; saved runs keep the options that made their tables, so `--from` reprints a run made with `--only`, `--styles` or `--members` without them on the command line. `scripts/lines.ts` reads lines of succession, now `main-<n>` as well as `style-<n>`.
+- Settings where M7's plan is silent are listed in its new section "Settings chosen in writing the code", for the author to change before G4 if he wishes.
+- Checks: `npm run typecheck` passes, `npm test` runs 262 tests and the Python suite 37, all passing. Task 6's check passed (M7's Progress section has the figures): 24,000 games in 193 seconds, written only to scratch space. A four-update trial of a branch with past selves ran without error.

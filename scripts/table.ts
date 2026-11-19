@@ -3,9 +3,9 @@
  *
  *   node scripts/table.ts --seats style-4,baseline,balancer,balancer [--games 5000] [--seeds 1120000] [--workers 6] [--json file]
  *
- * A seat is a league member by name, or `style-2`, `style-3`, `style-4` for whoever holds that line
- * in assets/lines.json. The seats are fixed; the opening roll sets the order of play, and the seed
- * fixes the dice, so two tables on the same seeds differ only by who sits in them.
+ * A seat is a league member by name, or a line of succession (`style-4`, `main-2`, ...) for whoever
+ * holds that line in assets/lines.json. The seats are fixed; the opening roll sets the order of
+ * play, and the seed fixes the dice, so two tables on the same seeds differ only by who sits in them.
  *
  * Seats that offer at a rival's debt are given the debt window. Every action goes through the
  * engine's checks, and a refused action stops the run.
@@ -15,13 +15,14 @@
  * scripts/compare-tables.ts.
  */
 import { fork } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createEngine, threeKingdoms } from '../src/index.ts';
 import type { Engine, PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { memberAgent } from '../src/sim/league.ts';
+import { memberOf } from './lines.ts';
 import './model-loader.ts';
 import { addPolitics, createPoliticsWatch, DEAL_KINDS, emptySeatPolitics, emptyTablePolitics } from '../src/sim/politics.ts';
 import type { SeatPolitics, TablePolitics } from '../src/sim/politics.ts';
@@ -51,14 +52,7 @@ export const emptyTally = (size: number): TableTally => ({
   table: emptyTablePolitics(),
 });
 
-/** The league member behind a seat's name: a line of succession stands for its holder. */
-export function memberOf(name: string): string {
-  if (!/^style-[234]$/.test(name)) return name;
-  const lines = JSON.parse(readFileSync(new URL('../assets/lines.json', import.meta.url), 'utf8')) as { lines: Record<string, { holder: string }> };
-  const holder = lines.lines[name]?.holder;
-  if (!holder) throw new Error(`No holder recorded for ${name}.`);
-  return holder;
-}
+export { memberOf };
 
 /** Plays one game of a named table into a tally; returns the winning seat (0-based), or -1 if unfinished. */
 export function playNamed(engine: Engine, members: string[], seed: number, tally: TableTally): number {

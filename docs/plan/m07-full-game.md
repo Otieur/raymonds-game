@@ -8,10 +8,13 @@ To carry the learner from the three first games to the full game at every table 
 
 | File | Contents |
 | --- | --- |
-| `train/configs/g4.yaml` | The shared agent on the full game at all three sizes. |
-| `train/configs/specialist-2.yaml`, `-3.yaml`, `-4.yaml` | The three specialists. |
+| `train/configs/g4.json` | The shared agent on the full game at all three sizes. |
+| `train/configs/specialist-2.json`, `-3.json`, `-4.json` | The three specialists. |
+| `train/configs/shared-continued.json` | The shared agent continued beside the specialists, for the comparison. |
 | `train/branch.py` | Starts a run from another run's checkpoint with a new configuration. |
+| `train/run.py` | Past selves among the league members; checks at several table sizes. |
 | `scripts/study.ts` | Any league member, learned ones included, can be the odd player or fill a table. |
+| `scripts/lines.ts` | Lines of succession by name (`main-4`, `style-2`) for the scripts that seat members. |
 | `assets/models/` | The shared agent, and each specialist that ships. |
 
 ## Specification
@@ -63,6 +66,17 @@ Whichever way the test falls, the stage reports how the agents play each size, b
 | Does it keep more cash late? | Mean cash at rounds 10, 20 and 40, against the largest rent it could owe. |
 | Does it accept what completes a rival's group? | The share of such offers it accepts, and at what price over list. |
 
+### Settings chosen in writing the code
+
+Written on 19 November 2026, before any run. Where the plan above is silent, the code does the following; each is a setting in a configuration file, so the author can change any of them before G4 starts.
+
+- **A branch is a run of its own.** Its update and decision counts start at 0, so its budget and every schedule (learning rate, entropy bonus, shaping, starting-policy pull, the critic's warm-up) start again from its configuration. `branch.py` names the ones its file leaves to the parent. The optimizer's moments, the book of results, the past selves and the next training seed go with the weights unless the file's `reset` names them.
+- **G4** names its budget, sizes, shaping, `start: null` and `critic_warmup: 0`; the learning rate and entropy bonus start again from G3's configured values (3e-4, and 0.01 falling to 0.001), since "nothing in the update changes".
+- **The specialists and the continued shared agent** change only the table sizes and the learning rate (1e-4, falling to 0 over their budget, as every run's rate does). The entropy bonus stays at 0.001 and the shaping at none, where G4 ends them. The continued shared agent takes the same learning rate, so that the comparison differs in the sizes alone.
+- **Past selves** are exported every 200 updates to the run's `selves/`, as `model:<path>` members. The first of G4's are G3's exports at every 200 updates (`past_selves.from_parent`). Holders of a line are named in `members` or `holder` and are not counted against the eight.
+- **Checks at every size.** `checks` may be a list, one setting for each size; G4 and the continued shared agent check at two, three and four players at every checkpoint. The continued shared agent's check at 3D decisions compares with a specialist's at D, since it spends a third of its games at each size.
+- **Members in the study.** `--members a,b` adds, for each size in `--sizes`, a table of each member alone (the main tables' number of games and their full report, printed beside the main table of its size) and a table of each member as the odd player among each other (a fifth as many). Lines of succession are read once, when the run starts.
+
 ### If the learner stalls
 
 A stack of dense layers reads 28 properties as 28 unrelated slots. If G4 stalls below its gate with the levers of M6 exhausted, the next network treats the properties and the seats as two sets of tokens (the same numbers as the observation's property and seat blocks, one row each), passes them through two layers of attention so that a street can look at the other streets of its group and at their owners, and pools the result for the heads. The observation, the actions and the environment do not change. The client then needs a forward pass for attention or ONNX Runtime Web, which is the cost that makes this the second choice.
@@ -100,11 +114,14 @@ At the planning rate of 5,000 decisions a second; replaced by M4's measured rate
 ## Commands
 
 ```sh
-python train/branch.py --from $DATA_DIR/runs/g3-s1 --config train/configs/g4.yaml --run $DATA_DIR/runs/g4-s1
-python train/branch.py --from $DATA_DIR/runs/g4-s1 --config train/configs/specialist-4.yaml --run $DATA_DIR/runs/spec4-s1
+train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/g3-s1 --config train/configs/g4.json --run $DATA_DIR/runs/g4-s1
+train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/g4-s1 --config train/configs/specialist-4.json --run $DATA_DIR/runs/spec4-s1
+train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/g4-s1 --config train/configs/shared-continued.json --run $DATA_DIR/runs/shared-s1
 node scripts/promote.ts --line main-4 --challenger $DATA_DIR/runs/spec4-s1/exports/00380.ts
-node scripts/study.ts 20000 --members main-4,baseline --sizes 4
+node scripts/study.ts 20000 --members main-4,baseline --sizes 4 --only member
 ```
+
+A stopped branch resumes as any run does: `train/.venv/bin/python train/run.py --resume <run>`.
 
 ## Gate
 
@@ -129,6 +146,12 @@ node scripts/study.ts 20000 --members main-4,baseline --sizes 4
 
 - Opponents with characters. That is M8.
 - Learned offers. That is M9.
+
+## Progress
+
+- **Task 1, `train/branch.py`** (19 November 2026, branch `ai/m7-branch-and-members`). Its check, that a branched run's first check reproduces its parent's last, is a test: a parent's checkpoint and its branch are exported and scored by `evaluate.ts` on the same seeds, and the figures agree to the decision. 12 tests in `train/tests/test_branch.py` (the suite: 37). A trial of four updates on tiny settings branched a run, exported a past self at every update and met two of them at the league's tables without error.
+- **Task 6, `study.ts --members`** (the same day). *Check:* 4,000 games for each of the main full-game tables and the tables of `--members baseline` at two, three and four players: every share and mean compared (finished games, wins by place, the first completer's wins, the moments of the game, turns) lies within its 95% interval, the largest at 1.47 standard errors; trades and mortgages a game agree too, once their spread from game to game is allowed for (mortgages vary 6.6 to 7.8 times as much as a Poisson count; corrected, the largest gap is 1.3 standard errors). Run without the data disk, on the internal disk's scratch space, as a check of code rather than a result.
+- Not started: tasks 2 to 5 and 7 to 10, which need G3 and the data disk.
 
 ## Result
 

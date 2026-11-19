@@ -1,0 +1,10 @@
+{
+  "name": "specialist-4",
+  "note": "M7: a specialist for 4 players, branched from G4's checkpoint. Only the table size and the learning rate change: the learning rate restarts at 1e-4, and the entropy bonus and the shaping stay where G4 ended them (0.001 and none). 50 million decisions; checked at 4 players.",
+  "games": [{ "players": 4, "rules": "full", "share": 1.0 }],
+  "budget": 50000000,
+  "lr": 0.0001,
+  "entropy": [0.001, 0.001],
+  "shaping": { "value": { "start": 0.0, "until": 0.0 }, "milestones": { "start": 0.0, "until": 0.0 } },
+  "checks": { "size": 4, "games": 500, "seeds": 2500000, "against": "baseline" }
+}

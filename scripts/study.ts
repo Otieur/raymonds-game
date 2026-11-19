@@ -13,17 +13,27 @@
  *   node scripts/study.ts ... --rates src/sim/landing-rates.ts   writes the four-player landing rates
  *   node scripts/study.ts 100000 --snapshots <dir>         writes a snapshot every five rounds of the main tables
  *   node scripts/study.ts 100000 --only full               plays only the tables whose names start so
+ *   node scripts/study.ts 20000 --members main-4,baseline --sizes 4 --only member
+ *                                                          league members by name: each alone at a table,
+ *                                                          and each as the odd player among each other
  *
  * The main tables are full games among rule-based players. The short game and the tables of one
  * odd player among ordinary ones get a fifth as many games; the tables where nobody trades,
  * whose games are far longer, a fiftieth. The games are shared out among worker processes; the
  * result does not depend on how many there are, because every game is fixed by its table and
  * its seed.
+ *
+ * A member is any name the league plays (a preset, a variant, an admitted style, `model:<path>`) or a
+ * line of succession (`main-4`, `style-2`), which stands for its holder when the run starts. A table
+ * of one member alone gets the main tables' number of games and their full report, and is printed
+ * beside the main table of its size when that is in the run; a table of one member among another
+ * gets a fifth as many, like the other odd-player tables. `--sizes` (2,3,4 unless given) sets the
+ * sizes of the members' tables only.
  */
 import { fork } from 'node:child_process';
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildContext } from '../src/context.ts';
 import type { Context } from '../src/context.ts';
@@ -49,6 +59,7 @@ import type {
 } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { fitLinear as fit } from '../src/sim/linear.ts';
+import { memberAgent } from '../src/sim/league.ts';
 import { MEASURES, setOf, viewOf } from '../src/sim/measures.ts';
 import { snapshotOf as snapshotRow } from '../src/sim/snapshot.ts';
 import { PRESETS, presetAgent } from '../src/sim/styles.ts';
@@ -59,7 +70,11 @@ import { addPolitics, createPoliticsWatch, emptyTablePolitics, flatPolitics, nam
 import type { TablePolitics } from '../src/sim/politics.ts';
 import type { OpenRow, SnapshotRow } from '../src/sim/snapshot.ts';
 import type { View } from '../src/sim/measures.ts';
+import { memberOf } from './lines.ts';
+import './model-loader.ts';
 
+/** Options a saved run was made with, used by `--from` when the command line does not give them. */
+const savedOptions: Record<string, string> = {};
 /** Actions after which an unfinished game is abandoned. */
 const ACTION_LIMIT = 40000;
 /** Games per job handed to a worker. */
@@ -76,9 +91,10 @@ const TURN_BUCKETS = 400;
  * Who plays a seat. `rules` is the rule-based agent and `random` the random one. The others
  * are the rule-based agent with one habit changed: `no-works` never buys or bids on a works,
  * `no-conquest` never buys or bids on a street of the Conquest of Shu group, `refuser` rejects
- * every trade offered to it, `quiet` never proposes one, and `no-trade` does neither.
+ * every trade offered to it, `quiet` never proposes one, and `no-trade` does neither. `style:<preset>`
+ * is a named school, and `member:<name>` any league member, learned ones included.
  */
-type Policy = 'rules' | 'random' | 'no-works' | 'no-conquest' | 'refuser' | 'quiet' | 'no-trade' | `style:${string}`;
+type Policy = 'rules' | 'random' | 'no-works' | 'no-conquest' | 'refuser' | 'quiet' | 'no-trade' | `style:${string}` | `member:${string}`;
 type Via = 'purchase' | 'auction' | 'trade' | 'bankruptcy';
 type MomentKind = 'soldOut' | 'firstGroup' | 'firstBuilding' | 'firstBankruptcy';
 
@@ -413,6 +429,25 @@ function makeTables(games: number): Table[] {
   }
   // M6 task 6: the refuser in the four-player short game, the second bar of G2's gate.
   add('refuser-among-rules-short-4', 'Short game, one refuser player among 3 rule-based', short, oneAmong('refuser', 'rules', 4), fewer, false);
+
+  // M7 task 6: league members by name. Lines of succession are read once, here.
+  const members = (option('--members') ?? '').split(',').filter(Boolean).map((name) => ({ name, member: memberOf(name) }));
+  const memberSizes = (option('--sizes') ?? '2,3,4').split(',').map(Number);
+  for (const n of memberSizes) if (![2, 3, 4].includes(n)) throw new Error(`No table of ${n} players; --sizes takes 2, 3 and 4.`);
+  // A learned member is shown by its file's name; the seat keeps the whole path.
+  const display = (member: string) => (member.startsWith('model:') ? `model:${basename(member.slice('model:'.length))}` : member);
+  const shown = (m: { name: string; member: string }) => (m.name === m.member ? display(m.name) : `${m.name} (${display(m.member)})`);
+  for (const m of members) {
+    for (const n of memberSizes) add(`member-${m.name}-${n}`, `Full game, ${n} seats of ${shown(m)}`, full, all(`member:${m.member}`, n), games, true);
+  }
+  for (const odd of members) {
+    for (const rest of members) {
+      if (odd.member === rest.member) continue;
+      for (const n of memberSizes) {
+        add(`member-${odd.name}-among-${rest.name}-${n}`, `Full game, one ${shown(odd)} among ${n - 1} ${shown(rest)}`, full, oneAmong(`member:${odd.member}`, `member:${rest.member}`, n), fewer, false);
+      }
+    }
+  }
   return tables;
 }
 
@@ -511,7 +546,8 @@ function emptyTally(table: Table): Tally {
   const wins = {} as Tally['wins'];
   for (const policy of new Set([...POLICIES, ...table.seats])) wins[policy] = 0;
 
-  const styles = table.seats[0].startsWith('style:') ? { styles: { odd: emptyBehaviour(), ordinary: emptyBehaviour(), bankEmpty: 0, table: emptyTablePolitics() } } : {};
+  const oddSeat = table.seats[0].startsWith('style:') || (table.seats[0].startsWith('member:') && table.seats[0] !== table.seats[1]);
+  const styles = oddSeat ? { styles: { odd: emptyBehaviour(), ordinary: emptyBehaviour(), bankEmpty: 0, table: emptyTablePolitics() } } : {};
   return {
     ...styles,
     games: 0,
@@ -815,6 +851,7 @@ function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): v
   const agents = new Map<PlayerId, SeatAgent>();
   ids.forEach((id, i) => {
     if (seats[i].startsWith('style:')) agents.set(id, presetAgent(seats[i].slice('style:'.length)));
+    else if (seats[i].startsWith('member:')) agents.set(id, memberAgent(seats[i].slice('member:'.length)));
   });
   const watch = tally.styles ? new Map<PlayerId, Behaviour>([[ids[0], emptyBehaviour()], [ids[1], emptyBehaviour()]]) : null;
   const peaks = new Map<string, number>();
@@ -1718,6 +1755,30 @@ function reportStyles(tables: Table[], tallies: Tally[]): void {
   );
 }
 
+/** Each league member alone at the table (M7), beside the main table of the same size when the run has it. */
+function reportMembers(entries: Map<string, Entry>): void {
+  const alone = [...entries.values()].filter((entry) => entry.table.key.startsWith('member-') && entry.table.detail);
+  if (alone.length === 0) return;
+  console.log('\n## League members, each alone at the table\n');
+  for (const n of [2, 3, 4]) {
+    const here = alone.filter((entry) => playersOf(entry) === n);
+    if (here.length === 0) continue;
+    const main = entries.get(`full-${n}`);
+    const shown = main ? [main, ...here] : here;
+    const label = (entry: Entry) => (entry === main ? `${n} rule-based players` : entry.table.label.replace(/^Full game, /, ''));
+    console.log(`### ${n} players\n`);
+    summaryGames(shown, label);
+    console.log('Wins by place in the order of play:\n');
+    across(
+      'Place',
+      shown,
+      label,
+      Array.from({ length: n }, (_, place): [string, (entry: Entry) => string] => [String(place + 1), ({ tally }) => share(tally.winsByPlace[place], tally.finished)]),
+    );
+    summaryEvents(shown, label);
+  }
+}
+
 function reportMatches(tables: Table[], tallies: Tally[]): void {
   console.log('\n## One odd player among ordinary ones\n');
   markdown(
@@ -1786,10 +1847,10 @@ function summaryGames(entries: Entry[], heading = bySize): void {
   ]);
 }
 
-function summaryEvents(entries: Entry[]): void {
+function summaryEvents(entries: Entry[], heading = bySize): void {
   const paid = (reason: string) => ({ tally }: Entry) => perGame(tally.paid[reason]?.amount ?? 0, tally, 0);
   const jail = ({ tally }: Entry) => perGame(Object.values(tally.jailSent).reduce((a, b) => a + b, 0), tally, 2);
-  across('Per game', entries, bySize, [
+  across('Per game', entries, heading, [
     ['Rent paid', paid('rent')],
     ['Salary collected', paid('salary')],
     ['Spent on buildings', paid('building')],
@@ -2145,6 +2206,8 @@ function runAll(tables: Table[], games: number, workers: number): Promise<Tally[
         ...(SNAPSHOT_DIR ? ['--snapshots', SNAPSHOT_DIR] : []),
         ...(option('--only') ? ['--only', option('--only') as string] : []),
         ...(option('--styles') ? ['--styles', option('--styles') as string] : []),
+        ...(option('--members') ? ['--members', option('--members') as string] : []),
+        ...(option('--sizes') ? ['--sizes', option('--sizes') as string] : []),
       ]);
       const give = () => {
         if (next < jobs.length) child.send(jobs[next++]);
@@ -2180,13 +2243,24 @@ function runAll(tables: Table[], games: number, workers: number): Promise<Tally[
 
 function option(name: string): string | undefined {
   const at = process.argv.indexOf(name);
-  return at === -1 ? undefined : process.argv[at + 1];
+  return at === -1 ? savedOptions[name] : process.argv[at + 1];
+}
+
+/** The options that decide which tables a run has, as given. */
+function tableOptions(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of ['--only', '--styles', '--members', '--sizes']) {
+    const value = option(name);
+    if (value !== undefined) out[name] = value;
+  }
+  return out;
 }
 
 function print(tables: Table[], tallies: Tally[], opening: string): void {
   console.log('# Simulation study\n');
   console.log(opening);
   reportSummary(new Map(tables.map((table, i) => [table.key, { table, tally: tallies[i] }])));
+  reportMembers(new Map(tables.map((table, i) => [table.key, { table, tally: tallies[i] }])));
   reportMatches(tables, tallies);
   reportStyles(tables, tallies);
   if (process.argv.includes('--details')) {
@@ -2242,13 +2316,12 @@ if (process.argv[2] === '--worker') {
     process.send?.({ job, tally: runChunk(tables[job.table], job.from, job.to) });
   });
 } else if (saved) {
-  const run = JSON.parse(readFileSync(saved, 'utf8')) as { games: number; tables: { key: string; tally: Tally }[] };
-  const tables = makeTables(run.games);
-  const tallies = tables.map((table) => {
-    const found = run.tables.find((entry) => entry.key === table.key);
-    if (!found) throw new Error(`${saved} has no table "${table.key}".`);
-    return found.tally;
-  });
+  const run = JSON.parse(readFileSync(saved, 'utf8')) as { games: number; options?: Record<string, string>; tables: { key: string; tally: Tally }[] };
+  Object.assign(savedOptions, run.options ?? {});
+  // The tables the run was made with: a run saved before options were kept needs them on the command line.
+  const tables = chosenTables(run.games).filter((table) => run.tables.some((entry) => entry.key === table.key));
+  if (tables.length === 0) throw new Error(`${saved} has none of the tables these options make.`);
+  const tallies = tables.map((table) => (run.tables.find((entry) => entry.key === table.key) as { tally: Tally }).tally);
   print(tables, tallies, describe(tables, tallies));
   const rates = option('--rates');
   if (rates) writeRates(rates, tables, tallies);
@@ -2268,7 +2341,7 @@ if (process.argv[2] === '--worker') {
   if (json) {
     mkdirSync(dirname(json), { recursive: true });
     const kept = tables.map((table, i) => ({ key: table.key, label: table.label, seats: table.seats, tally: tallies[i] }));
-    writeFileSync(json, JSON.stringify({ games, tables: kept }));
+    writeFileSync(json, JSON.stringify({ games, options: tableOptions(), tables: kept }));
     process.stderr.write(`Saved ${json}\n`);
   }
   const rates = option('--rates');

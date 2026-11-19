@@ -1,0 +1,19 @@
+{
+  "name": "g4",
+  "note": "M7: the shared agent on the full game at two, three and four players in equal parts. Branched from G3's checkpoint with train/branch.py; the update is unchanged. The value potential restarts at 0.5 and falls to 0 by half the budget; no milestone potentials; no pull towards a starting policy. Past selves every 200 updates, starting from G3's exports.",
+  "games": [
+    { "players": 2, "rules": "full", "share": 1.0 },
+    { "players": 3, "rules": "full", "share": 1.0 },
+    { "players": 4, "rules": "full", "share": 1.0 }
+  ],
+  "budget": 150000000,
+  "shaping": { "value": { "start": 0.5, "until": 0.5 }, "milestones": { "start": 0.0, "until": 0.0 } },
+  "start": null,
+  "critic_warmup": 0,
+  "past_selves": { "every": 200, "newest": 4, "spread": 4, "from_parent": true },
+  "checks": [
+    { "size": 2, "games": 500, "seeds": 2500000, "against": "baseline" },
+    { "size": 3, "games": 500, "seeds": 2500000, "against": "baseline" },
+    { "size": 4, "games": 500, "seeds": 2500000, "against": "baseline" }
+  ]
+}

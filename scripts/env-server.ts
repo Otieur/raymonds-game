@@ -19,6 +19,8 @@ import type { Env, EnvConfig, Step } from '../src/env/env.ts';
 import { DECISION_KINDS, OBS_LAYOUT, OBS_SIZE, OBS_VERSION } from '../src/env/observe.ts';
 import { POTENTIALS } from '../src/env/potentials.ts';
 import { PRESETS } from '../src/sim/styles.ts';
+// Learned members (`model:<path>`: past selves, learned holders) are read through this loader.
+import './model-loader.ts';
 
 let envs: Env[] = [];
 

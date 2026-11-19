@@ -14,7 +14,7 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size. M3b, table poli
 | M4 | [The environment](m04-environment.md) | D, E | M1; can run alongside M2 and M3 | Done 18 November 2026: gate passed |
 | M5 | [Supervised learning](m05-supervised.md) | F, J | M3, M4; M3b for the full sets of decisions | Remedies run 19 November 2026: none lifts the clone's own drafting (7%); with the baseline proposing it plays level with its teacher (24.8% against 24.0%). The value network is not yet better than V1 by its interval (bar 3 unmet). Bar 2 is read with the baseline proposing (decided 19 November): two and four players to be scored over 1,000 games, three players needs its own clone |
 | M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5; by the decision of 18 November it may start from the best clone to hand | Step 0d passed; step 0c not passed as specified (a shaped rerun is running). G1's first seed (19 November 2026) passes bars 1 to 3 on evaluation seeds: 89.3% against the baseline over 5,000 games, the refuser 58.1%. Bar 4 (promotion) not read; seeds 2 and 3 queued |
-| M7 | [The full game and the specialists](m07-full-game.md) | G | M6 | Not started |
+| M7 | [The full game and the specialists](m07-full-game.md) | G | M6 | Code for tasks 1 and 6 written and checked (19 November 2026): `train/branch.py`, past selves, checks at every size, the configurations, `study.ts --members`. No run made |
 | M8 | [League training and the reward search](m08-league-training.md) | E, G | M7 | Not started |
 | M9 | [Trading](m09-trading.md) | H | M7; can overlap M8 | Not started |
 | M10 | [In the client](m10-in-the-client.md) | J | M5 for a first model; M9 for the last | Not started |

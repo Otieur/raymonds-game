@@ -1,0 +1,18 @@
+{
+  "name": "shared-continued",
+  "note": "M7: the shared agent continued from G4's checkpoint on all three sizes, for comparison with the specialists at equal training. Same settings as the specialists but the table sizes: the learning rate restarts at 1e-4, the entropy bonus and the shaping stay where G4 ended them. 150 million decisions, a third at each size, so its check at 3D decisions compares with a specialist's at D; checked at every size.",
+  "games": [
+    { "players": 2, "rules": "full", "share": 1.0 },
+    { "players": 3, "rules": "full", "share": 1.0 },
+    { "players": 4, "rules": "full", "share": 1.0 }
+  ],
+  "budget": 150000000,
+  "lr": 0.0001,
+  "entropy": [0.001, 0.001],
+  "shaping": { "value": { "start": 0.0, "until": 0.0 }, "milestones": { "start": 0.0, "until": 0.0 } },
+  "checks": [
+    { "size": 2, "games": 500, "seeds": 2500000, "against": "baseline" },
+    { "size": 3, "games": 500, "seeds": 2500000, "against": "baseline" },
+    { "size": 4, "games": 500, "seeds": 2500000, "against": "baseline" }
+  ]
+}

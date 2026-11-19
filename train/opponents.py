@@ -73,7 +73,7 @@ def table_config(kind: str, base: dict, players: int, members: list[str], book: 
     elif kind == "self":
         config["learners"] = players if isinstance(players, int) else 4
     elif kind == "holder":
-        # Until a learned holder can be seated by name, the line's first holder stands in: the baseline.
+        # The holder is any member the environment can seat, `model:<path>` included; the baseline when none is named.
         config["opponents"] = [{"member": holder or "baseline", "weight": 1}]
     else:
         config["opponents"] = [{"member": m, "weight": round(book.weight(m), 4)} for m in members] or [{"member": "baseline", "weight": 1}]
