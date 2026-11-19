@@ -182,7 +182,7 @@ node scripts/evaluate.ts --model assets/models/start.ts --against baseline --siz
 ## Gate
 
 1. **The style-conditioned policy** agrees with each school on at least 90% of that school's held-out decisions, and on at least 80% of its decisions of each kind.
-2. **The starting policy,** as one seat among baselines over 1,000 games on evaluation seeds, wins a share whose interval lies at or above an even share, at each table size.
+2. **The starting policy,** as one seat among baselines over 1,000 games on evaluation seeds, wins a share whose interval lies at or above an even share, at each table size. By the author's decision of 19 November it is played as M6 plays it: a school (the baseline) makes its offers and the network every other decision. Drafting its own offers is M9's work, and the clone's weakness there (7% at four players with its own drafting) is recorded for M9, not held against this bar.
 3. **The value network** is calibrated within 3 points in every tenth, and its log loss is lower than V1's on the test set at each table size, with the interval of the difference excluding zero.
 4. **In the client,** a clone plays a full game in the dev server and in the desktop app, and a decision takes less than 50 ms.
 
@@ -235,7 +235,7 @@ Run in part on 18 November 2026, unattended; the details are in [log.md](log.md)
 | 8, the value network | Three attempts, none meets bar 3. The best (12,000 games a size, a sample of each game's decisions, weight decay): log loss 0.390, 0.402, 0.307 against V1's 0.396, 0.406, 0.554 at two, three and four players, no interval clear of zero; calibration gaps 7.9, 3.8 and 8.8 points. The first overfitted 3,000 games a size. |
 | The starting policy, for M6 | A clone over all three sizes wins 40.3%, 21.8% and 15.0% with the baseline proposing; a two-player clone 47.8% (sampling, 47.5%). One size at a time matches the teacher; three together do not, and why is not found. |
 
-So the clone's fault is its own offers, and in M6, where a school makes the learner's offers, a clone of one size starts level with its teacher. Bar 2 is not read: it asks for 1,000 games on evaluation seeds with the clone drafting for itself, which the plan wrote before drafting was split from the rest of play; with the baseline proposing the figure is level with the rules, and with its own drafting far below. Which of the two the bar means is the author's to say.
+So the clone's fault is its own offers, and in M6, where a school makes the learner's offers, a clone of one size starts level with its teacher. Bar 2 is not read: it asks for 1,000 games on evaluation seeds with the clone drafting for itself, which the plan wrote before drafting was split from the rest of play; with the baseline proposing the figure is level with the rules, and with its own drafting far below. Which of the two the bar means is the author's to say. **Decided on 19 November:** the bar is read with the baseline proposing, as M6 plays the learner. On that reading two and four players are level with the rules on 400 seeds (47.8%, 24.8%) and are to be scored again over the bar's 1,000 games on evaluation seeds; three players needs a clone of its own, since one size at a time matches its teacher and the clone of three sizes does not (21.8%). Both wait for the disk, before G3.
 
 **Gate:** not met; bars 1 to 3 need the teachers and the value network. Bar 4's timing part is met in the engine (2.1 to 4.3 ms a decision against 50 ms); the client was not tried.
 
