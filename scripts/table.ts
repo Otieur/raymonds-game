@@ -9,6 +9,10 @@
  *
  * Seats that offer at a rival's debt are given the debt window. Every action goes through the
  * engine's checks, and a refused action stops the run.
+ *
+ * With --json the file also keeps the winning seat of every game (`winners`, 0-based, -1 for a game
+ * that did not finish), so two tables on the same seeds can be compared game by game with
+ * scripts/compare-tables.ts.
  */
 import { fork } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -56,8 +60,8 @@ export function memberOf(name: string): string {
   return holder;
 }
 
-/** Plays one game of a named table into a tally. */
-export function playNamed(engine: Engine, members: string[], seed: number, tally: TableTally): void {
+/** Plays one game of a named table into a tally; returns the winning seat (0-based), or -1 if unfinished. */
+export function playNamed(engine: Engine, members: string[], seed: number, tally: TableTally): number {
   const ctx = contextOf(engine);
   const holder = { rng: seedFrom(`table-${members.length}-${seed}`) };
   const random = () => nextFloat(holder);
@@ -87,6 +91,7 @@ export function playNamed(engine: Engine, members: string[], seed: number, tally
   }
   ids.forEach((id, i) => addPolitics(tally.seats[i], seen.seats[id]));
   addPolitics(tally.table, seen.table);
+  return state.winner === null ? -1 : ids.indexOf(state.winner);
 }
 
 export function addTally(into: TableTally, from: TableTally): TableTally {
@@ -175,12 +180,20 @@ interface Job {
   to: number;
 }
 
+interface Done {
+  from: number;
+  tally: TableTally;
+  /** The winning seat by seed from `from`, -1 if unfinished. */
+  winners: number[];
+}
+
 if (process.argv.includes('--worker')) {
   const engine = createEngine(threeKingdoms);
   process.on('message', (job: Job) => {
     const tally = emptyTally(job.members.length);
-    for (let seed = job.from; seed <= job.to; seed++) playNamed(engine, job.members, seed, tally);
-    process.send?.(tally);
+    const winners: number[] = [];
+    for (let seed = job.from; seed <= job.to; seed++) winners.push(playNamed(engine, job.members, seed, tally));
+    process.send?.({ from: job.from, tally, winners } satisfies Done);
   });
 } else if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const names = (option('--seats') ?? '').split(',').filter(Boolean);
@@ -193,6 +206,7 @@ if (process.argv.includes('--worker')) {
   const jobs: Job[] = [];
   for (let from = start; from < start + games; from += chunk) jobs.push({ members, from, to: Math.min(start + games - 1, from + chunk - 1) });
   const total = emptyTally(members.length);
+  const winners = Array.from({ length: games }, () => -1);
   const began = performance.now();
   await new Promise<void>((resolve, reject) => {
     let next = 0;
@@ -200,8 +214,9 @@ if (process.argv.includes('--worker')) {
     for (let w = 0; w < Math.min(workers, jobs.length); w++) {
       const child = fork(fileURLToPath(import.meta.url), ['--worker']);
       const give = () => (next < jobs.length ? child.send(jobs[next++]) : child.disconnect());
-      child.on('message', (tally: TableTally) => {
-        addTally(total, tally);
+      child.on('message', (message: Done) => {
+        addTally(total, message.tally);
+        message.winners.forEach((w, i) => (winners[message.from - start + i] = w));
         done += 1;
         if (done === jobs.length) resolve();
         give();
@@ -217,5 +232,5 @@ if (process.argv.includes('--worker')) {
   lines.push('', `${((performance.now() - began) / 1000).toFixed(0)} s on ${Math.min(workers, jobs.length)} processes.`);
   console.log(lines.join('\n'));
   const json = option('--json');
-  if (json) writeFileSync(json, JSON.stringify({ names, members, seeds: [start, start + games - 1], tally: total }, null, 2));
+  if (json) writeFileSync(json, JSON.stringify({ names, members, seeds: [start, start + games - 1], tally: total, winners }, null, 2));
 }

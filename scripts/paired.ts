@@ -4,9 +4,11 @@
  *   node scripts/paired.ts --size 4 --a <member> --b <member> [--against baseline] [--games 5000] [--seeds 1000000]
  *
  * Prints each one's win share and the difference with a 95% interval (the two tables treated as
- * independent, which widens the interval if they are positively related).
+ * independent, which widens the interval if they are positively related), then the difference
+ * paired by seed over the seeds where both games finished, with its own interval.
  */
 import { availableParallelism } from 'node:os';
+import { describePaired, pairedDifference } from '../src/sim/intervals.ts';
 import { runJobs } from './league.ts';
 
 function option(name: string): string | undefined {
@@ -41,3 +43,9 @@ console.log(`${size} players, seeds ${start} to ${start + games - 1}, each as th
 console.log(`${a}: ${p(pa)} of ${A.finished} finished games`);
 console.log(`${b}: ${p(pb)} of ${B.finished} finished games`);
 console.log(`Difference: ${((pa - pb) * 100).toFixed(1)} points (${((pa - pb - half) * 100).toFixed(1)} to ${((pa - pb + half) * 100).toFixed(1)}).`);
+const bySeed = (key: string) => {
+  const out = Array.from({ length: games }, () => -1);
+  for (const r of results) if (r.key === key) r.outcomes?.forEach((o, i) => (out[r.from - start + i] = o));
+  return out;
+};
+console.log(describePaired(pairedDifference(bySeed('A'), bySeed('B'))));

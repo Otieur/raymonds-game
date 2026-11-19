@@ -380,3 +380,45 @@ At 06:28, with `completeBy`, variant member names, `--keep`, `--parts`, `--sampl
 - **A score that started before its model existed.** In one command a background `&` bound tighter than I meant, so the sampled score of the two-player clone started before the clone had trained and wrote nothing. It was run again; G1's choice of clone waited for it.
 - **The table size in the Python model,** above.
 - **The forecast on task 6a,** above.
+
+## 19 November, evening, without the disk
+
+### Code: intervals paired by seed
+
+Comparisons in this plan play two tables on the same seeds, and until now their differences were given with the interval of independent samples, which is too wide when the two are positively related (the note under gate 7 above). The results are now kept game by game, so a difference can be paired by seed. On branch `ai/paired-intervals`:
+
+- `src/sim/intervals.ts`: `pairedDifference` (over the seeds where both games finished: the two shares, the difference with its 95% interval from the differences by seed, the half-width the same shares would get as independent samples, and the correlation), `outcomesFor` (a set of seats from the winning seat of each game) and `wilson`. 9 tests in `test/intervals.test.ts`.
+- `scripts/paired.ts`: keeps its lines as they were and adds one, the difference paired by seed. `scripts/league.ts` now returns each game's outcome from its one-among-copies jobs.
+- `scripts/table.ts`: with `--json`, the file also keeps the winning seat of every game (`winners`, 0-based, −1 unfinished). `playNamed` returns it.
+- `scripts/compare-tables.ts` (new): two table files on the same seeds, a seat or set of seats in each; prints both shares, the difference as independent samples, and paired by seed. Files written before today have no `winners` and are refused with a message saying so.
+- `scripts/evaluate.ts --compare <member>`: after the model's games, the member plays the same seeds in the model's seat, and the difference is given paired by seed. The model's figures are unchanged: on a small random model over 30 three-player games the old and new script printed the same lines (12,331 decisions, the same tallies). The per-game loop became a function for this. The script now also imports `scripts/model-loader.ts`, so `--against` and `--compare` can name `model:<path>`.
+
+On small checks (60 and 80 games, too few to quote as results), the correlation between paired tables was 0.24 to 0.33, and the paired interval was 10% to 20% narrower than the independent one. `npm run typecheck` passes and `npm test` runs 260 tests, all passing.
+
+### To run when the disk is back
+
+After `queue/resume.sh` is started again (the command is under "Where the runs stopped"), these are added, in this order. File names under `$DATA_DIR/models/` and `$DATA_DIR/datasets/` are to be checked with `ls` first; the three-player sets are the ones written for `clone-baseline-234-v3` (seeds 4,000,000 and 4,500,000).
+
+```sh
+# 1. The corrected presets not yet measured, against the baseline in the same seat (task 15's size and seeds).
+for s in prober-2 broker-2 statesman-book-2; do for n in 3 4; do
+  node scripts/paired.ts --size $n --a $s --b baseline --games 2000 --seeds 1100000 > $DATA_DIR/paired/$s-$n.txt
+done; done
+
+# 2. M5's bar 2 over 1,000 evaluation games, the baseline proposing; --compare adds the baseline in the same seat, paired.
+node scripts/evaluate.ts --model $DATA_DIR/models/clone-baseline-2-v3.ts --size 2 --games 1000 --seeds 1000000 --proposer baseline --compare baseline > $DATA_DIR/checks/m5-bar2-2.txt
+node scripts/evaluate.ts --model $DATA_DIR/models/clone-baseline-4-v3.ts --size 4 --games 1000 --seeds 1000000 --proposer baseline --compare baseline > $DATA_DIR/checks/m5-bar2-4.txt
+
+# 3. A three-player clone, trained and scored the same way (12 epochs, best epoch kept).
+train/.venv/bin/python train/bc.py --data <three-player training set> --val <three-player validation set> --run $DATA_DIR/runs/clone-baseline-3-v3 --epochs 12
+train/.venv/bin/python train/export.py --run $DATA_DIR/runs/clone-baseline-3-v3 --out $DATA_DIR/models/clone-baseline-3-v3
+node scripts/evaluate.ts --model $DATA_DIR/models/clone-baseline-3-v3.ts --size 3 --games 1000 --seeds 1000000 --proposer baseline --compare baseline > $DATA_DIR/checks/m5-bar2-3.txt
+
+# 4. Gate 7 at four players again, paired: the same two tables on the same seeds, with the holder of style-4 named
+#    (found-4-b2t1p1c2), so that a later change of holder does not change the table.
+node scripts/table.ts --seats found-4-b2t1p1c2,baseline,envoy,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-envoy-4.json > $DATA_DIR/tables/gate7-envoy-4.md
+node scripts/table.ts --seats found-4-b2t1p1c2,baseline,balancer,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-balancer-4.json > $DATA_DIR/tables/gate7-balancer-4.md
+node scripts/compare-tables.ts $DATA_DIR/tables/gate7-envoy-4.json $DATA_DIR/tables/gate7-balancer-4.json --seats 3 > $DATA_DIR/tables/gate7-paired-4.txt
+```
+
+Step 4 should reproduce the night's shares exactly (23.8% and 26.1%) if the night's two tables were played on these seeds, which `queue/m3b-rest3.sh` on the disk shows (to be checked first), since the first forms of the presets have not changed. If the shares differ on the same seeds, that is a finding in itself, to be explained before the paired figure is used.

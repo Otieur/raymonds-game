@@ -32,6 +32,7 @@ It needs M1 (the valuation and `priceOf`), M2 (the style agent) and M3 (the leag
 | `scripts/probe-hands.ts` | Changes of hands between players, measured by intervention. A script of its own beside `probe-value.ts`, which it leaves as M1 ran it. |
 | `src/sim/politics.ts` | The watch that keeps the measures of table politics for a game. |
 | `src/sim/window.ts` | The debt window. |
+| `src/sim/intervals.ts`, `scripts/compare-tables.ts` | Added on 19 November, after the runs: differences between tables on the same seeds, paired by seed. `scripts/table.ts --json` keeps each game's winning seat for this, and `scripts/paired.ts` prints the paired difference beside the old one. |
 | `scripts/check-style.ts` | The behaviour bars of the new schools; the renaming check. |
 | `scripts/search-styles.ts` | The new fields in the genome. |
 | `src/env/observe.ts`, `src/env/ledger.ts`, `src/env/potentials.ts` | Layout version 3; the potential `threatDenial`. |
@@ -407,6 +408,8 @@ node scripts/paired.ts --size 4 --a early-bird --b baseline --against refuser --
 node scripts/table.ts --seats style-4,baseline,balancer,balancer --games 5000 --seeds 1120000
 node scripts/table.ts --seats style-4,baseline,envoy,envoy --games 5000 --seeds 1140000
 node scripts/table.ts --seats style-4,baseline,envoy,false-friend --games 5000 --seeds 1140000
+node scripts/table.ts --seats style-4,baseline,balancer,false-friend --games 5000 --seeds 1140000
+node scripts/compare-tables.ts <envoy table>.json <balancer table>.json --seats 3   # gate 7, paired by seed
 node scripts/search-styles.ts --size 4 --politics --generations 10 --out $DATA_DIR/search/politics-4
 ```
 

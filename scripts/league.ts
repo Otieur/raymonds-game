@@ -83,6 +83,10 @@ type Job =
 
 interface JobResult {
   key: string;
+  /** The job's first seed. */
+  from: number;
+  /** For one-among-copies tables: the one's outcome by seed from `from` (1 a win, 0 none, -1 unfinished). */
+  outcomes?: number[];
   games: number;
   finished: number;
   wins: number;
@@ -93,7 +97,7 @@ interface JobResult {
 }
 
 function runJob(engine: Engine, job: Job): JobResult {
-  const out: JobResult = { key: job.key, games: 0, finished: 0, wins: 0, turns: 0, orders: [] };
+  const out: JobResult = { key: job.key, from: job.from, outcomes: job.kind === 'pair' ? [] : undefined, games: 0, finished: 0, wins: 0, turns: 0, orders: [] };
   for (let seed = job.from; seed <= job.to; seed++) {
     let seats: string[];
     if (job.kind === 'pair') seats = [job.x, ...Array.from({ length: job.size - 1 }, () => job.y)];
@@ -104,6 +108,7 @@ function runJob(engine: Engine, job: Job): JobResult {
     const result = playTable(engine, seats, seed, 'league', job.kind === 'mixed');
     if (result.politics) out.politics = addPolitics(out.politics ?? emptyTablePolitics(), result.politics);
     out.games += 1;
+    out.outcomes?.push(!result.finished ? -1 : result.winner === 0 ? 1 : 0);
     if (!result.finished) continue;
     out.finished += 1;
     out.turns += result.turns;
@@ -186,7 +191,7 @@ if (process.argv[2] === '--worker') {
   const results = await runJobs(jobs, workers);
   const totals = new Map<string, JobResult>();
   for (const r of results) {
-    const t = totals.get(r.key) ?? { key: r.key, games: 0, finished: 0, wins: 0, turns: 0, orders: [] };
+    const t = totals.get(r.key) ?? { key: r.key, from: r.from, games: 0, finished: 0, wins: 0, turns: 0, orders: [] };
     t.games += r.games;
     t.finished += r.finished;
     t.wins += r.wins;
