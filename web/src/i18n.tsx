@@ -1,0 +1,374 @@
+import { createContext, useContext } from 'react';
+import { threeKingdoms, threeKingdomsPresentation as look } from '../../src/index.ts';
+import type { CardId, DeckId, ErrorCode, GroupId, PaymentReason, PlayerId, RuleError, SquareId } from '../../src/index.ts';
+import { factionOf, TOKENS } from './game/assets.ts';
+import type { TokenId } from './game/assets.ts';
+
+export type Lang = 'zh' | 'en';
+
+const zh = {
+  brand: '三国',
+  tagline: '群雄逐鹿',
+  setupLead: '汉室倾颓，群雄并起。掷骰行棋，购地筑堡，问鼎天下。',
+  players: '群雄',
+  human: '亲征',
+  ai: '军师代掌',
+  bench: '休兵',
+  fielded: '{n}方逐鹿',
+  tokenHint: '点击棋子可更换，四枚各不相同。',
+  changeToken: '更换棋子',
+  headOrder: '掷骰定先后',
+  orderHint: '点数大者先行；同点者重掷，直到分出先后。',
+  orderPhase: '定先后',
+  mode: '战局',
+  modeRegular: '持久战',
+  modeRegularHint: '战至最后一人。',
+  modeShort: '速决战',
+  modeShortHint: '开局各得两块地（照价付钱），三座田庄即可升坞堡，第二人破产时按总资产定胜负。',
+  start: '开局',
+  resume: '继续上一局',
+  turnNo: '第 {n} 回合',
+  newGame: '新局',
+  confirmQuit: '再点一次确认离开',
+  fast: '疾行',
+  music: '音乐',
+  command: '军令',
+  realm: '群雄',
+  chronicle: '战报',
+  roll: '掷骰',
+  rollAgain: '双点，再掷',
+  rollDoubles: '掷骰突围（{n}/{max}）',
+  endTurn: '结束回合',
+  payBail: '缴赎金',
+  useCard: '用脱困卡',
+  trade: '交易',
+  manageHint: '点击棋盘上你的产业，可营建、变卖、抵押或赎回。',
+  headRoll: '请掷骰',
+  headJail: '困于赤壁',
+  headEnd: '整军待发',
+  headBuy: '此地无主',
+  headAuction: '竞拍',
+  headBuilding: '建筑紧缺 · 竞价',
+  headDebt: '军费告急',
+  headTransfer: '接收抵押产业',
+  headExit: '三掷不出',
+  headTrade: '交易提议',
+  headWait: '运筹中',
+  buy: '购置',
+  toAuction: '交付拍卖',
+  cannotAfford: '现钱不足。可先抵押产业，或交付拍卖。',
+  highBid: '最高出价',
+  noBids: '尚无人出价',
+  bid: '出价',
+  pass: '放弃',
+  cannotBid: '现钱不足以出价',
+  lowest: '底价',
+  buildingAuction: '国库的{kind}不够分，出价最高者得。',
+  placeOn: '建在',
+  owes: '欠{who}',
+  bank: '国库',
+  cashInHand: '现钱',
+  debtHint: '变卖建筑或抵押产业来筹款；钱够了会自动结清。',
+  bankrupt: '宣告破产',
+  lift: '立即赎回',
+  keep: '保留抵押',
+  transferHint: '利息已付。现在赎回只需付抵押值；以后赎回要再付一成利息。',
+  exitHint: '可用脱困卡，或缴赎金，然后按这次的点数前进。',
+  accept: '接受',
+  reject: '拒绝',
+  withdraw: '撤回',
+  gives: '{who} 给出',
+  nothing: '无',
+  jailCardN: '脱困卡 ×{n}',
+  thinking: '{who} 正在运筹…',
+  unfolding: '战报传来…',
+  worth: '总资产',
+  inJail: '困',
+  out: '败',
+  price: '地价',
+  rentBase: '租金',
+  rentSet: '整组在手（无建筑）',
+  rentHouse: '{n} 座田庄',
+  rentHotel: '坞堡',
+  buildCost: '营建费（每座）',
+  mortgageValue: '抵押值',
+  redeemCost: '赎回价',
+  owner: '领主',
+  unowned: '无主',
+  mortgaged: '已抵押',
+  build: '营建',
+  sell: '变卖一座',
+  mortgage: '抵押',
+  redeem: '赎回',
+  tollN: '持有 {n} 处关隘',
+  utilOne: '持一处：点数 × {n}',
+  utilBoth: '持两处：点数 × {n}',
+  kindTransit: '关隘',
+  kindUtility: '官营',
+  squareTax: '行至此处，缴 {n} 钱。',
+  squareCard: '行至此处，抽一张{deck}。',
+  squareStart: '经过或停留，领俸禄 {n} 钱。',
+  squareJail: '路过无事。被困者须掷出双点、缴赎金 {n} 钱或用脱困卡。',
+  squareRest: '休整之地，无事发生。',
+  squareGoToJail: '直接押往赤壁，不经洛阳，不领俸禄。',
+  tradeTitle: '交易',
+  partner: '对象',
+  youGive: '你给出',
+  youGet: '你得到',
+  cash: '钱',
+  propose: '提出交易',
+  victory: '天下归一',
+  wins: '{who} 问鼎天下',
+  byLast: '群雄尽灭，唯此一人。',
+  byLimit: '速决战：两人破产，按总资产定胜负。',
+  again: '再战一局',
+  viewBoard: '查看棋盘',
+  salaryNote: '俸禄 +{n}',
+  visitNote: '探营 · 被困',
+  restNote: '休整',
+  marchNote: '押往赤壁',
+  tapToContinue: '点击继续',
+  remaining: '余 {n} 张',
+};
+
+type Key = keyof typeof zh;
+
+const en: Record<Key, string> = {
+  brand: 'Three Kingdoms',
+  tagline: 'Contest for the Realm',
+  setupLead: 'The Han is failing and the warlords rise. Roll, claim land, raise fortresses, and take the realm.',
+  players: 'Players',
+  human: 'Human',
+  ai: 'AI',
+  bench: 'Out',
+  fielded: '{n} in play',
+  tokenHint: 'Tap a token to change it. No two sides share one.',
+  changeToken: 'Change token',
+  headOrder: 'Roll for order',
+  orderHint: 'The highest roll plays first. Ties roll again until the order is settled.',
+  orderPhase: 'Opening roll',
+  mode: 'Game',
+  modeRegular: 'Full game',
+  modeRegularHint: 'Play until one player is left.',
+  modeShort: 'Short game',
+  modeShortHint:
+    'Two deeds are dealt at the start (paid at list price), three farmsteads are enough for a fortress, and the richest player wins at the second bankruptcy.',
+  start: 'Begin',
+  resume: 'Resume last game',
+  turnNo: 'Turn {n}',
+  newGame: 'New game',
+  confirmQuit: 'Click again to leave',
+  fast: 'Fast',
+  music: 'Music',
+  command: 'Orders',
+  realm: 'Warlords',
+  chronicle: 'Chronicle',
+  roll: 'Roll',
+  rollAgain: 'Doubles. Roll again',
+  rollDoubles: 'Roll for doubles ({n}/{max})',
+  endTurn: 'End turn',
+  payBail: 'Pay bail',
+  useCard: 'Use the card',
+  trade: 'Trade',
+  manageHint: 'Click your properties on the board to build, sell, mortgage or redeem.',
+  headRoll: 'Your roll',
+  headJail: 'Held at ChiBi',
+  headEnd: 'Ready to end the turn',
+  headBuy: 'Unclaimed land',
+  headAuction: 'Auction',
+  headBuilding: 'Building auction',
+  headDebt: 'In debt',
+  headTransfer: 'Mortgaged property received',
+  headExit: 'Third roll failed',
+  headTrade: 'Trade offer',
+  headWait: 'Thinking',
+  buy: 'Buy',
+  toAuction: 'Send to auction',
+  cannotAfford: 'Not enough cash. Mortgage something first, or send it to auction.',
+  highBid: 'High bid',
+  noBids: 'No bids yet',
+  bid: 'Bid',
+  pass: 'Pass',
+  cannotBid: 'Not enough cash to bid',
+  lowest: 'Min',
+  buildingAuction: 'The bank is short of {kind}s. The highest bidder gets it.',
+  placeOn: 'Place on',
+  owes: 'Owed to {who}',
+  bank: 'the bank',
+  cashInHand: 'Cash',
+  debtHint: 'Sell buildings or mortgage property. The debt settles itself once you can pay.',
+  bankrupt: 'Declare bankruptcy',
+  lift: 'Redeem now',
+  keep: 'Keep the mortgage',
+  transferHint: 'The interest is paid. Redeem now for the mortgage value, or later for 10% more.',
+  exitHint: 'Use your card or pay bail, then move by this roll.',
+  accept: 'Accept',
+  reject: 'Reject',
+  withdraw: 'Withdraw',
+  gives: '{who} gives',
+  nothing: 'Nothing',
+  jailCardN: 'Jail card ×{n}',
+  thinking: '{who} is thinking…',
+  unfolding: 'Events unfold…',
+  worth: 'Net worth',
+  inJail: 'Held',
+  out: 'Out',
+  price: 'Price',
+  rentBase: 'Rent',
+  rentSet: 'With the full set (no buildings)',
+  rentHouse: '{n} farmstead(s)',
+  rentHotel: 'Fortress',
+  buildCost: 'Building cost (each)',
+  mortgageValue: 'Mortgage value',
+  redeemCost: 'Redeem for',
+  owner: 'Owner',
+  unowned: 'Unowned',
+  mortgaged: 'Mortgaged',
+  build: 'Build',
+  sell: 'Sell one',
+  mortgage: 'Mortgage',
+  redeem: 'Redeem',
+  tollN: '{n} pass(es) held',
+  utilOne: 'One held: roll × {n}',
+  utilBoth: 'Both held: roll × {n}',
+  kindTransit: 'Pass',
+  kindUtility: 'Office',
+  squareTax: 'Pay {n} when you land here.',
+  squareCard: 'Draw a {deck} card when you land here.',
+  squareStart: 'Collect {n} when you pass or land here.',
+  squareJail: 'Just visiting is free. To leave: roll doubles, pay {n}, or use a card.',
+  squareRest: 'A place to rest. Nothing happens.',
+  squareGoToJail: 'Go straight to ChiBi. Do not pass LuoYang or collect the salary.',
+  tradeTitle: 'Trade',
+  partner: 'With',
+  youGive: 'You give',
+  youGet: 'You get',
+  cash: 'Cash',
+  propose: 'Propose',
+  victory: 'The Realm United',
+  wins: '{who} takes the realm',
+  byLast: 'Every rival has fallen.',
+  byLimit: 'Short game: two bankruptcies, ranked by net worth.',
+  again: 'Play again',
+  viewBoard: 'View the board',
+  salaryNote: 'Salary +{n}',
+  visitNote: 'Visiting · Held',
+  restNote: 'Rest',
+  marchNote: 'To ChiBi',
+  tapToContinue: 'Click to continue',
+  remaining: '{n} left',
+};
+
+const REASONS: Record<PaymentReason, [string, string]> = {
+  salary: ['俸禄', 'salary'],
+  rent: ['租金', 'rent'],
+  tax: ['赋税', 'tax'],
+  card: ['卡牌', 'card'],
+  bail: ['赎金', 'bail'],
+  interest: ['利息', 'interest'],
+  purchase: ['购置', 'purchase'],
+  auction: ['竞拍', 'auction'],
+  building: ['营建', 'building'],
+  refund: ['变卖', 'sale'],
+  mortgage: ['抵押', 'mortgage'],
+  unmortgage: ['赎回', 'redemption'],
+  trade: ['交易', 'trade'],
+  bankruptcy: ['破产清算', 'bankruptcy'],
+};
+
+/** Why the engine refused an action, in Chinese; English uses the engine's own message. */
+const ERRORS: Record<ErrorCode, string> = {
+  INVALID_ACTION: '此举无效。',
+  GAME_OVER: '战局已终。',
+  UNKNOWN_PLAYER: '查无此人。',
+  PLAYER_BANKRUPT: '该玩家已破产。',
+  NOT_YOUR_TURN: '还没轮到你。',
+  WRONG_PHASE: '现在不能这样做。',
+  DECISION_PENDING: '先处理眼前的决定。',
+  NOT_IN_JAIL: '你并未被困。',
+  NO_JAIL_CARD: '手里没有脱困卡。',
+  INSUFFICIENT_CASH: '现钱不足。',
+  UNKNOWN_PROPERTY: '没有这块产业。',
+  NOT_A_STREET: '此处不能营建。',
+  NOT_OWNER: '这不是你的产业。',
+  ALREADY_MORTGAGED: '这块产业已经抵押。',
+  NOT_MORTGAGED: '这块产业并未抵押。',
+  GROUP_INCOMPLETE: '须先集齐整组。',
+  GROUP_MORTGAGED: '同组有产业在抵押中。',
+  GROUP_HAS_BUILDINGS: '须先变卖同组的全部建筑。',
+  UNEVEN_BUILD: '同组须均匀营建、均匀变卖。',
+  MAX_LEVEL: '已有坞堡，不能再建。',
+  NO_BUILDINGS: '没有建筑可卖。',
+  BANK_SUPPLY: '国库的建筑不够了。',
+  NOT_A_BIDDER: '你不在这场竞拍中。',
+  BID_TOO_LOW: '出价太低。',
+  INVALID_TRADE: '这笔交易不成立：双方都得拿出东西。',
+  CAN_STILL_PAY: '变卖建筑、抵押产业还够还债，不能破产。',
+};
+
+const squareNames = new Map(threeKingdoms.squares.map((sq) => [sq.id, sq.name]));
+const cardTexts = new Map(
+  Object.values(threeKingdoms.decks)
+    .flat()
+    .map((card) => [card.id, card.text]),
+);
+
+export interface Tongue {
+  lang: Lang;
+  t: (key: Key, values?: Record<string, string | number>) => string;
+  square: (id: SquareId) => string;
+  /** The square's name in the other language, for a subtitle. */
+  squareAlt: (id: SquareId) => string;
+  squareIdAt: (index: number) => SquareId;
+  /** A player's name: the faction it plays. */
+  who: (id: PlayerId) => string;
+  /** A token's name. */
+  token: (id: TokenId) => string;
+  group: (id: GroupId) => string;
+  deck: (id: DeckId) => string;
+  card: (id: CardId) => string;
+  building: (hotel: boolean) => string;
+  reason: (reason: PaymentReason) => string;
+  problem: (error: RuleError) => string;
+}
+
+export function tongue(lang: Lang): Tongue {
+  const table = lang === 'zh' ? zh : en;
+  const zhName = (id: SquareId) => look.squares[id]?.nameZh ?? id;
+  const enName = (id: SquareId) => squareNames.get(id) ?? id;
+  return {
+    lang,
+    t: (key, values) => {
+      let text = table[key];
+      for (const [name, value] of Object.entries(values ?? {})) text = text.replaceAll(`{${name}}`, String(value));
+      return text;
+    },
+    square: lang === 'zh' ? zhName : enName,
+    squareAlt: lang === 'zh' ? enName : zhName,
+    squareIdAt: (index) => threeKingdoms.squares[index].id,
+    who: (id) => (lang === 'zh' ? factionOf(id).zh : factionOf(id).en),
+    token: (id) => {
+      const token = TOKENS.find((item) => item.id === id);
+      return (lang === 'zh' ? token?.zh : token?.en) ?? id;
+    },
+    group: (id) => (lang === 'zh' ? look.groups[id]?.nameZh : look.groups[id]?.name) ?? id,
+    deck: (id) => (lang === 'zh' ? look.decks[id]?.nameZh : look.decks[id]?.name) ?? id,
+    card: (id) => (lang === 'zh' ? look.cards[id]?.textZh : cardTexts.get(id)) ?? id,
+    building: (hotel) => {
+      const label = hotel ? look.buildings.hotel : look.buildings.house;
+      return lang === 'zh' ? label.nameZh : label.name.toLowerCase();
+    },
+    reason: (reason) => REASONS[reason][lang === 'zh' ? 0 : 1],
+    problem: (error) => (lang === 'zh' ? ERRORS[error.code] : error.message),
+  };
+}
+
+export interface LangState extends Tongue {
+  setLang: (lang: Lang) => void;
+}
+
+export const LangContext = createContext<LangState>({ ...tongue('zh'), setLang: () => {} });
+
+export function useTongue(): LangState {
+  return useContext(LangContext);
+}
