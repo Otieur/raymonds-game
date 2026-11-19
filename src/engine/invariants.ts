@@ -102,6 +102,27 @@ export function checkInvariants(ctx: Context, s: GameState): string[] {
   if (alive.length < 2) problems.push('The game should be over.');
   if (limitReached) problems.push('The bankruptcy limit was reached but the game goes on.');
   if (!isActive(s.turn.player)) problems.push(`The turn belongs to ${s.turn.player}, who is not in the game.`);
+
+  const opening = s.opening ?? null;
+  if ((s.turn.phase === 'order') !== (opening !== null)) {
+    problems.push('The opening roll and the turn phase disagree.');
+  } else if (opening !== null) {
+    const ranked = opening.groups.flat();
+    const ids = s.players.map((p) => p.id);
+    if (ranked.length !== ids.length || [...ranked].sort().join('|') !== [...ids].sort().join('|')) {
+      problems.push('The opening roll does not rank every player exactly once.');
+    }
+    const tied = new Set(opening.groups.filter((group) => group.length > 1).flat());
+    if (tied.size === 0) problems.push('The opening roll is settled but play has not begun.');
+    if (opening.groups.some((group) => group.length === 0)) problems.push('The opening roll has an empty group.');
+    for (const id of Object.keys(opening.rolls)) {
+      if (!tied.has(id)) problems.push(`${id} has an opening throw without being in a tie.`);
+    }
+    if (!tied.has(s.turn.player) || s.turn.player in opening.rolls) {
+      problems.push(`${s.turn.player} is not due an opening throw.`);
+    }
+    if (s.pending.length > 0 || s.auctionQueue.length > 0) problems.push('The opening roll has open decisions.');
+  }
   if (s.turn.doubles >= ctx.rules.doublesToJail) problems.push('The doubles count was not reset.');
 
   for (const item of s.pending) {

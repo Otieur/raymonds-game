@@ -1,5 +1,5 @@
 import type { Context } from '../context.ts';
-import type { Dice, GameState, Pending, PlayerId, RuleError } from '../types.ts';
+import type { Dice, GameState, OpeningState, Pending, PlayerId, RuleError } from '../types.ts';
 import { charge, transfer } from './money.ts';
 import { advanceBy, releaseFromJail, rollDice, runResume, sendToJail } from './movement.ts';
 import { mustPlayer, topPending } from './queries.ts';
@@ -21,11 +21,65 @@ function checkTurn(s: GameState, playerId: PlayerId, phase: 'preRoll' | 'postRol
 }
 
 export function checkRoll(s: GameState, playerId: PlayerId): RuleError | null {
+  if (s.turn.phase === 'order') {
+    return s.turn.player === playerId ? null : fail('NOT_YOUR_TURN', `${s.turn.player} rolls next.`);
+  }
   return checkTurn(s, playerId, 'preRoll');
+}
+
+/** Who throws next in the opening roll: in seat order, the first tied player yet to throw this round. */
+function nextOpeningRoller(s: GameState, opening: OpeningState): PlayerId | null {
+  const tied = new Set(opening.groups.filter((group) => group.length > 1).flat());
+  return s.players.find((p) => tied.has(p.id) && !(p.id in opening.rolls))?.id ?? null;
+}
+
+/** One throw of the opening roll. Once a round is complete, ties are split or the order is settled. */
+function doOpeningRoll(run: Run, playerId: PlayerId, opening: OpeningState): void {
+  const { s } = run;
+  const dice = rollDice(run);
+  s.turn.lastRoll = [dice[0], dice[1]];
+  opening.rolls[playerId] = [dice[0], dice[1]];
+  run.events.push({ type: 'DICE_ROLLED', player: playerId, dice: [dice[0], dice[1]], purpose: 'order' });
+
+  const waiting = nextOpeningRoller(s, opening);
+  if (waiting !== null) {
+    s.turn.player = waiting;
+    return;
+  }
+
+  const total = (id: PlayerId) => opening.rolls[id][0] + opening.rolls[id][1];
+  opening.groups = opening.groups.flatMap((group) => {
+    if (group.length === 1) return [group];
+    const totals = [...new Set(group.map(total))].sort((a, b) => b - a);
+    return totals.map((value) => group.filter((id) => total(id) === value));
+  });
+  for (const group of opening.groups) {
+    if (group.length > 1) run.events.push({ type: 'ORDER_TIED', players: [...group], total: total(group[0]) });
+  }
+  opening.rolls = {};
+  opening.round += 1;
+
+  const again = nextOpeningRoller(s, opening);
+  if (again !== null) {
+    s.turn.player = again;
+    return;
+  }
+
+  // Settled: the table sits in the order of play from here on.
+  const order = opening.groups.flat();
+  s.players.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  s.opening = null;
+  s.turn = { player: order[0], number: 1, phase: 'preRoll', doubles: 0, lastRoll: null };
+  run.events.push({ type: 'ORDER_DECIDED', order });
+  run.events.push({ type: 'TURN_STARTED', player: order[0], turn: 1 });
 }
 
 export function doRoll(run: Run, playerId: PlayerId): void {
   const { ctx, s } = run;
+  if (s.turn.phase === 'order' && s.opening) {
+    doOpeningRoll(run, playerId, s.opening);
+    return;
+  }
   const player = mustPlayer(s, playerId);
   const dice = rollDice(run);
   const isDouble = dice[0] === dice[1];

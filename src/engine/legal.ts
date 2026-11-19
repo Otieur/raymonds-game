@@ -98,7 +98,7 @@ export function legalActions(ctx: Context, s: GameState, playerId: PlayerId): Le
   }
 
   const debtor = top?.kind === 'debt' ? top.debtor : null;
-  if (top === undefined || debtor !== null) {
+  if (s.turn.phase !== 'order' && (top === undefined || debtor !== null)) {
     const partners = activePlayers(s)
       .map((p) => p.id)
       .filter((id) => id !== playerId)

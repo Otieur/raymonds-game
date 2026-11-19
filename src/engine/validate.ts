@@ -17,6 +17,9 @@ export function validateAction(ctx: Context, s: GameState, action: Action): Rule
   const actor = findPlayer(s, action.player);
   if (!actor) return fail('UNKNOWN_PLAYER', `Unknown player "${action.player}".`);
   if (actor.bankrupt) return fail('PLAYER_BANKRUPT', `${action.player} is out of the game.`);
+  if (s.turn.phase === 'order' && action.type !== 'ROLL') {
+    return fail('WRONG_PHASE', 'The opening roll comes first: it decides the order of play.');
+  }
 
   switch (action.type) {
     case 'ROLL':

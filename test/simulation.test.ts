@@ -23,7 +23,7 @@ test('random games of every table size stay consistent from start to finish', ()
 
 test('random play reaches the rare corners of the rules', () => {
   const seen: Record<string, number> = {};
-  for (let seed = 1; seed <= 12; seed++) {
+  for (let seed = 1; seed <= 24; seed++) {
     const result = simulateGame(engine, { players: 4, seed, maxActions: 12000 });
     for (const [type, count] of Object.entries(result.eventCounts)) {
       seen[type] = (seen[type] ?? 0) + count;

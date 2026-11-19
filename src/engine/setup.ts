@@ -1,21 +1,15 @@
 import type { Context } from '../context.ts';
-import { randomInt, seedFrom, shuffle } from '../rng.ts';
+import { seedFrom, shuffle } from '../rng.ts';
 import type { GameState, PlayerId, PlayerState, PropertySquare } from '../types.ts';
 
 export interface NewGameOptions {
   players: readonly (PlayerId | { id: PlayerId; name?: string })[];
   seed?: number | string;
+  /**
+   * Skips the opening roll: this player starts and the rest follow in the order given.
+   * Without it the game opens with every player rolling for the order of play.
+   */
   startingPlayer?: PlayerId;
-}
-
-function rollOff(state: GameState): PlayerId {
-  let contenders = state.players.map((p) => p.id);
-  while (contenders.length > 1) {
-    const totals = contenders.map(() => 2 + randomInt(state, 6) + randomInt(state, 6));
-    const best = Math.max(...totals);
-    contenders = contenders.filter((_, i) => totals[i] === best);
-  }
-  return contenders[0];
 }
 
 export function newGame(ctx: Context, options: NewGameOptions): GameState {
@@ -54,6 +48,7 @@ export function newGame(ctx: Context, options: NewGameOptions): GameState {
     bank: { houses: board.economy.houses, hotels: board.economy.hotels },
     decks: {},
     turn: { player: players[0].id, number: 1, phase: 'preRoll', doubles: 0, lastRoll: null },
+    opening: null,
     pending: [],
     auctionQueue: [],
     rng: seedFrom(options.seed ?? Math.floor(Math.random() * 2 ** 32)),
@@ -71,7 +66,12 @@ export function newGame(ctx: Context, options: NewGameOptions): GameState {
     );
   }
   dealStartingDeeds(ctx, state);
-  state.turn.player = options.startingPlayer ?? rollOff(state);
+  if (options.startingPlayer !== undefined) {
+    state.turn.player = options.startingPlayer;
+  } else {
+    state.turn.phase = 'order';
+    state.opening = { round: 1, groups: [players.map((p) => p.id)], rolls: {} };
+  }
   return state;
 }
 

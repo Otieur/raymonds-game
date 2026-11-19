@@ -7,7 +7,7 @@ function pick<T>(items: readonly T[], random: Random): T {
   return items[Math.floor(random() * items.length)];
 }
 
-function ofType<T extends LegalAction['type']>(
+export function ofType<T extends LegalAction['type']>(
   legal: LegalAction[],
   type: T,
 ): Extract<LegalAction, { type: T }>[] {
@@ -79,10 +79,17 @@ function freeTurnAction(
   return ofType(legal, 'ROLL')[0] ?? ofType(legal, 'END_TURN')[0] ?? null;
 }
 
-export function chooseRandomAction(engine: Engine, state: GameState, random: Random): Action | null {
-  const waiting = engine.awaiting(state);
-  if (waiting.length === 0) return null;
-  const actor = pick(waiting, random);
+/**
+ * Picks a random action, weighted so that games move along. Acts for `actor` when one is
+ * named and the game is waiting on them; otherwise for any player the game is waiting on.
+ */
+export function chooseRandomAction(
+  engine: Engine,
+  state: GameState,
+  random: Random,
+  actor: PlayerId = pick(engine.awaiting(state), random),
+): Action | null {
+  if (actor === undefined || !engine.awaiting(state).includes(actor)) return null;
   const legal = engine.legalActions(state, actor);
   const top = state.pending[state.pending.length - 1];
   if (!top) return freeTurnAction(engine, state, actor, legal, random);

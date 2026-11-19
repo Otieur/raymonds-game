@@ -212,11 +212,25 @@ export type Pending =
   | { kind: 'trade'; offer: TradeOffer };
 
 export interface TurnState {
+  /** Whose turn it is. During the opening roll, whoever throws next. */
   player: PlayerId;
   number: number;
-  phase: 'preRoll' | 'postRoll';
+  /** `order` is the opening roll that decides the order of play, before the first turn. */
+  phase: 'order' | 'preRoll' | 'postRoll';
   doubles: number;
   lastRoll: Dice | null;
+}
+
+/**
+ * The opening roll. Everyone throws; higher totals play earlier. Players who tie throw again
+ * among themselves, as often as it takes, and only their places relative to each other change.
+ */
+export interface OpeningState {
+  round: number;
+  /** The ranking so far, best first. A group of several players is a tie still to be broken. */
+  groups: PlayerId[][];
+  /** Throws made in the current round. */
+  rolls: Record<PlayerId, Dice>;
 }
 
 export interface GameState {
@@ -227,6 +241,8 @@ export interface GameState {
   bank: { houses: number; hotels: number };
   decks: Record<DeckId, CardId[]>;
   turn: TurnState;
+  /** Present until the opening roll has settled the order of play. */
+  opening: OpeningState | null;
   pending: Pending[];
   auctionQueue: PropertyId[];
   rng: number;
@@ -268,7 +284,9 @@ export type LegalAction =
 
 export type GameEvent =
   | { type: 'TURN_STARTED'; player: PlayerId; turn: number }
-  | { type: 'DICE_ROLLED'; player: PlayerId; dice: Dice; purpose: 'move' | 'jail' | 'utility' }
+  | { type: 'DICE_ROLLED'; player: PlayerId; dice: Dice; purpose: 'move' | 'jail' | 'utility' | 'order' }
+  | { type: 'ORDER_TIED'; players: PlayerId[]; total: number }
+  | { type: 'ORDER_DECIDED'; order: PlayerId[] }
   | { type: 'MOVED'; player: PlayerId; from: number; to: number; passedStart: boolean }
   | { type: 'SENT_TO_JAIL'; player: PlayerId; reason: 'square' | 'card' | 'doubles' }
   | { type: 'JAIL_ROLL_FAILED'; player: PlayerId; attempt: number }
