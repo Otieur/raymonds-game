@@ -68,7 +68,7 @@ Whichever way the test falls, the stage reports how the agents play each size, b
 
 ### Settings chosen in writing the code
 
-Written on 19 November 2026, before any run. Where the plan above is silent, the code does the following; each is a setting in a configuration file, so the author can change any of them before G4 starts.
+Written on 19 November 2026, before any run, and accepted by the author the same evening. Where the plan above is silent, the code does the following; each is a setting in a configuration file.
 
 - **A branch is a run of its own.** Its update and decision counts start at 0, so its budget and every schedule (learning rate, entropy bonus, shaping, starting-policy pull, the critic's warm-up) start again from its configuration. `branch.py` names the ones its file leaves to the parent. The optimizer's moments, the book of results, the past selves and the next training seed go with the weights unless the file's `reset` names them.
 - **G4** names its budget, sizes, shaping, `start: null` and `critic_warmup: 0`; the learning rate and entropy bonus start again from G3's configured values (3e-4, and 0.01 falling to 0.001), since "nothing in the update changes".
