@@ -12,22 +12,30 @@ from pathlib import Path
 
 import numpy as np
 
-OBS_SIZE = 985
+OBS_SIZE = 1023
+OBS_VERSION = 3
 ACTIONS = 188
-RECORD_BYTES = 2016
+_O = OBS_SIZE * 2
+RECORD_BYTES = _O + 46
 
 RECORD = np.dtype(
     {
         "names": ["obs", "legal", "action", "kind", "won", "place", "teacher", "seed", "step"],
         "formats": [("<f2", (OBS_SIZE,)), ("u1", (24,)), "<i2", "i1", "i1", "i1", "<i2", "<i4", "<i4"],
-        "offsets": [0, 1970, 1994, 1996, 1997, 1998, 2000, 2002, 2006],
+        "offsets": [0, _O, _O + 24, _O + 26, _O + 27, _O + 28, _O + 30, _O + 32, _O + 36],
         "itemsize": RECORD_BYTES,
     }
 )
 
 
 def index(path: str | Path) -> dict:
-    return json.loads((Path(path) / "index.json").read_text())
+    info = json.loads((Path(path) / "index.json").read_text())
+    if info.get("obs", OBS_SIZE) != OBS_SIZE or info.get("recordBytes", RECORD_BYTES) != RECORD_BYTES:
+        raise ValueError(
+            f"{path} was written with {info.get('obs')} numbers an observation (layout version {info.get('obsVersion')}); "
+            f"this build reads {OBS_SIZE} (version {OBS_VERSION}). Write the set again."
+        )
+    return info
 
 
 def parts(path: str | Path) -> list[Path]:

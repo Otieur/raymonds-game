@@ -4,7 +4,10 @@ import { ACTIONS, ASK0, BID0, BUILD0, codecFor, emptyDraft, legalIndices, MORTGA
 import { createEnv, DEFAULT_CONFIG } from '../../src/env/env.ts';
 import type { EnvConfig, Step } from '../../src/env/env.ts';
 import { createLedger, ledgerOf, note } from '../../src/env/ledger.ts';
-import { observe, OBS_LAYOUT, OBS_SIZE } from '../../src/env/observe.ts';
+import { observe, OBS_LAYOUT, OBS_SIZE, OBS_VERSION } from '../../src/env/observe.ts';
+import { createMlp } from '../../src/env/mlp.ts';
+import { POTENTIALS } from '../../src/env/potentials.ts';
+import { v1 } from '../../src/sim/valuation.ts';
 import { potential, potentialContext } from '../../src/env/potentials.ts';
 import { chooseHeuristicAction, createAgentMemory, createEngine, threeKingdoms } from '../../src/index.ts';
 import type { GameEvent, GameState } from '../../src/index.ts';
@@ -25,14 +28,15 @@ function generator(seed: number): () => number {
 
 const config = (changes: Partial<EnvConfig> = {}): EnvConfig => ({ ...DEFAULT_CONFIG, drafting: true, ...changes });
 
-test('the observation layout is contiguous, named once each, and 985 numbers long', () => {
+test('the observation layout is contiguous, named once each, and 1,023 numbers long', () => {
   let offset = 0;
   for (const block of OBS_LAYOUT) {
     assert.equal(block.offset, offset, block.name);
     offset += block.length;
   }
-  assert.equal(offset, 985);
-  assert.equal(OBS_SIZE, 985);
+  assert.equal(offset, 1023);
+  assert.equal(OBS_SIZE, 1023);
+  assert.equal(OBS_VERSION, 3);
   assert.equal(new Set(OBS_LAYOUT.map((b) => b.name)).size, OBS_LAYOUT.length);
 });
 
@@ -210,4 +214,106 @@ test('every step has the stated sizes', () => {
   assert.equal(step.observation.length, OBS_SIZE);
   assert.equal(step.legal.length, ACTIONS);
   assert.equal(step.phi.length, 3);
+});
+
+// ---------- Layout version 3 (docs/plan/m03b-table-politics.md) ----------
+
+const blockOf = (obs: Float32Array, name: string): number[] => {
+  const block = OBS_LAYOUT.find((b) => b.name === name);
+  assert.ok(block, name);
+  return Array.from(obs.slice(block.offset, block.offset + block.length));
+};
+
+/** Four players at round 10 with `p1` to move after its roll. */
+function position(): GameState {
+  const state = engine.newGame({ players: ['p1', 'p2', 'p3', 'p4'], seed: 1, startingPlayer: 'p1' });
+  state.turn.number = 41;
+  state.turn.phase = 'postRoll';
+  for (const [owner, ids] of Object.entries({ p1: ['wang-yun', 'diaochan'], p3: ['lu-bu'], p2: ['cao-cao', 'cao-pi'], p4: ['xun-yu'] })) {
+    for (const id of ids) state.properties[id].owner = owner;
+  }
+  return state;
+}
+const seen = (state: GameState, ledger = createLedger(), seat = 0) =>
+  observe({ ctx, state, view: viewOf(ctx, state), seat, ledger, chances: v1(4).chances(ctx, state), draft: emptyDraft(), proposalsLeft: 2, shortGame: false });
+
+test('layout 3: the risk block has every seat, with the rent each expects from the others', () => {
+  const state = position();
+  const risk = blockOf(seen(state), 'risk');
+  assert.equal(risk.length, 12);
+  // Everyone stands on LuoYang: p1's two streets are six and eight squares on, so the others can owe p1 and p1 expects rent.
+  assert.ok(risk[2] > 0, 'p1 expects rent');
+  assert.ok(risk[3] > 0, 'p2 could owe rent');
+  assert.ok(Math.abs(risk[0] - 200 / 1500) < 1e-6); // the most p1 could owe is the poll tax, four squares on
+});
+
+test('layout 3: the relations block shows refusals, deals and goodwill between me and each rival', () => {
+  let state = position();
+  const ledger = createLedger();
+  const apply = (action: Parameters<typeof engine.apply>[1]) => {
+    const result = engine.apply(state, action);
+    assert.ok(result.ok, result.ok ? '' : result.error.message);
+    state = result.state;
+    note(ctx, ledger, state, result.events);
+  };
+  const quiet = blockOf(seen(state, ledger), 'relations');
+  assert.deepEqual(quiet.slice(0, 6), [0, 0, 0, 0, 0, 0]);
+  assert.equal(quiet[6 + 6 + 3], 1); // no offer to p3 yet: the gap reads as its largest
+  const ask = (cash: number) => ({ type: 'PROPOSE_TRADE' as const, player: 'p1', to: 'p3', give: { cash, properties: [], jailCards: 0 }, receive: { cash: 0, properties: ['lu-bu'], jailCards: 0 } });
+  apply(ask(240));
+  apply({ type: 'REJECT_TRADE', player: 'p3' });
+  const refused = blockOf(seen(state, ledger), 'relations');
+  const p3 = 6 + 6; // the second rival's six numbers
+  assert.ok(Math.abs(refused[p3] - 0.1) < 1e-6, 'one of my offers refused, over ten');
+  assert.ok(Math.abs(refused[p3 + 2] - 0.5) < 1e-6, 'twice list refused, over four');
+  assert.equal(refused[p3 + 3], 0, 'asked this turn');
+  apply(ask(600));
+  apply({ type: 'ACCEPT_TRADE', player: 'p3' });
+  const dealt = blockOf(seen(state, ledger), 'relations');
+  assert.ok(Math.abs(dealt[1] - 0.2) < 1e-6, 'one deal between me and the second rival, over five');
+  // The same block, seen from p3, has the deal at its own pair with p1.
+  assert.ok(blockOf(seen(state, ledger, 2), 'relations').slice(0, 6).some((v) => Math.abs(v - 0.2) < 1e-6));
+});
+
+test('layout 3: the deal sheet is zero with nothing on the table, and shows an offer for every seat', () => {
+  const state = position();
+  assert.deepEqual(blockOf(seen(state), 'sheet'), [0, 0, 0, 0]);
+  state.pending = [{ kind: 'trade', offer: { from: 'p3', to: 'p1', give: { cash: 0, properties: ['lu-bu'], jailCards: 0 }, receive: { cash: 200, properties: [], jailCards: 0 } } }];
+  const sheet = blockOf(seen(state), 'sheet');
+  assert.ok(sheet[0] > 0.05, 'I would gain the last street of my group');
+  assert.ok(Math.abs(sheet.reduce((a, b) => a + b, 0)) < 1e-6);
+  assert.ok(sheet[1] < 0 && sheet[3] < 0, 'the seats outside the deal pay for it');
+});
+
+test('threatDenial: the one street a rival lacks counts by that rival\'s chance, and lies between 0 and 1', () => {
+  assert.equal(POTENTIALS.length, 13);
+  const state = position();
+  const chances = v1(4).chances(ctx, state);
+  const pc = potentialContext(ctx, state, chances, createLedger());
+  // p4 holds the one street of Cao Wei that p2 lacks; p3 holds the one of Chain Stratagem that p1 lacks.
+  assert.ok(Math.abs(potential('threatDenial', pc, 3) - chances[1]) < 1e-9);
+  assert.ok(Math.abs(potential('threatDenial', pc, 2) - chances[0]) < 1e-9);
+  assert.equal(potential('threatDenial', pc, 0), 0);
+  const env = createEnv(config({ seeds: { start: 5, step: 1 }, potentials: [...POTENTIALS] }));
+  let step = env.reset();
+  for (let i = 0; i < 400 && !step.done; i++) {
+    for (const value of step.phi) assert.ok(value >= 0 && value <= 1);
+    step = env.step(legalIndices(step.legal)[i % legalIndices(step.legal).length]);
+  }
+});
+
+test('a model trained on layout version 2 is refused', () => {
+  const shapes: [number, number][] = [[985, 4], [4, 4], [4, 4], [4, ACTIONS]];
+  assert.throws(() => createMlp({ name: 'old', obsVersion: 2, actionsVersion: 2, shapes } as never), /observation version 2/);
+});
+
+test('the table size sits at offsets 37 to 39 of the table block, where the Python model reads it', () => {
+  const table = OBS_LAYOUT.find((b) => b.name === 'table');
+  assert.equal(table?.offset, 936);
+  for (const n of [2, 3, 4]) {
+    const ids = Array.from({ length: n }, (_, i) => `p${i + 1}`);
+    const state = engine.newGame({ players: ids, seed: 1, startingPlayer: 'p1' });
+    const obs = observe({ ctx, state, view: viewOf(ctx, state), seat: 0, ledger: createLedger(), chances: ids.map(() => 1 / n), draft: emptyDraft(), proposalsLeft: 2, shortGame: false });
+    assert.deepEqual(Array.from(obs.slice(936 + 37, 936 + 40)), [2, 3, 4].map((size) => (size === n ? 1 : 0)));
+  }
 });

@@ -12,7 +12,8 @@ import { SHORT_GAME_RULES } from '../rules.ts';
 import { nextFloat, seedFrom } from '../rng.ts';
 import { chooseHeuristicAction } from '../sim/heuristic-agent.ts';
 import { viewOf } from '../sim/measures.ts';
-import { proposeFor, contextOf, createStyleMemory } from '../sim/style-agent.ts';
+import { proposeFor, contextOf, createStyleMemory, debtOfferFor } from '../sim/style-agent.ts';
+import { createDebtWindows, debtWindow } from '../sim/window.ts';
 import { memberAgent } from '../sim/league.ts';
 import { PRESETS } from '../sim/styles.ts';
 import type { SeatAgent } from '../sim/styles.ts';
@@ -63,6 +64,8 @@ export interface Final {
   turns: number;
   /** Indices in the order of play of the seats the trainer played. */
   learners: number[];
+  /** Who sat in each seat, in the order of play: a league member's name, or 'learner'. */
+  members: string[];
 }
 
 export interface Step {
@@ -102,6 +105,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
   let refused = new Map<PlayerId, Set<number>>();
   let proposerAsked = new Set<PlayerId>();
   let proposerMemory = createStyleMemory();
+  let windows = createDebtWindows();
   let eliminated: PlayerId[] = [];
   let forced = 0;
   let ruled = 0;
@@ -164,6 +168,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     refused = new Map(ids.map((id) => [id, new Set()]));
     proposerAsked = new Set();
     proposerMemory = createStyleMemory();
+    windows = createDebtWindows();
     eliminated = [];
     forced = 0;
     ruled = 0;
@@ -238,6 +243,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
         places,
         turns: state.turn.number,
         learners: state.players.flatMap((p, i) => (seatsById.get(p.id)?.learner ? [i] : [])),
+        members: state.players.map((p) => (seatsById.get(p.id)?.learner ? 'learner' : (seatsById.get(p.id)?.member ?? ''))),
       },
       info: { game, seed, turn: state.turn.number, round: (state.turn.number - 1) / n, forced, ruled },
     };
@@ -272,11 +278,27 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     };
   }
 
+  /** Who answers at a debt window for a seat: the member that plays it, or for a learner the school that proposes on its behalf. */
+  function windowAgent(id: PlayerId): SeatAgent | undefined {
+    const seat = seatsById.get(id);
+    if (!seat) return undefined;
+    if (!seat.learner) return seat.agent ?? undefined;
+    const style = !config.drafting && config.proposer ? PRESETS[config.proposer]?.playbook.base : undefined;
+    if (!style) return undefined;
+    return { choose: () => null, observe: () => {}, rules: () => ({ ever: [], last: [] }), window: (e, s, actor) => debtOfferFor(e, s, actor, style, proposerMemory) };
+  }
+
   /** Plays on until a learner has a real choice or the game ends. */
   function advance(): Step {
     for (;;) {
       if (state.winner !== null) return finalStep(false);
       if (state.turn.number > config.turnLimit[state.players.length as 2 | 3 | 4]) return finalStep(true);
+      // At a debt the debtor cannot cover, the ruled seats that offer for its property are asked first, and so is the school that proposes for a learner.
+      const early = debtWindow(engine, state, windowAgent, random, windows);
+      if (early) {
+        apply(early.action);
+        continue;
+      }
       const actor = nextActor();
       const seat = seatsById.get(actor) as Seat;
       if (!seat.learner) {

@@ -1,0 +1,10 @@
+{
+  "name": "g2",
+  "note": "Four players, short game, with one game in five still at two players. Starts from the holder of main-2.",
+  "games": [
+    { "players": 4, "rules": "short", "share": 0.8 },
+    { "players": 2, "rules": "full", "share": 0.2 }
+  ],
+  "budget": 50000000,
+  "checks": { "size": 4, "games": 500, "seeds": 2500000, "against": "baseline" }
+}

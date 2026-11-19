@@ -13,9 +13,9 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-OBS_SIZE = 985
+OBS_SIZE = 1023
 ACTIONS = 188
-OBS_VERSION = 2
+OBS_VERSION = 3
 ACTIONS_VERSION = 2
 
 
@@ -23,7 +23,7 @@ ACTIONS_VERSION = 2
 class Batch:
     """One step of every environment."""
 
-    obs: np.ndarray  # [N, 985] float32
+    obs: np.ndarray  # [N, 1023] float32
     mask: np.ndarray  # [N, 188] bool
     phi: np.ndarray  # [N, P] float32
     seat: np.ndarray  # [N] int
@@ -75,16 +75,27 @@ class Worker:
 
 
 class VecEnv:
-    def __init__(self, workers: int, envs_per_worker: int, config: dict):
-        base = dict(config)
-        start = base.get("seeds", {}).get("start", 10_000_000)
+    def __init__(self, workers: int, envs_per_worker: int, config: dict, configs: list[dict] | None = None):
+        """`configs`, when given, has one configuration for each worker in place of `config` for all."""
+        self.per_worker = envs_per_worker
+        self.count = workers
+        self.start = dict(config).get("seeds", {}).get("start", 10_000_000)
         self.workers = []
         for w in range(workers):
-            cfg = dict(base)
-            cfg["seeds"] = {"start": start + w * envs_per_worker, "step": workers * envs_per_worker}
-            self.workers.append(Worker(envs_per_worker, cfg))
+            self.workers.append(Worker(envs_per_worker, self._seeded(configs[w] if configs else config, w)))
         self.n = workers * envs_per_worker
         self.potentials = len(config.get("potentials", ["value"]))
+
+    def _seeded(self, config: dict, w: int) -> dict:
+        cfg = dict(config)
+        cfg["seeds"] = {"start": self.start + w * self.per_worker, "step": self.count * self.per_worker}
+        return cfg
+
+    def remake(self, configs: list[dict], seed_start: int) -> None:
+        """Gives every worker a new configuration, with seeds from `seed_start` on. The games under way are dropped."""
+        self.start = seed_start
+        for w, worker in enumerate(self.workers):
+            worker.request({"op": "make", "count": self.per_worker, "config": self._seeded(configs[w], w)})
 
     def _collect(self, replies: list[dict]) -> Batch:
         steps = [s for r in replies for s in r["steps"]]

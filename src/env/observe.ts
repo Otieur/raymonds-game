@@ -1,20 +1,27 @@
 /**
- * The observation: 985 numbers written from the point of view of the seat that decides. That seat
+ * The observation: 1,023 numbers written from the point of view of the seat that decides. That seat
  * is relative seat 0 and the others follow in the order of play. Amounts are divided by the
  * starting cash unless a block says otherwise. Nothing a seat may not know is read: the order of
  * the decks, the generator and the dice queue stay out.
  */
 import type { Context } from '../context.ts';
 import { ownsGroup, rentDue } from '../engine/queries.ts';
+import { dealSheet, incomeInReach } from '../sim/deal.ts';
+import type { Deal } from '../sim/deal.ts';
 import { LANDING_RATES } from '../sim/landing-rates.ts';
 import { duesInReach, holds, MEASURES, rivalMost, setOf } from '../sim/measures.ts';
 import type { View } from '../sim/measures.ts';
+import { dealsBetween, goodwillOf } from '../sim/relations.ts';
+import { roundOf, v1 } from '../sim/valuation.ts';
 import type { GameState, PlayerId } from '../types.ts';
 import type { Draft } from './actions.ts';
 import { habits } from './ledger.ts';
 import type { Ledger } from './ledger.ts';
 
-export const OBS_VERSION = 2;
+/** Version 3 (M3b) widens the risk block to every seat and adds the relations and deal-sheet blocks. */
+export const OBS_VERSION = 3;
+/** The rounds in which goodwill halves, as the observation reads it: the default of a style's `allyTurns`. */
+const GOODWILL_HALF_LIFE = 4;
 export const SEATS = 4;
 
 export const OBS_LAYOUT: readonly { name: string; offset: number; length: number }[] = (() => {
@@ -25,7 +32,9 @@ export const OBS_LAYOUT: readonly { name: string; offset: number; length: number
     ['properties', 28 * 15],
     ['facts', 28 * 7],
     ['table', 47],
-    ['risk', 2],
+    ['risk', SEATS * 3],
+    ['relations', 6 + (SEATS - 1) * 6],
+    ['sheet', SEATS],
   ];
   let offset = 0;
   return blocks.map(([name, length]) => {
@@ -197,11 +206,63 @@ export function observe(input: ObserveInput): Float32Array {
   for (let place = 0; place < SEATS; place++) put(seat === place ? 1 : 0);
   put(input.proposalsLeft / 2);
 
-  // Risk
+  // Risk, for every seat: the largest rent or tax it could owe on its next roll, the amount expected, and the rent it expects from the others' next rolls
   block('risk');
-  const dues = duesInReach(view, me);
-  put(dues.largest / stake);
-  put(dues.expected / stake);
+  for (let r = 0; r < SEATS; r++) {
+    const p = r < n ? state.players[(seat + r) % n] : null;
+    if (!p || p.bankrupt) {
+      put(0);
+      put(0);
+      put(0);
+      continue;
+    }
+    const dues = duesInReach(view, p);
+    put(dues.largest / stake);
+    put(dues.expected / stake);
+    put(incomeInReach(view, p.id) / stake);
+  }
+
+  // Relations: deals between each pair of seats, then for each rival what has passed between it and me
+  block('relations');
+  const { relations } = ledger;
+  const idAt = (r: number): PlayerId | null => (r < n ? state.players[(seat + r) % n].id : null);
+  const round = Math.floor(roundOf(state));
+  for (let a = 0; a < SEATS; a++) {
+    for (let b = a + 1; b < SEATS; b++) {
+      const x = idAt(a);
+      const y = idAt(b);
+      put(x && y ? Math.min(1, dealsBetween(relations, x, y) / 5) : 0);
+    }
+  }
+  for (let r = 1; r < SEATS; r++) {
+    const rival = idAt(r);
+    if (!rival) {
+      for (let k = 0; k < 6; k++) put(0);
+      continue;
+    }
+    const last = relations.lastOffer[me.id]?.[rival];
+    put(Math.min(1, (relations.refusals[me.id]?.[rival] ?? 0) / 10));
+    put(Math.min(1, (relations.refusals[rival]?.[me.id] ?? 0) / 10));
+    put(Math.min(1, (relations.refusedMultiple[me.id]?.[rival] ?? 0) / 4));
+    put(last === undefined ? 1 : Math.min(1, (state.turn.number - last) / 20));
+    put(Math.max(-1, Math.min(1, goodwillOf(relations, me.id, rival, round, GOODWILL_HALF_LIFE) / 10)));
+    put(Math.max(-1, Math.min(1, goodwillOf(relations, rival, me.id, round, GOODWILL_HALF_LIFE) / 10)));
+  }
+
+  // The deal sheet: what the offer on the table, or my draft so far, does to each seat's chance
+  block('sheet');
+  let deal: Deal | null = null;
+  if (offer && offer.to === me.id) deal = offer;
+  else if (draft.stage !== 'none' && draft.partner !== null) {
+    deal = {
+      from: me.id,
+      to: draft.partner,
+      give: { cash: 0, properties: draft.give === null ? [] : [ctx.propertyOrder[draft.give].id], jailCards: 0 },
+      receive: { cash: 0, properties: [ctx.propertyOrder[draft.ask].id], jailCards: 0 },
+    };
+  }
+  const delta = deal ? dealSheet(ctx, state, deal, v1(n), chances).delta : null;
+  for (let r = 0; r < SEATS; r++) put(delta && r < n ? delta[(seat + r) % n] : 0);
 
   if (at !== OBS_SIZE) throw new Error(`The observation has ${at} numbers, not ${OBS_SIZE}.`);
   return out;

@@ -24,6 +24,7 @@ export const POTENTIALS = [
   'supply',
   'solvency',
   'eliminations',
+  'threatDenial',
 ] as const;
 export type PotentialName = (typeof POTENTIALS)[number];
 
@@ -108,6 +109,18 @@ export function potential(name: PotentialName, pc: PotentialContext, seat: numbe
     }
     case 'eliminations':
       return (pc.ledger.seats[player.id]?.eliminations ?? 0) / Math.max(1, state.players.length - 1);
+    case 'threatDenial': {
+      // Denial weighted by whom it stops: for each group where the seat holds the one street a rival lacks, that rival's chance of winning.
+      let sum = 0;
+      for (const streets of ctx.groups.values()) {
+        if (streets.filter((sq) => state.properties[sq.id].owner === player.id).length !== 1) continue;
+        const rest = streets.filter((sq) => state.properties[sq.id].owner !== player.id).map((sq) => state.properties[sq.id].owner);
+        const rival = rest[0];
+        if (rival === null || rival === undefined || !rest.every((owner) => owner === rival)) continue;
+        sum += pc.chances[state.players.findIndex((p) => p.id === rival)] ?? 0;
+      }
+      return Math.min(1, sum);
+    }
   }
 }
 

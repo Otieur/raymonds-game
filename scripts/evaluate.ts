@@ -2,6 +2,10 @@
  * Scores an exported model as one seat among copies of a league member, in TypeScript.
  *
  *   node scripts/evaluate.ts --model assets/models/<name>.ts [--against baseline] [--size 4] [--games 1000] [--seeds 1000000]
+ *                            [--proposer baseline] [--tally] [--sample]
+ *
+ * With --proposer the named school makes the model's offers and the model drafts none, which is how a
+ * learner plays while drafting is off (M6).
  *
  * Every action goes through the engine's checks; a refused action or a broken invariant stops the
  * run. Prints the win share with its interval, how often the agent fell back to the rule-based
@@ -18,6 +22,7 @@ import type { PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { chooseHeuristicAction, createAgentMemory } from '../src/sim/heuristic-agent.ts';
 import { memberAgent } from '../src/sim/league.ts';
+import { PRESETS } from '../src/sim/styles.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
 
 function option(name: string): string | undefined {
@@ -38,6 +43,10 @@ const rulesFor = (option('--rules-for') ?? '').split(',').filter(Boolean).map((n
 });
 // --rules-when-legal BUILD: any decision where one of these action types is legal goes to the rule-based agent.
 const rulesWhenLegal = option('--rules-when-legal')?.split(',');
+// --proposer baseline: that school makes the model's offers, once a turn after the roll; the model drafts none.
+const proposerName = option('--proposer');
+const proposer = proposerName ? PRESETS[proposerName]?.playbook.base : undefined;
+if (proposerName && !proposer) throw new Error(`No school named ${proposerName}.`);
 const engine = createEngine(threeKingdoms);
 const mlp = createMlp(MODEL);
 let wins = 0;
@@ -55,7 +64,7 @@ for (let seed = start; seed < start + games; seed++) {
   const holder = { rng: seedFrom(`evaluate-${size}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: size }, (_, i) => `p${i + 1}`);
-  const learned = createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals') });
+  const learned = createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals'), proposer, greedy: !process.argv.includes('--sample') });
   const agents = new Map<PlayerId, SeatAgent>(ids.map((id, i) => [id, i === 0 ? learned : memberAgent(against)]));
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < 40000; actions++) {
@@ -92,7 +101,7 @@ for (let seed = start; seed < start + games; seed++) {
 const p = wins / finished;
 const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
 console.log(
-  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
+  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${proposerName ? ` (offers by ${proposerName})` : ''}${process.argv.includes('--sample') ? ' (sampling)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
     `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
 );
 if (process.argv.includes('--tally')) {

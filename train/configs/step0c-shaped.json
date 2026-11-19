@@ -1,0 +1,12 @@
+{
+  "name": "step0c-shaped",
+  "note": "M6 step 0c with the value potential on. The first run of 0c, with the result alone, never won a game: a learner initialised at random plays far worse than the weighted random agent. Shaping by the valuation leaves the best policy unchanged and gives the loop a signal to learn from; the bar is the same.",
+  "games": [{ "players": 2, "rules": "full", "share": 1.0 }],
+  "budget": 10000000,
+  "workers": 4,
+  "potentials": ["value"],
+  "shaping": { "value": { "start": 1.0, "until": 1.0 }, "milestones": { "start": 0.0, "until": 0.0 } },
+  "opponents": [{ "member": "random", "weight": 1 }],
+  "proposer": null,
+  "checks": { "size": 2, "games": 500, "seeds": 2500000, "against": "random" }
+}

@@ -3,10 +3,12 @@
  * the observation, the mask, and the index of the action the teacher took.
  *
  *   node scripts/make-dataset.ts --out <dir> --set <name> [--teachers baseline] [--size 4]
- *        [--decisions 250000] [--seeds 3000000] [--workers 8] [--perturb 0.2]
+ *        [--decisions 250000 | --parts <n>] [--games-per-part 100] [--seeds 3000000] [--workers 8] [--perturb 0.2] [--keep 1]
  *
- * A set is a directory of part files of fixed-size records and an index.json. A record is 2,016
- * bytes: the observation as 985 half-precision floats, the mask as 188 bits, the action, the kind
+ * --keep q records each decision with chance q, for sets that need many games and few decisions of each (the value network).
+ *
+ * A set is a directory of part files of fixed-size records and an index.json. A record is 2,092
+ * bytes: the observation as 1,023 half-precision floats, the mask as 188 bits, the action, the kind
  * of decision, whether the deciding seat won, its finishing place, the teacher's number, the game's
  * seed and the decision's number in the game. train/data.py reads it.
  *
@@ -42,8 +44,9 @@ import { contextOf } from '../src/sim/style-agent.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
 import { v1 } from '../src/sim/valuation.ts';
 
-export const RECORD_BYTES = 2016;
 const OBS_BYTES = OBS_SIZE * 2;
+/** The observation, then 46 bytes: the mask as 24 bytes of bits, and the fields of the table in the header. */
+export const RECORD_BYTES = OBS_BYTES + 46;
 const ACTION_LIMIT = 40000;
 
 function option(name: string): string | undefined {
@@ -101,8 +104,11 @@ function playGame(
   out: Pending[],
   won: Map<number, [number, number]>,
   learner: Mlp | null = null,
+  keep = 1,
 ): void {
   const ctx = contextOf(engine);
+  // With keep below 1, each decision is recorded with that chance, by a draw of its own, so the game is the same as when all are recorded.
+  const sampler = { rng: seedFrom(`sample-${size}-${seed}`) };
   const holder = { rng: seedFrom(`dataset-${size}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = Array.from({ length: size }, (_, i) => `p${i + 1}`);
@@ -121,6 +127,7 @@ function playGame(
   let turn = state.turn.number;
   const left = (actor: PlayerId) => Math.max(0, 2 - (made.get(actor) ?? 0));
   const record = (actor: PlayerId, draft: Draft, codec: Codec, index: number) => {
+    if (keep < 1 && nextFloat(sampler) >= keep) return;
     const seat = state.players.findIndex((p) => p.id === actor);
     const chances = v1(size).chances(ctx, state);
     const obs = observe({ ctx, state, view: viewOf(ctx, state), seat, ledger, chances, draft, proposalsLeft: left(actor), shortGame: false });
@@ -228,6 +235,7 @@ if (process.argv[2] === '--worker') {
   const perturbShare = Number(option('--perturb') ?? 0.2);
   const dir = option('--dir') as string;
   const learnerPath = option('--learner');
+  const keep = Number(option('--keep') ?? 1);
   const learner = learnerPath ? createMlp(((await import(pathToFileURL(resolve(learnerPath)).href)) as { MODEL: ModelWeights }).MODEL) : null;
   process.on('message', (job: Job) => {
     const records: Pending[] = [];
@@ -236,7 +244,7 @@ if (process.argv[2] === '--worker') {
     for (let seed = job.from; seed <= job.to; seed++) {
       const before = records.length;
       const perturb = seedFrom(`perturb-${seed}`) % 1000 < perturbShare * 1000;
-      playGame(engine, teachers, size, seed, perturb, records, won, learner);
+      playGame(engine, teachers, size, seed, perturb, records, won, learner, keep);
       for (let i = before; i < records.length; i++) seeds.push(seed);
     }
     const file = join(dir, `part-${String(job.part).padStart(5, '0')}.bin`);
@@ -255,7 +263,9 @@ if (process.argv[2] === '--worker') {
   const workers = Number(option('--workers') ?? Math.max(1, availableParallelism() - 2));
   const size = Number(option('--size') ?? 4);
   const gamesPerPart = Number(option('--games-per-part') ?? 100);
-  const args = ['--worker', '--dir', dir, '--size', String(size), '--teachers', option('--teachers') ?? 'baseline', '--perturb', option('--perturb') ?? '0.2'];
+  // --parts n writes exactly n parts, so that a set can be written again on the same games.
+  const partLimit = option('--parts') === undefined ? null : Number(option('--parts'));
+  const args = ['--worker', '--dir', dir, '--size', String(size), '--teachers', option('--teachers') ?? 'baseline', '--perturb', option('--perturb') ?? '0.2', '--keep', option('--keep') ?? '1'];
   if (option('--learner')) args.push('--learner', option('--learner') as string);
   let decisions = 0;
   let games = 0;
@@ -268,7 +278,7 @@ if (process.argv[2] === '--worker') {
       const child = fork(fileURLToPath(import.meta.url), args);
       running += 1;
       const give = () => {
-        if (decisions >= target) {
+        if (partLimit === null ? decisions >= target : next >= partLimit) {
           child.disconnect();
           return;
         }

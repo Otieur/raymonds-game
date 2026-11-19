@@ -4,6 +4,9 @@
  * reads to decide whether to play for groups or for passes.
  */
 import type { Context } from '../context.ts';
+import { createRelations, noteRelations } from '../sim/relations.ts';
+import type { Relations } from '../sim/relations.ts';
+import { v1 } from '../sim/valuation.ts';
 import type { GameEvent, GameState, PlayerId, PropertySquare } from '../types.ts';
 
 export interface SeatLedger {
@@ -30,6 +33,8 @@ export interface Ledger {
   /** Bidders of the auction under way, so that an auction counts once for each. */
   bidding: Set<PlayerId>;
   lastOffered: PlayerId | null;
+  /** What has passed between each pair of seats, for the relations block of the observation. */
+  relations: Relations;
 }
 
 const emptySeat = (): SeatLedger => ({
@@ -52,13 +57,16 @@ const emptySeat = (): SeatLedger => ({
 });
 
 export function createLedger(): Ledger {
-  return { seats: {}, bidding: new Set(), lastOffered: null };
+  const relations = createRelations();
+  relations.tracking = true;
+  return { seats: {}, bidding: new Set(), lastOffered: null, relations };
 }
 
 const seatOf = (ledger: Ledger, id: PlayerId) => (ledger.seats[id] ??= emptySeat());
 
 /** Feeds one applied action's events. `state` is the state after the action. */
 export function note(ctx: Context, ledger: Ledger, state: GameState, events: GameEvent[]): void {
+  noteRelations(ledger.relations, state, events, ctx, v1(state.players.length));
   for (const event of events) {
     switch (event.type) {
       case 'PROPERTY_OFFERED':

@@ -1,0 +1,11 @@
+{
+  "name": "step0c",
+  "note": "M6 step 0c: two players, no starting policy, no shaping, every opponent random. Passes at over 80% against random play within 10 million decisions.",
+  "games": [{ "players": 2, "rules": "full", "share": 1.0 }],
+  "budget": 10000000,
+  "potentials": ["value"],
+  "shaping": { "value": { "start": 0.0, "until": 0.0 }, "milestones": { "start": 0.0, "until": 0.0 } },
+  "opponents": [{ "member": "random", "weight": 1 }],
+  "proposer": null,
+  "checks": { "size": 2, "games": 500, "seeds": 2500000, "against": "random" }
+}

@@ -21,7 +21,7 @@ import torch
 
 from model import ACTIONS, OBS_SIZE, Net
 
-OBS_VERSION = 2
+OBS_VERSION = 3
 ACTIONS_VERSION = 2
 
 

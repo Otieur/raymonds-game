@@ -7,7 +7,8 @@
 import type { Engine } from '../engine/engine.ts';
 import { chooseHeuristicAction, createAgentMemory } from '../sim/heuristic-agent.ts';
 import { viewOf } from '../sim/measures.ts';
-import { contextOf } from '../sim/style-agent.ts';
+import { contextOf, createStyleMemory, observe as observeStyle, proposeFor } from '../sim/style-agent.ts';
+import type { Style } from '../sim/style.ts';
 import type { SeatAgent } from '../sim/styles.ts';
 import { v1 } from '../sim/valuation.ts';
 import type { Action, GameEvent, GameState, PlayerId } from '../types.ts';
@@ -22,20 +23,31 @@ import type { Mlp } from './mlp.ts';
  * instead of the network; `rulesWhenLegal` lists action types (such as BUILD) whose being legal hands the
  * decision to the rule-based agent; `proposals: false` keeps it from drafting offers. All are for diagnosis;
  * the defaults leave every decision to the network.
+ *
+ * `proposer` is a style that makes the seat's offers, as the environment does while drafting is off: once on
+ * each of the seat's turns, after its roll, the style is asked whether it would propose, and what it
+ * proposes is sent. The network then drafts nothing.
  */
-export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean; rulesFor?: number[]; rulesWhenLegal?: string[]; proposals?: boolean } = {}): SeatAgent & { fallbacks(): number } {
+export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy?: boolean; rulesFor?: number[]; rulesWhenLegal?: string[]; proposals?: boolean; proposer?: Style } = {}): SeatAgent & { fallbacks(): number } {
   const ctx = contextOf(engine);
   const ledger = createLedger();
   const memory = createAgentMemory();
   let fallbacks = 0;
   const proposals = new Map<string, number>();
   let turn = -1;
+  const styleMemory = createStyleMemory();
+  let asked = -1;
   return {
     choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null {
       if (!engine.awaiting(state).includes(actor)) return null;
       if (options.rulesFor?.includes(decisionKind(state))) return chooseHeuristicAction(engine, state, actor, random, memory);
       if (options.rulesWhenLegal && engine.legalActions(state, actor).some((a) => options.rulesWhenLegal?.includes(a.type))) {
         return chooseHeuristicAction(engine, state, actor, random, memory);
+      }
+      if (options.proposer && state.pending.length === 0 && state.turn.phase === 'postRoll' && state.turn.player === actor && asked !== state.turn.number) {
+        asked = state.turn.number;
+        const offer = proposeFor(engine, state, actor, random, options.proposer, styleMemory);
+        if (offer) return offer;
       }
       try {
         if (state.turn.number !== turn) {
@@ -47,7 +59,7 @@ export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy
         const view = viewOf(ctx, state);
         let draft: Draft = emptyDraft();
         for (let step = 0; step < 4; step++) {
-          const left = options.proposals === false ? 0 : 2 - (proposals.get(actor) ?? 0);
+          const left = options.proposals === false || options.proposer ? 0 : 2 - (proposals.get(actor) ?? 0);
           const codec = codecFor(ctx, engine, state, actor, draft, { drafting: true, proposalsLeft: left, refused: new Set() });
           const obs = observe({ ctx, state, view, seat, ledger, chances, draft, proposalsLeft: left, shortGame: false });
           const { policy } = model.forward(obs);
@@ -79,6 +91,7 @@ export function createLearnedAgent(model: Mlp, engine: Engine, options: { greedy
     },
     observe(events: GameEvent[], state: GameState): void {
       note(ctx, ledger, state, events);
+      if (options.proposer) observeStyle(styleMemory, events, state);
     },
     rules: () => ({ ever: [], last: [] }),
     fallbacks: () => fallbacks,

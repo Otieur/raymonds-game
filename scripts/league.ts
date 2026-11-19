@@ -17,9 +17,15 @@ import { createEngine, threeKingdoms } from '../src/index.ts';
 import type { Engine, PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { leagueOf, memberAgent } from '../src/sim/league.ts';
+import './model-loader.ts';
 import { rate } from '../src/sim/rating.ts';
 import type { Order } from '../src/sim/rating.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
+import { createDebtWindows, debtWindow } from '../src/sim/window.ts';
+import { addPolitics, createPoliticsWatch, emptyTablePolitics } from '../src/sim/politics.ts';
+import type { TablePolitics } from '../src/sim/politics.ts';
+import { contextOf } from '../src/sim/style-agent.ts';
+import { v1 } from '../src/sim/valuation.ts';
 
 const ACTION_LIMIT = 40000;
 
@@ -35,32 +41,40 @@ export interface TableResult {
   /** Seat indices in finishing order, first to last; empty if unfinished. */
   order: number[];
   turns: number;
+  /** The table's measures of politics, when they were asked for. */
+  politics?: TablePolitics;
 }
 
 /** Plays one game with the named members in seats 0, 1, ... (the opening roll then sets the order of play). */
-export function playTable(engine: Engine, members: string[], seed: number, tag = 'league'): TableResult {
+export function playTable(engine: Engine, members: string[], seed: number, tag = 'league', politics = false): TableResult {
   const holder = { rng: seedFrom(`${tag}-${members.length}-${seed}`) };
   const random = () => nextFloat(holder);
   const ids = members.map((_, i) => `p${i + 1}`);
   const agents = new Map<PlayerId, SeatAgent>(ids.map((id, i) => [id, memberAgent(members[i])]));
   const eliminated: PlayerId[] = [];
+  const windows = createDebtWindows();
+  const watch = politics ? createPoliticsWatch(contextOf(engine), ids, v1(members.length)) : null;
   let state = engine.newGame({ players: ids, seed });
   for (let actions = 0; state.winner === null && actions < ACTION_LIMIT; actions++) {
     const waiting = engine.awaiting(state);
-    const actor = waiting[Math.floor(random() * waiting.length)];
-    const action = agents.get(actor)?.choose(engine, state, actor, random);
+    // At a debt the debtor cannot cover, seats that offer for its property are asked first.
+    const early = debtWindow(engine, state, (id) => agents.get(id), random, windows);
+    const actor = early ? early.actor : waiting[Math.floor(random() * waiting.length)];
+    const action = early ? early.action : agents.get(actor)?.choose(engine, state, actor, random);
     if (!action) throw new Error(`${members.join(',')}, seed ${seed}: ${actor} has no action.`);
     const result = engine.apply(state, action);
     if (!result.ok) throw new Error(`${members.join(',')}, seed ${seed}: ${JSON.stringify(action)} was refused: ${result.error.message}`);
+    watch?.note(state, result.events, result.state);
     state = result.state;
     for (const agent of agents.values()) agent.observe(result.events, state);
     for (const event of result.events) if (event.type === 'BANKRUPT') eliminated.push(event.player);
   }
-  if (state.winner === null) return { finished: false, winner: -1, order: [], turns: state.turn.number };
+  const seen = watch?.finish(state).table;
+  if (state.winner === null) return { finished: false, winner: -1, order: [], turns: state.turn.number, politics: seen };
   const winner = ids.indexOf(state.winner);
   const rest = ids.filter((id) => id !== state.winner && !eliminated.includes(id));
   const order = [state.winner, ...rest, ...[...eliminated].reverse()].map((id) => ids.indexOf(id));
-  return { finished: true, winner, order, turns: state.turn.number };
+  return { finished: true, winner, order, turns: state.turn.number, politics: seen };
 }
 
 type Job =
@@ -74,6 +88,8 @@ interface JobResult {
   wins: number;
   turns: number;
   orders: Order[];
+  /** For mixed tables: the table's measures of politics. */
+  politics?: TablePolitics;
 }
 
 function runJob(engine: Engine, job: Job): JobResult {
@@ -85,7 +101,8 @@ function runJob(engine: Engine, job: Job): JobResult {
       const holder = { rng: seedFrom(`mixed-${job.size}-${seed}`) };
       seats = Array.from({ length: job.size }, () => job.members[Math.floor(nextFloat(holder) * job.members.length)]);
     }
-    const result = playTable(engine, seats, seed);
+    const result = playTable(engine, seats, seed, 'league', job.kind === 'mixed');
+    if (result.politics) out.politics = addPolitics(out.politics ?? emptyTablePolitics(), result.politics);
     out.games += 1;
     if (!result.finished) continue;
     out.finished += 1;
@@ -175,6 +192,7 @@ if (process.argv[2] === '--worker') {
     t.wins += r.wins;
     t.turns += r.turns;
     t.orders.push(...r.orders);
+    if (r.politics) t.politics = addPolitics(t.politics ?? emptyTablePolitics(), r.politics);
     totals.set(r.key, t);
   }
   console.log('# League report\n');
@@ -220,6 +238,13 @@ if (process.argv[2] === '--worker') {
     console.log(cycles.length ? `Cycles: ${cycles.join('; ')}.\n` : 'No cycle among three members, each step clear of its interval.\n');
     if (mixedTotal) {
       console.log(`Mixed tables: ${mixedTotal.games} games, ${pct(mixedTotal.finished / mixedTotal.games)} finished, ${(mixedTotal.turns / Math.max(1, mixedTotal.finished)).toFixed(0)} turns on average.\n`);
+      const p = mixedTotal.politics;
+      if (p) {
+        console.log(
+          `At the mixed tables the seat ranked first by the valuation at round 10 went on to win ${pct(p.leader10Wins / Math.max(1, p.leader10))} of ${p.leader10} games, and the one ranked first at round 20, ${pct(p.leader20Wins / Math.max(1, p.leader20))} of ${p.leader20}. ` +
+            `The lead changed ${(p.leadChanges / Math.max(1, p.games)).toFixed(2)} times a game. Of bankrupt players' property, by list price, ${pct(p.toLeaderValue / Math.max(1, p.bankruptValue))} went to the seat that was ranked first.\n`,
+        );
+      }
     }
     json[size] = { members, matrix: Object.fromEntries(members.map((x) => [x, Object.fromEntries(members.filter((y) => y !== x).map((y) => [y, share(x, y)]))])), ratings };
   }
