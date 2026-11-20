@@ -159,9 +159,24 @@ def save(run: Path, net, optimizer, state: dict, book: Book, rng: np.random.Gene
     torch.save(net.state_dict(), run / "weights.pt")
     (run / "checkpoints").mkdir(exist_ok=True)
     torch.save(
-        {"net": net.state_dict(), "optimizer": optimizer.state_dict(), "state": state, "book": book.dump(), "rng": rng.bit_generator.state},
+        {
+            "net": net.state_dict(), "optimizer": optimizer.state_dict(), "state": state, "book": book.dump(), "rng": rng.bit_generator.state,
+            # Torch's own generator samples the learner's actions; with it saved, a resumed run replays the run it continues.
+            "torch_rng": torch.get_rng_state(),
+        },
         run / "checkpoints" / f"{state['update']:05d}.pt",
     )
+
+
+def restore(saved: dict, net, optimizer, book: Book, rng: np.random.Generator) -> dict:
+    """Loads a checkpoint into the training objects; returns its state. Checkpoints written before 20 November have no torch generator."""
+    net.load_state_dict(saved["net"])
+    optimizer.load_state_dict(saved["optimizer"])
+    book.load(saved["book"])
+    rng.bit_generator.state = saved["rng"]
+    if "torch_rng" in saved:
+        torch.set_rng_state(saved["torch_rng"].cpu())
+    return saved["state"]
 
 
 def latest(run: Path) -> Path | None:
@@ -203,12 +218,7 @@ def main(argv: list[str] | None = None) -> None:
 
     checkpoint = latest(run) if args.resume else None
     if checkpoint:
-        saved = torch.load(checkpoint, map_location=device, weights_only=False)
-        net.load_state_dict(saved["net"])
-        optimizer.load_state_dict(saved["optimizer"])
-        state = saved["state"]
-        book.load(saved["book"])
-        rng.bit_generator.state = saved["rng"]
+        state = restore(torch.load(checkpoint, map_location=device, weights_only=False), net, optimizer, book, rng)
 
     n = cfg["workers"] * cfg["envs_per_worker"]
     block = n * 10_000  # seeds set aside for one drawing of the tables

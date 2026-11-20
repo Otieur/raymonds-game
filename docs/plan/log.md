@@ -463,3 +463,11 @@ Each school as the one among copies of the baseline, against the baseline in the
 - Paired intervals are 0.6 to 1.0 points narrower on each side than independent ones would be.
 
 Files: `$DATA_DIR/paired/{prober-2,broker-2,statesman-book-2}-{3,4}.txt`.
+
+### M6: the shaped step 0c, resumed
+
+Resumed at 20:23 from update 20 and run to the end of its budget, update 77 (10.08 million decisions).
+
+- It did not replay the stopped run. Before the stop its training games against random play were won from update 28 (19%) and at about 50% by update 37; resumed, they stayed at 0 to 6% to update 43, then rose from update 44 (24%) to 62% at update 52 and 78 to 88% from update 68 to the end. The code, the opponents (random play only) and the value potential were the same; the engine files had not changed since 17 November. What differed was torch's random generator, which samples the learner's actions and was not saved in checkpoints, so from update 21 the two runs drew different actions. Shaping by the valuation gives a learner initialised at random a signal in both runs; when it takes hold varies by about 16 updates.
+- `run.py` now saves torch's generator in each checkpoint and restores it on resume (`restore`), so a resumed run draws the same actions as the run it continues. Checkpoints written before have no generator and still load. G1's seed 2 had started before the change; seed 3 will have it. Two tests added; the Python suite runs 39, all passing.
+- The checks of updates 40 and 60 (500 games each against random play) ran for 2 h 49 min and 1 h 55 min on the shared machine without finishing, and held up the lane, since `run.py` waits for its checks before it ends and G1's seed 2 followed it. Neither decides the step's bar, which is read at 10 million decisions, and `run.py` does not check the final update (it checks every 20). Both were stopped at 23:41 (recorded in `checks.jsonl` with code 143), and update 77 is scored on its own with the same settings (`queue/step0c-final-check.sh`, output `runs/m6-step0c-shaped/check-00077.txt`). G1's seed 2 started at 23:41.

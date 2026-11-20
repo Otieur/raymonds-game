@@ -176,6 +176,30 @@ class Checks(unittest.TestCase):
         return path
 
 
+class Resuming(unittest.TestCase):
+    def test_a_checkpoint_restores_the_generator_that_samples_actions(self):
+        run = Path(tempfile.mkdtemp())
+        torch.manual_seed(5)
+        net = Net()
+        optimizer = torch.optim.Adam(net.parameters(), lr=3e-4)
+        state = {"update": 3, "decisions": 300, "games": 1, "next_seed": 7, "selves": []}
+        training.save(run, net, optimizer, state, Book(), np.random.default_rng(0))
+        expected = torch.rand(4)
+        torch.manual_seed(99)
+        saved = torch.load(run / "checkpoints" / "00003.pt", map_location="cpu", weights_only=False)
+        rng = np.random.default_rng(1)
+        self.assertEqual(training.restore(saved, Net(), torch.optim.Adam(Net().parameters()), Book(), rng)["update"], 3)
+        self.assertTrue(torch.equal(torch.rand(4), expected))
+
+    def test_older_checkpoints_without_the_generator_still_load(self):
+        run = Path(tempfile.mkdtemp())
+        net = Net()
+        training.save(run, net, torch.optim.Adam(net.parameters()), {"update": 1, "decisions": 1, "games": 0, "next_seed": 1}, Book(), np.random.default_rng(0))
+        saved = torch.load(run / "checkpoints" / "00001.pt", map_location="cpu", weights_only=False)
+        del saved["torch_rng"]
+        self.assertEqual(training.restore(saved, Net(), torch.optim.Adam(Net().parameters()), Book(), np.random.default_rng(0))["update"], 1)
+
+
 class PastSelves(unittest.TestCase):
     def test_the_newest_and_an_even_spread_of_the_rest(self):
         history = [f"s{i}" for i in range(20)]
