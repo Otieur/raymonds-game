@@ -294,7 +294,7 @@ function strongestRival(L: Lens): PlayerId | null {
 /**
  * The score of a deal for this seat, in points of chance by the deal sheet: its own change, less
  * the strongest rival's gain weighted by `againstLeader`, plus the gain of a partner ranked below
- * both weighted by `forWeak`, plus what the partner's goodwill adds, bounded at five points.
+ * both weighted by `forWeak`, plus what the partner's goodwill adds, bounded at `goodwillBound` points.
  */
 function dealScore(L: Lens, offer: TradeOffer): number {
   const { style } = L;
@@ -313,8 +313,8 @@ function dealScore(L: Lens, offer: TradeOffer): number {
     }
   }
   if (style.reciprocity > 0) {
-    const goodwill = goodwillOf(L.memory.relations, L.me.id, partnerId, Math.floor(roundOf(L.state)), style.allyTurns);
-    score += Math.max(-5, Math.min(5, style.reciprocity * goodwill));
+    const goodwill = goodwillOf(L.memory.relations, L.me.id, partnerId, Math.floor(roundOf(L.state)), style.allyTurns, style.unreturned);
+    score += Math.max(-style.goodwillBound, Math.min(style.goodwillBound, style.reciprocity * goodwill));
   }
   return score;
 }
@@ -382,8 +382,8 @@ function failingRivals(L: Lens): Map<PlayerId, Distress> {
 function alliedWith(L: Lens, partner: PlayerId): boolean {
   const { style, memory } = L;
   const round = Math.floor(roundOf(L.state));
-  if (goodwillOf(memory.relations, L.me.id, partner, round, style.allyTurns) < style.allyAt) return false;
-  if (goodwillOf(memory.relations, partner, L.me.id, round, style.allyTurns) < style.allyAt) return false;
+  if (goodwillOf(memory.relations, L.me.id, partner, round, style.allyTurns, style.unreturned) < style.allyAt) return false;
+  if (goodwillOf(memory.relations, partner, L.me.id, round, style.allyTurns, style.unreturned) < style.allyAt) return false;
   return strongestRival(L) !== partner;
 }
 
@@ -582,8 +582,8 @@ function courtAlly(L: Lens, partners: PlayerId[]): Action | null {
   const others = rivals(L).filter((p) => p.id !== top && partners.includes(p.id));
   const tries: { partner: PlayerState; edge: number }[] = [];
   for (const p of others) {
-    const shown = goodwillOf(memory.relations, me.id, p.id, round, style.allyTurns);
-    const returned = goodwillOf(memory.relations, p.id, me.id, round, style.allyTurns);
+    const shown = goodwillOf(memory.relations, me.id, p.id, round, style.allyTurns, style.unreturned);
+    const returned = goodwillOf(memory.relations, p.id, me.id, round, style.allyTurns, style.unreturned);
     if (shown >= style.giftEdge / 2 && returned <= 0) tries.push({ partner: p, edge: 0 });
   }
   if (gap < 0) for (const p of others) tries.push({ partner: p, edge: style.giftEdge });
@@ -984,13 +984,21 @@ function raiseFunds(L: Lens, legal: LegalAction[]): Action | null {
   return sales[0] ?? ofType(legal, 'SELL_BUILDINGS')[0] ?? null;
 }
 
+/** The points a deal's score must reach to be accepted by the sheet: `coldEdge` while the table is cold, else `acceptEdge`. */
+function sheetEdge(L: Lens): number {
+  const { style } = L;
+  if (style.coldMood <= 0) return style.acceptEdge;
+  const mood = moodOf(L.memory, 8);
+  return mood !== null && mood < style.coldMood ? style.coldEdge : style.acceptEdge;
+}
+
 function answerOffer(L: Lens, offer: TradeOffer): Action {
   const { style } = L;
   const me = L.me.id;
   const reject: Action = { type: 'REJECT_TRADE', player: me };
   if (offer.receive.properties.some((id) => style.neverSell.includes(setOf(L.byId.get(id) as PropertySquare)))) return reject;
   if (style.shunLeader && leaderId(L) === offer.from) return reject;
-  if (style.answerBy === 'sheet') return { type: dealScore(L, offer) >= style.acceptEdge ? 'ACCEPT_TRADE' : 'REJECT_TRADE', player: me };
+  if (style.answerBy === 'sheet') return { type: dealScore(L, offer) >= sheetEdge(L) ? 'ACCEPT_TRADE' : 'REJECT_TRADE', player: me };
   const cardValue = Math.round(L.engine.board.economy.bail * 0.8);
   let gain = offer.give.cash + offer.give.jailCards * cardValue;
   for (const id of offer.give.properties) gain += worth(L, me, L.byId.get(id) as PropertySquare);

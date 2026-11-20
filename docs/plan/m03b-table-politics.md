@@ -155,19 +155,27 @@ export function acceptRate(relations: Relations, seat: PlayerId): number;   // 0
   againstLeader: number;             // 0       the strongest rival's gain counts against a deal by this weight
   forWeak: number;                   // 0       the gain of a partner ranked below both the seat and the strongest rival counts for it
   reciprocity: number;               // 0       the weight of a partner's goodwill in a deal's score: how far it reads signals
+  goodwillBound: number;             // 5       the bound on what goodwill adds to or takes from a deal's score (added 20 November)
+  unreturned: number;                // 0       weight of favours a partner took from this seat and did not return within allyTurns rounds,
+                                     //         set against its goodwill (added 20 November, gate 7's remedy)
+  coldMood: number;                  // 0       with answerBy 'sheet': below this share of the table's latest eight offers accepted,
+                                     //         the table is cold; 0 never (added 20 November, Balancer's fix)
+  coldEdge: number;                  // 0       with answerBy 'sheet': the points a deal's score must reach while the table is cold
 
   // Building (part: build)
   huntFailing: boolean;              // false   builds first where a failing rival is about to land
 ```
 
-With every field at its default the agent is today's agent, and the equivalence test of M2 must still pass. The twenty-eight are listed in `TABLE_FIELDS`. A style stored before they existed (the sixty-two found styles of M3) lacks them; `completeStyle` gives it the baseline's value for each, so that it plays as it did when it was admitted.
+With every field at its default the agent is today's agent, and the equivalence test of M2 must still pass. They are listed in `TABLE_FIELDS` (thirty-three since 20 November; the four added then default to the behaviour before them, so earlier results replay unchanged). A style stored before they existed (the sixty-two found styles of M3) lacks them; `completeStyle` gives it the baseline's value for each, so that it plays as it did when it was admitted.
 
 **The score of a deal,** for the seat that weighs it, in points of chance by the sheet:
 
 ```text
 score = Δ(me) − againstLeader · Δ(strongest rival) + forWeak · Δ(partner, if it ranks below me and below the strongest rival)
-        + reciprocity · (the partner's goodwill toward me), bounded at ±5
+        + reciprocity · (the partner's goodwill toward me), bounded at ±goodwillBound (5 by default)
 ```
+
+With `unreturned` above 0, the partner's goodwill is read with the favours it took from this seat and did not return within `allyTurns` rounds set against it (by an offer in this seat's favour in a later round), at that weight. With `coldMood` above 0, a seat answering by the sheet accepts at `coldEdge` instead of `acceptEdge` while the table is cold.
 
 A seat using `answerBy: 'sheet'` accepts when the score is at least `acceptEdge`. A seat using `offerBy: 'value'` sends, of its candidate asks, the one with the highest score at the price its ladder gives, and none when no score is above zero. Ranks are by the valuation, never by who is a person and who is a program, so the same position gets the same treatment whoever sits in it.
 

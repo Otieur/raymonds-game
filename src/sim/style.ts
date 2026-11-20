@@ -172,6 +172,14 @@ export interface Style {
   forWeak: number;
   /** The weight of a partner's goodwill in a deal's score: how far it reads signals. */
   reciprocity: number;
+  /** The bound, in points, on what a partner's goodwill adds to or takes from a deal's score. */
+  goodwillBound: number;
+  /** The weight, set against a partner's goodwill, of favours it took from this seat and did not return within `allyTurns` rounds; 0 ignores them. */
+  unreturned: number;
+  /** With `answerBy: 'sheet'`: below this share of the table's latest eight offers accepted, the table is cold; 0 never. */
+  coldMood: number;
+  /** With `answerBy: 'sheet'`: the points a deal's score must reach while the table is cold, in place of `acceptEdge`. */
+  coldEdge: number;
 
   // Playing the table: building
   /** Builds first where a failing rival is about to land. */
@@ -269,6 +277,10 @@ export const BASELINE: Style = {
   againstLeader: 0,
   forWeak: 0,
   reciprocity: 0,
+  goodwillBound: 5,
+  unreturned: 0,
+  coldMood: 0,
+  coldEdge: 0,
   huntFailing: false,
   moodWindow: 0,
   moodFloor: 0,
@@ -282,6 +294,7 @@ export const TABLE_FIELDS = [
   'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
   'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
   'courtAllies', 'giftEdge', 'allyAt', 'allyTurns', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity', 'huntFailing',
+  'goodwillBound', 'unreturned', 'coldMood', 'coldEdge',
 ] as const satisfies readonly (keyof Style)[];
 
 /** A style as it may have been stored before the table fields existed. */
@@ -356,6 +369,10 @@ const RANGES: Partial<Record<keyof Style, [number, number]>> = {
   againstLeader: [0, 5],
   forWeak: [0, 5],
   reciprocity: [0, 5],
+  goodwillBound: [0, 10],
+  unreturned: [0, 2],
+  coldMood: [0, 1],
+  coldEdge: [-20, 20],
 };
 
 /** The problems with a style, one message each; empty when it is sound. */

@@ -17,7 +17,7 @@ export const PARTS: Record<Part, (keyof Style)[]> = {
     'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
     'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
     'courtAllies', 'giftEdge', 'allyAt', 'allyTurns'],
-  answer: ['acceptMargin', 'completionPenalty', 'neverSell', 'shunLeader', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity'],
+  answer: ['acceptMargin', 'completionPenalty', 'neverSell', 'shunLeader', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity', 'goodwillBound', 'unreturned', 'coldMood', 'coldEdge'],
 };
 
 /** Fields about the style as a whole rather than one kind of decision. */

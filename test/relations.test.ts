@@ -87,6 +87,27 @@ test('goodwill: an offer in the receiver\'s favour shows goodwill, a refused fai
   assert.ok(goodwillOf(second, 'a', 'b', round, 4) <= -5);
 });
 
+test('goodwill: a favour taken and not returned within the waiting rounds counts against the taker, when the reader asks', () => {
+  const relations = createRelations();
+  relations.tracking = true;
+  let state = table();
+  const round = 10;
+  // c lets a have the street that completes its group for one coin, and a accepts: a has taken a favour from c.
+  state = offer(state, relations, 'c', 'a', side(0, 'lu-bu'), side(1), true);
+  assert.equal(relations.taken.a.c.length, 1);
+  const favour = relations.taken.a.c[0].points;
+  assert.ok(favour > 0);
+  // Read without the rule, a has shown c nothing either way.
+  assert.equal(goodwillOf(relations, 'c', 'a', round + 4, 4), 0);
+  // With it, nothing counts before the four rounds have passed, and the favour counts against a after.
+  assert.equal(goodwillOf(relations, 'c', 'a', round + 3, 4, 1), 0);
+  assert.ok(Math.abs(goodwillOf(relations, 'c', 'a', round + 4, 4, 1) + favour / 2) < 1e-9);
+  // a returns it two rounds later with an offer in c's favour (refused, it still shows goodwill by half): the favour no longer counts against a.
+  state.turn.number += 8;
+  state = offer(state, relations, 'a', 'c', side(0, 'wang-yun'), side(1), false);
+  assert.ok(goodwillOf(relations, 'c', 'a', round + 6, 4, 1) > 0);
+});
+
 test('relations: without tracking, only the counts are kept', () => {
   const relations = createRelations();
   const state = offer(table(), relations, 'c', 'a', side(0, 'lu-bu'), side(1), true);

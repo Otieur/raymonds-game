@@ -45,6 +45,8 @@ export interface Relations {
   chances: Record<PlayerId, number[]>;
   /** `shown[a][b]`: what b has shown a, as dated entries in points of chance. */
   shown: Record<PlayerId, Record<PlayerId, { round: number; points: number }[]>>;
+  /** `taken[a][b]`: favours a accepted from b (offers from b in a's favour), as dated entries in points. */
+  taken: Record<PlayerId, Record<PlayerId, { round: number; points: number }[]>>;
   /** `refusedMultiple[a][b]`: the highest cash, over list price, that b has refused from a for one property. */
   refusedMultiple: Record<PlayerId, Record<PlayerId, number>>;
   /** `lastOffer[a][b]`: the turn of a's latest offer to b. */
@@ -56,7 +58,7 @@ export interface Relations {
 }
 
 export function createRelations(): Relations {
-  return { tracking: false, deals: {}, refusals: {}, answers: {}, sent: {}, asks: {}, chances: {}, shown: {}, refusedMultiple: {}, lastOffer: {}, open: {}, round: -1 };
+  return { tracking: false, deals: {}, refusals: {}, answers: {}, sent: {}, asks: {}, chances: {}, shown: {}, taken: {}, refusedMultiple: {}, lastOffer: {}, open: {}, round: -1 };
 }
 
 export const pairKey = (a: PlayerId, b: PlayerId): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
@@ -135,6 +137,12 @@ export function noteRelations(relations: Relations, state: GameState, events: Ga
         // What the proposer showed the receiver: in full if taken, by half if not.
         const bounded = Math.max(-OFFER_BOUND, Math.min(OFFER_BOUND, favour));
         show(relations, offer.to, offer.from, round, accepted ? bounded : bounded / 2);
+        // A favour taken is owed back; `goodwillOf` can set one not returned against the taker.
+        if (accepted && bounded > 0) {
+          const list = ((relations.taken[offer.to] ??= {})[offer.from] ??= []);
+          list.push({ round, points: bounded });
+          if (list.length > 24) list.shift();
+        }
         // Refusing an offer that was even or better for the refuser counts against the refuser.
         if (!accepted && favour >= 0) show(relations, offer.from, offer.to, round, -REFUSED_FAIR);
       }
@@ -183,10 +191,24 @@ export const dealsBetween = (relations: Relations, a: PlayerId, b: PlayerId): nu
  * What seat `by` has shown seat `to`, in points: each entry halves for every `halfLife` rounds since
  * it was made. Positive after offers that favoured `to`, negative after offers that did not, after
  * refusals of fair offers and after a denying purchase.
+ *
+ * With `unreturned` above 0, each favour `by` took from `to` that `by` did not return (by an offer in
+ * `to`'s favour in a later round) within `halfLife` rounds is set against it at that weight, decaying
+ * in the same way. A seat that takes and gives nothing back then cannot keep a reader's goodwill
+ * (M3b's gate 7 and its decision point).
  */
-export function goodwillOf(relations: Relations, to: PlayerId, by: PlayerId, round: number, halfLife: number): number {
+export function goodwillOf(relations: Relations, to: PlayerId, by: PlayerId, round: number, halfLife: number, unreturned = 0): number {
+  const life = Math.max(1, halfLife);
+  const decay = (from: number) => 0.5 ** (Math.max(0, round - from) / life);
   const list = relations.shown[to]?.[by] ?? [];
   let sum = 0;
-  for (const entry of list) sum += entry.points * 0.5 ** (Math.max(0, round - entry.round) / Math.max(1, halfLife));
+  for (const entry of list) sum += entry.points * decay(entry.round);
+  if (unreturned > 0) {
+    for (const favour of relations.taken[by]?.[to] ?? []) {
+      if (round - favour.round < life) continue;
+      const returned = list.some((entry) => entry.round > favour.round && entry.points > 0);
+      if (!returned) sum -= unreturned * favour.points * decay(favour.round);
+    }
+  }
   return sum;
 }

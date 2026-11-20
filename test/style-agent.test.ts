@@ -95,6 +95,27 @@ test('neverSell: refuses any price for a pass', () => {
   assert.equal(act(state, { neverSell: ['passes'] })?.type, 'REJECT_TRADE');
 });
 
+test('coldEdge: a seat that answers by the sheet takes the cold edge only while the table is cold', () => {
+  const state = table();
+  give(state, 'a', 'hulao-pass');
+  state.pending = [
+    { kind: 'trade', offer: { from: 'b', to: 'a', give: { cash: 250, properties: [], jailCards: 0 }, receive: { cash: 0, properties: ['hulao-pass'], jailCards: 0 } } },
+  ];
+  const style = styleFrom('test', { valuation: 'v1', answerBy: 'sheet', acceptEdge: 20, coldMood: 0.15, coldEdge: -20 });
+  const answer = (answers: boolean[], s: Style = style) => {
+    const memory = createStyleMemory();
+    memory.answers.push(...answers);
+    return chooseStyledAction(engine, state, 'a', never, s, memory)?.type;
+  };
+  // Eight refusals in a row: the table is cold, and the low edge applies.
+  assert.equal(answer(Array(8).fill(false)), 'ACCEPT_TRADE');
+  // Eight acceptances, or fewer than eight offers seen: the usual edge applies.
+  assert.equal(answer(Array(8).fill(true)), 'REJECT_TRADE');
+  assert.equal(answer([false, false]), 'REJECT_TRADE');
+  // With coldMood at 0 the table is never cold.
+  assert.equal(answer(Array(8).fill(false), { ...style, coldMood: 0 }), 'REJECT_TRADE');
+});
+
 test('the mood of the table flips after enough refusals and flips back', () => {
   const memory = createStyleMemory();
   const offer = { from: 'a', to: 'b', give: { cash: 1, properties: [], jailCards: 0 }, receive: { cash: 0, properties: [], jailCards: 0 } };
@@ -393,7 +414,7 @@ test('early asks: with earlyNeed, no ask when the holder of the third street has
 test('the table fields: every one is in the list, has a default, and leaves a stored style playing as before', () => {
   const stored = Object.fromEntries(Object.entries(BASELINE).filter(([key]) => !(TABLE_FIELDS as readonly string[]).includes(key)));
   assert.deepEqual(completeStyle(stored as never), BASELINE);
-  assert.equal(TABLE_FIELDS.length, 29);
+  assert.equal(TABLE_FIELDS.length, 33);
   assert.equal(readsTable(BASELINE), false);
 });
 

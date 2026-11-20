@@ -559,5 +559,18 @@ Written on 20 November at the author's word. M9 (trading) now runs in four parts
 ### To run when the disk is back (second list)
 
 1. `nohup caffeinate -i sh $DATA_DIR/queue/disk-back-2.sh > /dev/null 2>&1 &`: seed 3's gate if it was cut short, then the rest of M3b as filler on background policy (the sweep, the runs among refusers, the politics search, admission, merge, promotion, league reports, the final merge).
-2. M9's part A runs as the main job, once their code is written: deals priced by playout, the suites at two, three and four players, today's agents scored on them, the count of offers a draft cannot express, gate 7's tables and Balancer's tables played again, and M2's last retuning (Pass baron, All in) with the Concentrator's interval.
-3. M9's part B: T1, T2 and T3 at two players (three seeds of T3), then the two-player gate.
+2. Gate 7's remedy and Balancer's fix, whose code is written (20 November):
+
+```sh
+E='envoy+completeBy=list+goodwillBound=2+unreturned=1'
+node scripts/table.ts --seats "found-4-b2t1p1c2,baseline,$E,false-friend" --games 5000 --seeds 1140000 --workers 4 --json $DATA_DIR/tables/gate7-envoy-remedy-4.json > $DATA_DIR/tables/gate7-envoy-remedy-4.md
+node scripts/compare-tables.ts $DATA_DIR/tables/gate7-envoy-remedy-4.json $DATA_DIR/tables/gate7-balancer-4.json --seats 3 > $DATA_DIR/tables/gate7-remedy-paired-4.txt
+B='balancer+completeBy=list+coldMood=0.15+coldEdge=-1'
+node scripts/table.ts --seats "style-4,baseline,$B,$B" --games 5000 --seeds 1120000 --workers 4 --json $DATA_DIR/tables/two-4-balancers-cold.json > $DATA_DIR/tables/two-4-balancers-cold.md
+node scripts/table.ts --seats "style-3,$B,$B" --games 5000 --seeds 1130000 --workers 4 --json $DATA_DIR/tables/two-3-balancers-cold.json > $DATA_DIR/tables/two-3-balancers-cold.md
+for n in 3 4; do node scripts/paired.ts --size $n --a "$B" --b baseline --games 2000 --seeds 1100000 --workers 3 > $DATA_DIR/paired/balancer-cold-$n.txt; done
+```
+
+   The remedied Envoy must win no less than the Balancer beside a False friend by more than the interval; the Balancers' tables must finish at least 98% of their games, and the fixed Balancer is compared with the baseline as the first form was.
+3. The rest of M9's part A, as the main job, once its code is written: deals priced by playout, the suites at two, three and four players, today's agents scored on them, the count of offers a draft cannot express, gate 7's tables and Balancer's tables played again, and M2's last retuning (Pass baron, All in) with the Concentrator's interval.
+4. M9's part B: T1, T2 and T3 at two players (three seeds of T3), then the two-player gate.
