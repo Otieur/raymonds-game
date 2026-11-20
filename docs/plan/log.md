@@ -443,3 +443,23 @@ The disk was attached again at about 20:20, with 395 GB free. At 20:23 `queue/re
 - Step 4 as first written named the first forms of the Envoy and the Balancer; the night's tables used the fixed forms. Corrected above before it ran.
 
 In `disk-back.sh` each step writes to a `.part` file renamed only on success, so a step stopped part-way is played again on restart.
+
+### Group 1: the corrected presets against the baseline
+
+Each school as the one among copies of the baseline, against the baseline in the same seat, 2,000 games on seeds 1,100,000 to 1,101,999 (task 15's size and seeds). The baseline's shares (34.9% at three players, 24.6% at four) are the same as in the first forms' runs on these seeds, so the two forms are compared on the same games. Intervals are paired by seed.
+
+| School | Players | Win share | Against the baseline (paired) | Correlation | First form |
+| --- | ---: | ---: | --- | ---: | --- |
+| `prober-2` | 3 | 35.5% | +0.6 (−1.4 to 2.6) | 0.56 | −4.9 (−7.8 to −2.1) |
+| `prober-2` | 4 | 32.2% | +7.7 (5.7 to 9.6) | 0.53 | −0.9 (−3.6 to 1.8) |
+| `broker-2` | 3 | 35.6% | +0.7 (−1.1 to 2.5) | 0.63 | −6.5 (−9.3 to −3.6) |
+| `broker-2` | 4 | 28.3% | +3.7 (2.1 to 5.4) | 0.63 | −4.9 (−7.5 to −2.3) |
+| `statesman-book-2` | 3 | 49.4% | +14.4 (11.8 to 17.0) | 0.27 | +10.2 (7.2 to 13.2) |
+| `statesman-book-2` | 4 | 37.6% | +13.1 (10.7 to 15.5) | 0.29 | +7.5 (4.7 to 10.2) |
+
+- The fix helps every school measured, by 4 to 9 points. At three players it brings the Prober and the Broker from clearly behind the baseline to level with it; at four players both move ahead of it.
+- The corrected Prober at four players (+7.7) is close to the corrected Early bird on other seeds (+7.9, and +9.7 with early asks stopped after round 5, the Prober's form).
+- `statesman-book-2` is the strongest corrected preset at both sizes. Its outcomes are less related to the baseline's on the same seeds (0.27 and 0.29 against 0.53 to 0.63 for the others), so its games go differently from the same dice.
+- Paired intervals are 0.6 to 1.0 points narrower on each side than independent ones would be.
+
+Files: `$DATA_DIR/paired/{prober-2,broker-2,statesman-book-2}-{3,4}.txt`.
