@@ -2,18 +2,23 @@
  * Scores an exported model as one seat among copies of a league member, in TypeScript.
  *
  *   node scripts/evaluate.ts --model assets/models/<name>.ts [--against baseline] [--size 4] [--games 1000] [--seeds 1000000]
- *                            [--proposer baseline] [--tally] [--sample] [--compare <member>]
+ *                            [--proposer baseline] [--tally] [--sample] [--compare <member>] [--workers 1]
  *
  * With --proposer the named school makes the model's offers and the model drafts none, which is how a
  * learner plays while drafting is off (M6). With --compare the named member then plays the same seeds
  * in the model's seat, and the difference is given paired by seed.
  *
+ * With --workers N the seeds are split among N processes. Each game depends only on its seed, so the
+ * figures are the same as in one process; only the time a decision takes changes with the load.
+ * --tally runs in one process, since its probe of the rules draws from one stream across games.
+ *
  * Every action goes through the engine's checks; a refused action or a broken invariant stops the
  * run. Prints the win share with its interval, how often the agent fell back to the rule-based
  * agent, and the time a decision took.
  */
+import { fork } from 'node:child_process';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createLearnedAgent } from '../src/env/learned-agent.ts';
 import { createMlp } from '../src/env/mlp.ts';
 import { DECISION_KINDS } from '../src/env/observe.ts';
@@ -98,33 +103,95 @@ function play(seed: number, first: SeatAgent, model: boolean): number {
   }
   return state.winner === null ? -1 : state.winner === 'p1' ? 1 : 0;
 }
-const outcomes: number[] = [];
-for (let seed = start; seed < start + games; seed++) {
-  const learned = createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals'), proposer, greedy: !process.argv.includes('--sample') });
-  const outcome = play(seed, learned, true);
-  outcomes.push(outcome);
-  fallbacks += learned.fallbacks();
-  if (outcome >= 0) {
-    finished += 1;
-    if (outcome === 1) wins += 1;
-  }
-}
-const p = wins / finished;
-const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
-console.log(
-  `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${proposerName ? ` (offers by ${proposerName})` : ''}${process.argv.includes('--sample') ? ' (sampling)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
-    `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
-);
-if (process.argv.includes('--tally')) {
-  console.log(`After the roll, the rules would start an offer ${(chances / games).toFixed(2)} times a game; the learner started one at ${taken} of those ${chances} decisions.`);
-  console.log(`Free-turn actions a game: ${[...tally].sort((a, b) => b[1] - a[1]).map(([type, n]) => `${type} ${(n / games).toFixed(2)}`).join(', ')}`);
-}
-// --compare baseline: the same seeds again with that member in seat 1, and the difference paired by seed.
 const compareName = option('--compare');
-if (compareName) {
-  const other = Array.from({ length: games }, (_, i) => play(start + i, memberAgent(compareName), false));
-  const done = other.filter((o) => o >= 0).length;
-  const share = other.filter((o) => o === 1).length / done;
-  console.log(`${compareName} in the same seat on the same seeds: ${(share * 100).toFixed(1)}% of ${done} finished games.`);
-  console.log(describePaired(pairedDifference(outcomes, other)));
+
+/** What one range of seeds gives: outcomes by seed for the model (and the compared member), and the counts behind the report. */
+interface Part {
+  from: number;
+  outcomes: number[];
+  other: number[];
+  fallbacks: number;
+  decisions: number;
+  thinking: number;
+}
+
+/** Plays the seeds from `from` for `count` games: the model, then the compared member on the same seeds. */
+function playRange(from: number, count: number): Part {
+  const part: Part = { from, outcomes: [], other: [], fallbacks: 0, decisions: 0, thinking: 0 };
+  const [decisionsBefore, thinkingBefore] = [decisions, thinking];
+  for (let seed = from; seed < from + count; seed++) {
+    const learned = createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals'), proposer, greedy: !process.argv.includes('--sample') });
+    part.outcomes.push(play(seed, learned, true));
+    part.fallbacks += learned.fallbacks();
+  }
+  if (compareName) for (let seed = from; seed < from + count; seed++) part.other.push(play(seed, memberAgent(compareName), false));
+  part.decisions = decisions - decisionsBefore;
+  part.thinking = thinking - thinkingBefore;
+  return part;
+}
+
+if (process.argv.includes('--worker')) {
+  process.on('message', (job: { from: number; count: number }) => process.send?.(playRange(job.from, job.count)));
+} else {
+  const workers = Math.max(1, Number(option('--workers') ?? 1));
+  if (workers > 1 && process.argv.includes('--tally')) throw new Error('--tally runs in one process; leave out --workers.');
+  let parts: Part[];
+  if (workers === 1) {
+    parts = [playRange(start, games)];
+  } else {
+    const chunk = Math.max(10, Math.ceil(games / (workers * 4)));
+    const jobs: { from: number; count: number }[] = [];
+    for (let from = start; from < start + games; from += chunk) jobs.push({ from, count: Math.min(chunk, start + games - from) });
+    parts = await new Promise<Part[]>((done, fail) => {
+      const got: Part[] = [];
+      let next = 0;
+      for (let w = 0; w < Math.min(workers, jobs.length); w++) {
+        const child = fork(fileURLToPath(import.meta.url), [...process.argv.slice(2), '--worker']);
+        const give = () => (next < jobs.length ? child.send(jobs[next++]) : child.disconnect());
+        child.on('message', (part: Part) => {
+          got.push(part);
+          if (got.length === jobs.length) done(got);
+          give();
+        });
+        child.on('error', fail);
+        child.on('exit', (code) => {
+          if (code) fail(new Error(`A worker stopped with code ${code}.`));
+        });
+        give();
+      }
+    });
+  }
+  parts.sort((a, b) => a.from - b.from);
+  report(parts);
+}
+
+function report(parts: Part[]): void {
+  const outcomes = parts.flatMap((part) => part.outcomes);
+  fallbacks = parts.reduce((sum, part) => sum + part.fallbacks, 0);
+  decisions = parts.reduce((sum, part) => sum + part.decisions, 0);
+  thinking = parts.reduce((sum, part) => sum + part.thinking, 0);
+  for (const outcome of outcomes) {
+    if (outcome >= 0) {
+      finished += 1;
+      if (outcome === 1) wins += 1;
+    }
+  }
+  const p = wins / finished;
+  const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
+  console.log(
+    `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${proposerName ? ` (offers by ${proposerName})` : ''}${process.argv.includes('--sample') ? ' (sampling)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
+      `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
+  );
+  if (process.argv.includes('--tally')) {
+    console.log(`After the roll, the rules would start an offer ${(chances / games).toFixed(2)} times a game; the learner started one at ${taken} of those ${chances} decisions.`);
+    console.log(`Free-turn actions a game: ${[...tally].sort((a, b) => b[1] - a[1]).map(([type, n]) => `${type} ${(n / games).toFixed(2)}`).join(', ')}`);
+  }
+  // --compare baseline: the same seeds again with that member in seat 1, and the difference paired by seed.
+  if (compareName) {
+    const other = parts.flatMap((part) => part.other);
+    const done = other.filter((o) => o >= 0).length;
+    const share = other.filter((o) => o === 1).length / done;
+    console.log(`${compareName} in the same seat on the same seeds: ${(share * 100).toFixed(1)}% of ${done} finished games.`);
+    console.log(describePaired(pairedDifference(outcomes, other)));
+  }
 }
