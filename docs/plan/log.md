@@ -519,6 +519,8 @@ Ended at 08:10 on 20 November: update 383, 50.04 million decisions, from the two
 
 **G1's promotion match, `main-2`** (seed 1's export of update 180 against the two-player clone, 4,000 games a table, seeds 1,516,000 to 1,519,999): 88.1% among copies of the clone against 10.8% for the clone among copies of it, an edge of **77.3 points (75.9 to 78.7)**; among baselines 89.3% against 49.0%, +40.3 (± 2.6). G1's seed 1 takes the line, and bar 4 passes for it. Lane 2 went on to task 6 (the refuser in the four-player short game) at 10:33.
 
+**M6 task 6, the refuser in the four-player short game:** as the one among three baselines, **29.6% (28.9 to 30.2)** over 20,000 games (seeds from 1; 99.84% finished, 167 turns on average; 296 s on three processes; `study/refuser-short-4.md`), against an even 25%. Written into M6's gate as G2's reference for bar 2. Lane 2 of `resume.sh` has finished.
+
 ### Waiting for the author (20 November, morning)
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?

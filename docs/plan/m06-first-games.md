@@ -238,7 +238,7 @@ node scripts/replay.ts --file $DATA_DIR/replays/main-2/1500017.json          # o
 For each of G1, G2 and G3, on evaluation seeds, as one learner among baselines with seats rotated:
 
 1. Over 1,000 games, a win share whose interval lies above an even share.
-2. Over 5,000 paired games, a win share above the refuser's in the same seats, with the interval of the difference above zero. In the full game the refuser wins 58.2% with two players and 41.0% with three; its figure in the four-player short game comes from task 6.
+2. Over 5,000 paired games, a win share above the refuser's in the same seats, with the interval of the difference above zero. In the full game the refuser wins 58.2% with two players and 41.0% with three; in the four-player short game, 29.6% (28.9 to 30.2) over 20,000 games as the one among baselines (task 6, 20 November). The gate's readings play the refuser in the learner's seat on the same seeds (`evaluate.ts --compare refuser`), so these figures are references.
 3. The share of games cut off at the turn limit is under 2%.
 4. The agent that passes is the holder of its line: it won its promotion match against the version before it, and no earlier holder beats it on the ladder by more than the interval.
 
