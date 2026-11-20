@@ -488,3 +488,5 @@ At the author's word (00:30), the runs were reordered so that the work on the pa
 - Lane 2 (G1's scores, its promotion match, task 6) and the last of the disk-back lane run on as they were.
 
 **Gate 7, first table again:** `found-4-b2t1p1c2, baseline, envoy+completeBy=list, false-friend` on seeds 1,140,000 to 1,144,999 gives the night's shares exactly (32.7%, 22.3%, 23.8%, 21.1%), now with the winner of each game kept.
+
+**Gate 7, paired:** the second table, with `balancer+completeBy=list` in seat 3, also gives the night's shares exactly (32.5%, 20.7%, 26.1%, 20.7%). Paired by seed, the Envoy beside a False friend wins 2.3 points less than the Balancer in the same seat: −2.3 (−3.5 to −1.1) over 4,951 seeds where both games finished, correlation 0.50, against −4.0 to −0.6 as independent samples. Gate 7 is not met at four players, as read before. Files: `tables/gate7-{envoy,balancer}-4.{md,json}`, `tables/gate7-paired-4.txt`. The disk-back lane finished at 01:28.
