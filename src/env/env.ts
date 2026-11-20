@@ -35,6 +35,12 @@ export interface EnvConfig {
   turnLimit: { 2: number; 3: number; 4: number };
   potentials: string[];
   drafting: boolean;
+  /**
+   * With drafting on, the share of a learner's turns on which it drafts its own offers; on the
+   * others the proposer school offers for it, as with drafting off. Drawn at the start of each turn
+   * from a stream of its own, so the game's dice do not depend on it. 1 when absent (M9's T2 uses 0.5).
+   */
+  draftShare?: number;
   proposer: string | null;
   maxProposals: number;
   seeds: { start: number; step: number };
@@ -66,6 +72,8 @@ export interface Final {
   learners: number[];
   /** Who sat in each seat, in the order of play: a league member's name, or 'learner'. */
   members: string[];
+  /** The learners' offers over the game: those they drafted themselves, and those their school made for them, with how many were accepted. */
+  offers: { drafted: number; draftedAccepted: number; school: number; schoolAccepted: number };
 }
 
 export interface Step {
@@ -104,6 +112,11 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
   let proposals = new Map<PlayerId, number>();
   let refused = new Map<PlayerId, Set<number>>();
   let refusedSales = new Map<PlayerId, Set<string>>();
+  let draftingNow = new Map<PlayerId, boolean>();
+  let offers = { drafted: 0, draftedAccepted: 0, school: 0, schoolAccepted: 0 };
+  /** Who made the offer now on the table for a learner: its own draft or its school; null when none is open. */
+  let openOffer: 'drafted' | 'school' | null = null;
+  let draftRandom: () => number = () => 0;
   let proposerAsked = new Set<PlayerId>();
   let proposerMemory = createStyleMemory();
   let windows = createDebtWindows();
@@ -168,6 +181,11 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     proposals = new Map(ids.map((id) => [id, 0]));
     refused = new Map(ids.map((id) => [id, new Set()]));
     refusedSales = new Map(ids.map((id) => [id, new Set()]));
+    draftingNow = new Map(ids.map((id) => [id, true]));
+    offers = { drafted: 0, draftedAccepted: 0, school: 0, schoolAccepted: 0 };
+    openOffer = null;
+    const draftHolder = { rng: seedFrom(`draft-${seed}`) };
+    draftRandom = () => nextFloat(draftHolder);
     proposerAsked = new Set();
     proposerMemory = createStyleMemory();
     windows = createDebtWindows();
@@ -187,10 +205,16 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     for (const seat of seatsById.values()) seat.agent?.observe(result.events, state);
     for (const event of result.events) {
       if (event.type === 'TURN_STARTED') {
+        const share = config.draftShare ?? 1;
+        draftingNow.set(event.player, share >= 1 ? true : share <= 0 ? false : draftRandom() < share);
         for (const id of proposals.keys()) proposals.set(id, 0);
         for (const set of refused.values()) set.clear();
         for (const set of refusedSales.values()) set.clear();
         proposerAsked.clear();
+      }
+      if ((event.type === 'TRADE_ACCEPTED' || event.type === 'TRADE_REJECTED' || event.type === 'TRADE_CANCELLED') && openOffer) {
+        if (event.type === 'TRADE_ACCEPTED') offers[openOffer === 'drafted' ? 'draftedAccepted' : 'schoolAccepted'] += 1;
+        openOffer = null;
       }
       if (event.type === 'TRADE_REJECTED') {
         const ask = ctx.propertyOrder.findIndex((sq) => event.offer.receive.properties.includes(sq.id));
@@ -220,9 +244,14 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     return waiting[0];
   }
 
+  /** Whether a seat drafts its own offers this turn. */
+  function draftsNow(id: PlayerId): boolean {
+    return config.drafting && (draftingNow.get(id) ?? true);
+  }
+
   function codecOf(actor: PlayerId): Codec {
     return codecFor(ctx, engine, state, actor, drafts.get(actor) ?? emptyDraft(), {
-      drafting: config.drafting,
+      drafting: draftsNow(actor),
       proposalsLeft: config.maxProposals - (proposals.get(actor) ?? 0),
       refused: refused.get(actor) ?? new Set(),
       refusedSales: refusedSales.get(actor) ?? new Set(),
@@ -253,6 +282,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
         turns: state.turn.number,
         learners: state.players.flatMap((p, i) => (seatsById.get(p.id)?.learner ? [i] : [])),
         members: state.players.map((p) => (seatsById.get(p.id)?.learner ? 'learner' : (seatsById.get(p.id)?.member ?? ''))),
+        offers: { ...offers },
       },
       info: { game, seed, turn: state.turn.number, round: (state.turn.number - 1) / n, forced, ruled },
     };
@@ -292,7 +322,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     const seat = seatsById.get(id);
     if (!seat) return undefined;
     if (!seat.learner) return seat.agent ?? undefined;
-    const style = !config.drafting && config.proposer ? PRESETS[config.proposer]?.playbook.base : undefined;
+    const style = !draftsNow(id) && config.proposer ? PRESETS[config.proposer]?.playbook.base : undefined;
     if (!style) return undefined;
     return { choose: () => null, observe: () => {}, rules: () => ({ ever: [], last: [] }), window: (e, s, actor) => debtOfferFor(e, s, actor, style, proposerMemory) };
   }
@@ -317,11 +347,13 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
         continue;
       }
       const draft = drafts.get(actor) ?? emptyDraft();
-      if (!config.drafting && config.proposer && draft.stage === 'none' && !proposerAsked.has(actor) && state.pending.length === 0 && state.turn.phase === 'postRoll' && state.turn.player === actor) {
+      if (!draftsNow(actor) && config.proposer && draft.stage === 'none' && !proposerAsked.has(actor) && state.pending.length === 0 && state.turn.phase === 'postRoll' && state.turn.player === actor) {
         proposerAsked.add(actor);
         const style = PRESETS[config.proposer]?.playbook.base;
         const offer = style ? proposeFor(engine, state, actor, random, style, proposerMemory) : null;
         if (offer) {
+          offers.school += 1;
+          openOffer = 'school';
           apply(offer);
           continue;
         }
@@ -356,6 +388,8 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     if (decoded.action.type === 'PROPOSE_TRADE') {
       proposals.set(actor, (proposals.get(actor) ?? 0) + 1);
       drafts.set(actor, emptyDraft());
+      offers.drafted += 1;
+      openOffer = 'drafted';
     }
     apply(decoded.action);
   }

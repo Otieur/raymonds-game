@@ -38,6 +38,28 @@ class PpoConfig:
     kappa: float = 0.0
     # 0 while a critic is warmed up under a frozen policy: only the value loss then moves the network.
     policy_weight: float = 1.0
+    # Draft decisions (any drafting action legal, M9): the entropy bonus times this, and a pull of this weight toward `pull`.
+    draft_entropy: float = 2.0
+    kappa_draft: float = 0.0
+
+
+# The first drafting action (ASK0): a decision is a draft decision when any of the actions from here on is legal.
+DRAFT_FROM = 121
+
+
+def draft_decisions(mask: torch.Tensor) -> torch.Tensor:
+    """Whether each decision is a draft decision: starting, continuing or dropping an offer of the learner's own."""
+    return mask[:, DRAFT_FROM:].any(dim=1)
+
+
+def kl_rows(reference, obs: torch.Tensor, mask: torch.Tensor, logp_all: torch.Tensor) -> torch.Tensor:
+    """KL(reference || policy) for each decision, over the legal actions."""
+    with torch.no_grad():
+        ref_logits, _, _ = reference(obs, mask)
+        ref_logp = F.log_softmax(ref_logits, dim=1)
+        ref_p = ref_logp.exp()
+    zero = torch.zeros_like(ref_logp)
+    return (ref_p * (torch.where(mask, ref_logp, zero) - torch.where(mask, logp_all, zero))).sum(dim=1)
 
 
 def normalize_by_kind(advantage: torch.Tensor, kind: torch.Tensor, minimum: int) -> torch.Tensor:
@@ -65,7 +87,7 @@ def masked_entropy(logits: torch.Tensor) -> torch.Tensor:
     return -(p * torch.where(torch.isfinite(logp), logp, torch.zeros_like(logp))).sum(dim=1)
 
 
-def losses(net, batch: dict, cfg: PpoConfig, start=None) -> dict:
+def losses(net, batch: dict, cfg: PpoConfig, start=None, pull=None) -> dict:
     """The terms of the loss on one minibatch. `batch` holds tensors: obs, mask, action, logp, advantage, returns, kind."""
     logits, values, _ = net(batch["obs"], batch["mask"])
     size = table_size(batch["obs"])
@@ -82,6 +104,8 @@ def losses(net, batch: dict, cfg: PpoConfig, start=None) -> dict:
     roll_only = batch["mask"][:, 2:].sum(dim=1) == 0  # nothing legal but rolling or ending the turn
     scale = torch.tensor(cfg.entropy_by_kind, device=logits.device)[batch["kind"]]
     scale = torch.where(roll_only, scale * 0.5, scale)
+    drafting = draft_decisions(batch["mask"])
+    scale = torch.where(drafting, scale * cfg.draft_entropy, scale)
     entropy_bonus = (entropy * scale).mean()
     total = cfg.policy_weight * (policy_loss - cfg.entropy * entropy_bonus) + cfg.value_weight * value_loss
     out = {
@@ -91,19 +115,19 @@ def losses(net, batch: dict, cfg: PpoConfig, start=None) -> dict:
         "clipped": ((ratio - 1).abs() > cfg.clip).float().mean(),
     }
     if start is not None and cfg.kappa > 0:
-        with torch.no_grad():
-            start_logits, _, _ = start(batch["obs"], batch["mask"])
-            start_logp = F.log_softmax(start_logits, dim=1)
-            start_p = start_logp.exp()
-        legal = batch["mask"]
-        kl = (start_p * (torch.where(legal, start_logp, torch.zeros_like(start_logp)) - torch.where(legal, logp_all, torch.zeros_like(logp_all)))).sum(dim=1).mean()
+        kl = kl_rows(start, batch["obs"], batch["mask"], logp_all).mean()
         total = total + cfg.kappa * kl
         out["kl_start"] = kl
+    if pull is not None and cfg.kappa_draft > 0 and bool(drafting.any()):
+        rows = kl_rows(pull, batch["obs"], batch["mask"], logp_all)
+        kl_draft = (rows * drafting).sum() / drafting.sum()
+        total = total + cfg.kappa_draft * kl_draft
+        out["kl_draft"] = kl_draft
     out["total"] = total
     return out
 
 
-def ppo_update(net, optimizer, data: dict, cfg: PpoConfig, start=None, device: str = "cpu", rng: np.random.Generator | None = None) -> dict:
+def ppo_update(net, optimizer, data: dict, cfg: PpoConfig, start=None, device: str = "cpu", rng: np.random.Generator | None = None, pull=None) -> dict:
     """Several epochs over the collected decisions. Returns the mean of each loss term."""
     rng = rng or np.random.default_rng(0)
     n = len(data["action"])
@@ -122,7 +146,7 @@ def ppo_update(net, optimizer, data: dict, cfg: PpoConfig, start=None, device: s
         order = rng.permutation(n)
         for i in range(0, n, cfg.minibatch):
             index = torch.as_tensor(order[i : i + cfg.minibatch], device=device)
-            terms = losses(net, {name: value[index] for name, value in tensors.items()}, cfg, start)
+            terms = losses(net, {name: value[index] for name, value in tensors.items()}, cfg, start, pull)
             optimizer.zero_grad()
             terms["total"].backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.grad_clip)

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ACTIONS, ACTIONS_VERSION, CASH0, codecFor, DROP, emptyDraft, GIVE0, legalIndices, PARTNER0 } from '../../src/env/actions.ts';
+import { ACTIONS, ACTIONS_VERSION, ASK0, CASH0, codecFor, DROP, emptyDraft, GIVE0, legalIndices, PARTNER0 } from '../../src/env/actions.ts';
 import type { Draft } from '../../src/env/actions.ts';
+import { createEnv, DEFAULT_CONFIG } from '../../src/env/env.ts';
 import { createLedger } from '../../src/env/ledger.ts';
 import { createMlp } from '../../src/env/mlp.ts';
 import { observe, OBS_LAYOUT, OBS_SIZE } from '../../src/env/observe.ts';
@@ -143,4 +144,38 @@ test('a model of observation version 3 and action version 2 is widened as it loa
   }
   assert.equal(OBS_SIZE, 1029);
   assert.equal(ACTIONS_VERSION, 3);
+});
+
+test('the share of turns drafted: 0 plays as drafting off, the school offers on the other turns, and the game report counts both kinds', () => {
+  /** Totals over six two-player games; the learner picks at random among the legal actions, or among those that start no draft. */
+  const play = (drafting: boolean, draftShare: number, drafts: boolean) => {
+    const env = createEnv({ ...DEFAULT_CONFIG, players: 2, drafting, draftShare, proposer: 'baseline', seeds: { start: 700, step: 1 } });
+    let seed = 7;
+    const random = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const totals = { drafted: 0, draftedAccepted: 0, school: 0, schoolAccepted: 0 };
+    let step = env.reset();
+    for (let games = 0; games < 6; ) {
+      if (step.done) {
+        for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += step.final?.offers[key] ?? 0;
+        games += 1;
+        step = env.step(0);
+        continue;
+      }
+      const legal = legalIndices(step.legal);
+      const quiet = legal.filter((index) => index < ASK0 || index >= PARTNER0 + 3);
+      const choices = drafts || quiet.length === 0 ? legal : quiet;
+      step = env.step(choices[Math.floor(random() * choices.length)]);
+    }
+    return totals;
+  };
+  // A share of 0 plays exactly as drafting off.
+  assert.deepEqual(play(true, 0, false), play(false, 1, false));
+  // With a learner that starts no draft, the school offers on fewer turns at a share of 0.5, and on none at 1.
+  const none = play(true, 0, false).school;
+  const half = play(true, 0.5, false).school;
+  assert.ok(none > 0 && half > 0 && half < none, `school offers ${none} and ${half}`);
+  assert.equal(play(true, 1, false).school, 0);
+  // A learner that drafts has its offers counted, and acceptances never exceed offers.
+  const drafting = play(true, 0.5, true);
+  assert.ok(drafting.drafted > 0 && drafting.draftedAccepted <= drafting.drafted);
 });

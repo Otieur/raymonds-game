@@ -69,6 +69,14 @@ DEFAULTS = {
     "opponents": None,
     # Past selves among the league members (M7): {"every": 200, "newest": 4, "spread": 4}.
     "past_selves": None,
+    # The learner's own offers (M9). None: the school proposes on every turn. {"share": 0.5}: the learner drafts
+    # on half its turns. {"share": 0.5, "then": 1.0, "at": 0.3}: on half until 30% of the budget, then on all.
+    "drafting": None,
+    # Weights that draft decisions are pulled toward (M9's T2: the clone's offers), with a weight falling to 0.
+    "pull": None,
+    "kappa_draft": {"start": 0.0, "until": 0.5},
+    # The entropy bonus on draft decisions, as a multiple of the general one.
+    "draft_entropy": 2.0,
 }
 
 
@@ -93,7 +101,24 @@ def schedules(cfg: dict, fraction: float) -> dict:
         "entropy": falling(cfg["entropy"][0], 1.0, fraction, cfg["entropy"][1]),
         "kappa": falling(cfg["kappa"]["start"], cfg["kappa"]["until"], fraction) if cfg.get("start") else 0.0,
         "weights": weights,
+        "draft_share": draft_share(cfg, fraction),
+        "kappa_draft": falling(*_kappa_draft(cfg), fraction) if cfg.get("pull") else 0.0,
     }
+
+
+def _kappa_draft(cfg: dict) -> tuple[float, float]:
+    k = cfg.get("kappa_draft") or DEFAULTS["kappa_draft"]
+    return k["start"], k["until"]
+
+
+def draft_share(cfg: dict, fraction: float) -> float:
+    """The share of the learner's turns on which it drafts its own offers at a fraction of the budget (0 without drafting)."""
+    drafting = cfg.get("drafting")
+    if not drafting:
+        return 0.0
+    if drafting.get("then") is not None and fraction >= drafting.get("at", 1.0):
+        return float(drafting["then"])
+    return float(drafting["share"])
 
 
 def kept_selves(history: list[str], newest: int, spread: int) -> list[str]:
@@ -132,7 +157,7 @@ def add_self(run: Path, net, state: dict) -> str:
     return path
 
 
-def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[str] | None = None) -> tuple[list[dict], list[str]]:
+def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[str] | None = None, share: float = 0.0) -> tuple[list[dict], list[str]]:
     """One environment configuration for each worker: a game (table size and rules) and a kind of table, each drawn by its share."""
     from opponents import sample_kind
 
@@ -144,7 +169,9 @@ def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[s
     configs, labels = [], []
     for _ in range(cfg["workers"]):
         game = games[int(rng.choice(len(games), p=shares))]
-        base = {"players": game["players"], "rules": game["rules"], "potentials": cfg["potentials"], "drafting": False, "proposer": cfg["proposer"]}
+        base = {"players": game["players"], "rules": game["rules"], "potentials": cfg["potentials"], "drafting": share > 0, "proposer": cfg["proposer"]}
+        if share > 0:
+            base["draftShare"] = share
         if cfg.get("opponents"):
             kind = "fixed"
             configs.append({**base, "learners": 1, "opponents": cfg["opponents"]})
@@ -212,6 +239,13 @@ def main(argv: list[str] | None = None) -> None:
         start = copy.deepcopy(net).eval()
         for p in start.parameters():
             p.requires_grad_(False)
+    pull = None
+    if cfg.get("pull"):
+        pull = Net().to(device)
+        pull.load_state_dict(widen_state_dict(torch.load(cfg["pull"], map_location=device)))
+        pull.eval()
+        for p in pull.parameters():
+            p.requires_grad_(False)
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg["lr"])
     book = Book()
     state = {"update": 0, "decisions": 0, "games": 0, "next_seed": cfg["seeds"], "selves": []}
@@ -222,7 +256,7 @@ def main(argv: list[str] | None = None) -> None:
 
     n = cfg["workers"] * cfg["envs_per_worker"]
     block = n * 10_000  # seeds set aside for one drawing of the tables
-    configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state))
+    configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state), schedules(cfg, state["decisions"] / cfg["budget"])["draft_share"])
     env = VecEnv(cfg["workers"], cfg["envs_per_worker"], {"potentials": cfg["potentials"], "seeds": {"start": state["next_seed"], "step": 1}}, configs)
     state["next_seed"] += block
     collector = Collector(schedules(cfg, 0.0)["weights"], cfg["gamma"], cfg["lam"])
@@ -238,6 +272,7 @@ def main(argv: list[str] | None = None) -> None:
             collector.weights = np.asarray(now["weights"], dtype=np.float64)
             finished = cut_off = turns = 0
             results: list[float] = []
+            offers = {"drafted": 0, "draftedAccepted": 0, "school": 0, "schoolAccepted": 0}
             while collector.ready() + sum(len(seq) for seq in collector.open.values()) < cfg["update"]:
                 live = np.flatnonzero(~batch.done)
                 actions = np.zeros(n, dtype=np.int64)
@@ -254,6 +289,8 @@ def main(argv: list[str] | None = None) -> None:
                     finished += 1
                     cut_off += int(batch.truncated[i])
                     turns += final.get("turns", 0)
+                    for key in offers:
+                        offers[key] += final.get("offers", {}).get(key, 0)
                 batch = env.step(actions)
             collector.cut()
             data = collector.take()
@@ -264,8 +301,9 @@ def main(argv: list[str] | None = None) -> None:
             ppo = PpoConfig(
                 epochs=cfg["epochs"], minibatch=cfg["minibatch"], clip=cfg["clip"], value_weight=cfg["value_weight"], grad_clip=cfg["grad_clip"],
                 entropy=now["entropy"], kappa=now["kappa"], policy_weight=0.0 if warming else 1.0,
+                draft_entropy=cfg.get("draft_entropy", DEFAULTS["draft_entropy"]), kappa_draft=now["kappa_draft"],
             )
-            terms = ppo_update(net, optimizer, data, ppo, start, device, rng)
+            terms = ppo_update(net, optimizer, data, ppo, start, device, rng, pull)
             state["update"] += 1
             state["decisions"] += len(data["action"])
             state["games"] += finished
@@ -275,11 +313,16 @@ def main(argv: list[str] | None = None) -> None:
                 "turns": turns / max(1, finished), "result": float(np.mean(results)) if results else None,
                 "wins": float(np.mean([r > 0 for r in results])) if results else None,
                 "lr": now["lr"], "entropy_bonus": now["entropy"], "kappa": now["kappa"], "weights": now["weights"], "warming": warming,
+                "draft_share": now["draft_share"], "kappa_draft": now["kappa_draft"],
+                # The learner's offers a game, drafted by itself and made by its school, and the share of each accepted.
+                "drafted": offers["drafted"] / max(1, finished), "drafted_accepted": offers["draftedAccepted"] / max(1, offers["drafted"]),
+                "school_offers": offers["school"] / max(1, finished), "school_accepted": offers["schoolAccepted"] / max(1, offers["school"]),
                 "tables": labels, "seconds": time.time() - began, "per_second": len(data["action"]) / max(1e-9, time.time() - began), **terms,
             }
             with (run / "metrics.jsonl").open("a") as f:
                 f.write(json.dumps(line) + "\n")
-            print(f"update {line['update']}: {line['decisions']} decisions, {finished} games, wins {line['wins']}, entropy {terms.get('entropy', 0):.3f}, {line['per_second']:.0f} a second", flush=True)
+            drafted = f", {line['drafted']:.2f} offers drafted a game ({line['drafted_accepted']:.0%} accepted)" if now["draft_share"] > 0 else ""
+            print(f"update {line['update']}: {line['decisions']} decisions, {finished} games, wins {line['wins']}, entropy {terms.get('entropy', 0):.3f}, {line['per_second']:.0f} a second{drafted}", flush=True)
 
             if cfg.get("past_selves") and state["update"] % cfg["past_selves"]["every"] == 0:
                 add_self(run, net, state)
@@ -288,7 +331,7 @@ def main(argv: list[str] | None = None) -> None:
                 if cfg.get("checks"):
                     checks.append((state["update"], start_check(run, cfg, state["update"])))
             if state["update"] % cfg["tables_every"] == 0:
-                configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state))
+                configs, labels = draw_tables(cfg, book, rng, members_now(cfg, state), schedules(cfg, state["decisions"] / cfg["budget"])["draft_share"])
                 env.remake(configs, state["next_seed"])
                 state["next_seed"] += block
                 collector.open.clear()
