@@ -525,6 +525,18 @@ Ended at 08:10 on 20 November: update 383, 50.04 million decisions, from the two
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?
 
+### M6: G1's seed 3, and G1's gate
+
+Seed 3 ended at 12:26 (update 383; best check 89.2% at update 260; 88.2% for the final weights, the first final check `run.py` makes itself). Its gate from the export of update 260: bar 1, **89.5% (87.6 to 91.4)**; bar 2, **89.3%** of 4,999 finished games against **58.2%** for the refuser in the same seat, **+31.1 points (29.6 to 32.6)** paired; bar 3, one game of 5,000 cut off.
+
+| Seed | Best check | Bar 1, 1,000 games | Bar 2, paired over 5,000 | Cut off of 5,000 |
+| --- | --- | --- | --- | --- |
+| 1 | 90.6% at update 180 | 89.5% (87.6 to 91.4) | +31.1 (29.6 to 32.5) | 0 |
+| 2 | 89.6% at update 220 | 90.2% (88.4 to 92.0) | +31.2 (29.8 to 32.7) | 0 |
+| 3 | 89.2% at update 260 | 89.5% (87.6 to 91.4) | +31.1 (29.6 to 32.6) | 1 |
+
+**G1 passes its gate**, read from the median seed: the median of bar 1, 89.5%, is held by seeds 1 and 3, and seed 1 holds `main-2` (bar 4), so the gate is read from the holder. The three seeds agree within a point on every bar.
+
 ### The author's decisions of 20 November, noon
 
 Asked to follow my recommendations in full:
@@ -539,3 +551,13 @@ Asked to follow my recommendations in full:
 | M5, bar 3 | V1 stays the valuation in use; the value network gets one more attempt with more data; the bar stays as written. Bar 1 is done before M8. |
 
 **Disk detached at about 13:10.** Stopped first: `resume.sh` with the sweep (table `sweep2-0.5-0.5-4-two` unfinished) and the politics search (generation 2 of four players unfinished). `queue/disk-back-2.sh` resumes them, and seed 3's bar 2 if it had not finished, as filler on background policy behind the trading work.
+
+### The plan reordered: trading before G2
+
+Written on 20 November at the author's word. M9 (trading) now runs in four parts: part A, its foundation (action version 3 with sales for cash, layout version 4, the drafting schedule in `run.py`, the offer suite priced by playouts of today's best members, gate 7's remedy and Balancer's fix); part B, the two-player game, where the learner's own offers are switched on from G1's holder in three steps (T1, T2, T3) and read against M6's bars, the suite and a promotion match for `main-2`; part C, inside G2 and G3, which train with the learner's own offers from the start; part D, the trade report and trading tables read at every gate of M7 and M8. Changed: `ai.md` (workstream H), the plan's README (table and diagram), M6 (order of work, the gates of G2 and G3), M7, M8 and M9 (purpose, tasks in a new order, costs). The tasks marked *disk* in M9 play games and wait for the disk; the rest are code and start now.
+
+### To run when the disk is back (second list)
+
+1. `nohup caffeinate -i sh $DATA_DIR/queue/disk-back-2.sh > /dev/null 2>&1 &`: seed 3's gate if it was cut short, then the rest of M3b as filler on background policy (the sweep, the runs among refusers, the politics search, admission, merge, promotion, league reports, the final merge).
+2. M9's part A runs as the main job, once their code is written: deals priced by playout, the suites at two, three and four players, today's agents scored on them, the count of offers a draft cannot express, gate 7's tables and Balancer's tables played again, and M2's last retuning (Pass baron, All in) with the Concentrator's interval.
+3. M9's part B: T1, T2 and T3 at two players (three seeds of T3), then the two-player gate.

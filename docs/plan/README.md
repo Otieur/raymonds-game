@@ -13,16 +13,16 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size. M3b, table poli
 | M3b | [Table politics](m03b-table-politics.md) | K | M1, M2, M3 | Run 18 to 19 November 2026, in part. Bars 1 and 6 passed; bar 2 passed by means; bar 3 met by Early bird with the last street at today's price; bar 7 met at three players and not at four (an Envoy beside a False friend wins 2.3 points less than a Balancer; met narrowly with a smaller gift); bars 4 and 8 wait on runs; bar 5, as rewritten on 19 November (test opponents that stall are exempt), met by every school but Balancer. Corrected forms of the value-pricing schools adopted as presets |
 | M4 | [The environment](m04-environment.md) | D, E | M1; can run alongside M2 and M3 | Done 18 November 2026: gate passed |
 | M5 | [Supervised learning](m05-supervised.md) | F, J | M3, M4; M3b for the full sets of decisions | Remedies run 19 November 2026: none lifts the clone's own drafting (7%); with the baseline proposing it plays level with its teacher (24.8% against 24.0%). The value network is not yet better than V1 by its interval (bar 3 unmet). Bar 2 met on 20 November at two, three and four players, read against the teacher in the same seat (the clone at most 3 points worse, by the paired interval; author's decision) |
-| M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5; by the decision of 18 November it may start from the best clone to hand | Step 0d passed; step 0c not passed as specified (a shaped rerun is running). G1's first seed (19 November 2026) passes bars 1 to 3 on evaluation seeds: 89.3% against the baseline over 5,000 games, the refuser 58.1%. Bar 4 (promotion) not read; seeds 2 and 3 queued |
+| M6 | [Reinforcement learning: the first games](m06-first-games.md) | G | M5; by the decision of 18 November it may start from the best clone to hand; G2 and G3 after M9's parts A and B (decided 20 November) | G1 passed on 20 November: three seeds, each 89.5% to 90.2% against the baseline over 1,000 games and 31.1 to 31.2 points above the refuser over 5,000 paired games, at most one game in 5,000 cut off; seed 1 holds `main-2` (an edge of 77.3 points over the clone). Step 0c passed (author's reading); 0d passed. G2 and G3 wait for M9's parts A and B, and train with the learner's own offers |
 | M7 | [The full game and the specialists](m07-full-game.md) | G | M6 | Code for tasks 1 and 6 written and checked (19 November 2026): `train/branch.py`, past selves, checks at every size, the configurations, `study.ts --members`. No run made |
 | M8 | [League training and the reward search](m08-league-training.md) | E, G | M7 | Not started |
-| M9 | [Trading](m09-trading.md) | H | M7; can overlap M8 | Not started |
+| M9 | [Trading](m09-trading.md) | H | Moved forward on 20 November: parts A and B after G1 and before G2; part C inside G2 and G3; part D in M7 and M8 | Next: part A (action version 3, layout version 4, the drafting schedule, the offer suite, gate 7's remedy, Balancer's fix) |
 | M10 | [In the client](m10-in-the-client.md) | J | M5 for a first model; M9 for the last | Not started |
 
 ```text
 M0 ── M1 ──┬── M2 ── M3 ── M3b ──┐
-           │                     ├── M5 ── M6 ── M7 ──┬── M8 ──┐
-           └── M4 ───────────────┘                    └── M9 ──┴── M10
+           │                     ├── M5 ── M6 (G1) ── M9 (A, B) ── M6 (G2, G3, with M9's C) ── M7 ── M8 ── M10
+           └── M4 ───────────────┘
 ```
 
 ## How a stage file is laid out

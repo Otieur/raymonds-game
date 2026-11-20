@@ -6,6 +6,8 @@ To let a learner make its own offers, and to measure whether it trades well. Tra
 
 The stage has to produce something the study could not: a measure of what a deal is really worth to each side, so that "trades well" is a number.
 
+**Moved forward on 20 November, by the author's decision.** The plan first put this stage after M7 and M8, on the grounds that the space of offers is wide, that the clone's own offers were poor (7% at four players), and that deals were to be priced by playouts of a strong main agent. None of these needs to wait that long: G1 gives a strong two-player agent now, the best found styles and the corrected Statesman are strong at three and four players, and the environment already lets a learner draft. Waiting would train G2, G3, M7 and M8 to play without proposing, which findings S5 to S7 say is the habit that matters most (a player who never proposes wins 42.3%, 14.2% and 5.9% at two, three and four players), and all of it would be trained again. So the stage now runs in two parts: its foundation and the two-player game right after G1, and its remaining sizes inside G2 and G3, which train with the learner's own offers from the start. "The main agent" below means the holder of `main-<n>` at the time, not M8's agent.
+
 ## Deliverables
 
 | File | Contents |
@@ -92,16 +94,36 @@ It also prints offers made and accepted per game, the price over list of what it
 
 ## Tasks
 
-1. **Extend the intervention study** from M3b's three kinds of deal to every template of the suite, with playouts by the league's best members. *Check:* on cases where one side plainly gains (a property for nothing), it says so; on M3b's cells it reproduces M3b's signs.
-2. **Build the suite.** *Check:* 200 kept cases a size; every template has cases on both sides or is reported as one-sided.
-3. **Score today's agents on the suite:** the baseline, the refuser, the best found style, the M8 main agent. This is the picture before any training. *Check:* a table of the suite's score by template for the baseline, the refuser, the best style and the main agent.
-4. **Count the offers a draft cannot express.** Decide on selling for cash. *Check:* the share of accepted offers a draft could not express is recorded, with the decision it led to.
-5. **Layout version 4.** *Check:* M4's tests pass at the new size; the client's encoder and the trainer agree on the version.
-6. **T1, T2, T3** for each shipped size. *Check:* the checks of each step log the suite's score; after T3 the learner makes offers in most games and some are accepted.
-7. **`scripts/trade-report.ts`** on the result. *Check:* the three bars of the measures table.
-8. **Rerun M8's gate** with the new agents. Trading must not have cost them elsewhere. *Check:* the bars of G5, with the trading agent in the main agent's place.
-9. **Rerun the study** with the trading agents: with and without trading, the finishing rate of a table of them alone, the cash paid over list. *Check:* the study's trading tables for the new agents, beside those for the rule-based agent.
-10. **Write up.** *Check:* every figure quoted in the documents can be found in a report under the data directory, the Result section names the command, seeds and commit, and the link check passes.
+In order, from 20 November. Tasks marked *disk* play games for data and wait for the data disk; the rest are code and tests.
+
+**Part A: the foundation** (before any trading run)
+
+1. **Action version 3:** a draft may start from "give" (a sale for cash), and "ask for nothing" is one more action, 189 in all; a draft still ends with both sides handing something over, as the rules require. The client's encoder and the trainer agree on the version. *Check:* M4's mask tests pass with drafting on; every draft the mask allows is an offer the engine accepts; a learner cannot send the same refused offer twice in a turn.
+2. **Layout version 4:** the four numbers of "What the learner sees of an offer". A converter carries a version-3 model to version 4 with zero weights on the new inputs. *Check:* M4's tests pass at the new size; a converted model gives the same outputs as before on positions where the new inputs are zero.
+3. **The drafting schedule in `run.py`:** for each table, the share of the learner's turns proposed for by a school and by its own drafts; the starting policy's pull for draft decisions only, toward the cloned offers of M5, with its own schedule; the entropy bonus for draft decisions at twice the general figure. *Check:* unit tests of the schedule; a trial of four updates with half the turns drafted runs and logs offers made and accepted.
+4. **The suite's score in the checks** (`run.py` and `evaluate.ts --suite`). *Check:* scoring a fixed agent twice on the same suite gives the same figure.
+5. **Deals priced by playout for every template** (`probe-value.ts --deals`), extending M3b's three kinds. Playouts by today's best members: at two players the holder of `main-2` (G1) and of `style-2`; at three and four, `statesman-book-2` and the holders of `style-3` and `style-4`. *Check:* where one side plainly gains (a property for nothing) it says so; on M3b's cells it reproduces M3b's signs. *Disk.*
+6. **Build the suite** (`make-offer-suite.ts`), at two players in the full game, three players in the full game and four players in the short game (the rules of G1, G3 and G2); four players in the full game is added for M7. *Check:* 200 kept cases a size, half to accept and half to refuse; every template has cases on both sides or is reported as one-sided. *Disk.*
+7. **Score today's agents on the suite:** the baseline, the refuser, the best found style, `statesman-book-2` and the holder of `main-2`. This is the picture before any trading run. *Check:* a table of the suite's score by template for each. *Disk.*
+8. **Count the accepted offers a draft cannot express** (deals of several properties), from league games. *Check:* the share is recorded, with the decision it led to. *Disk.*
+9. **Gate 7's remedy** (M3b's decision point): an accepted invitation not returned within `allyTurns` rounds counts against the sender's goodwill, and the bound on goodwill in the score falls from 5 points to 2. *Check:* unit tests; then the two four-player gate 7 tables played again and compared, paired by seed. *Disk for the tables.*
+10. **Balancer's stalling** (M3b's bar 5): once the table goes cold (the `mood` signal under 0.15), its answers by the sheet accept a deal whose cost to it by the sheet is under one point, instead of refusing all that do not pay it. *Check:* unit tests; its tables reach 98% finished, and its paired results are played again. *Disk for the tables.*
+
+**Part B: the two-player game** (the learner's own offers, from G1's holder)
+
+11. **T1:** G1's holder converted to version 4, 10 million decisions with the school proposing, the suite in every check. *Check:* the checks hold G1's level against the baseline (within the interval) and log the suite's score. *Disk.*
+12. **T2:** 30 million decisions, half the learner's turns drafted by itself; the pull toward the cloned offers falls to zero by half the run. *Check:* the checks log offers made and accepted a game and the suite's score; the share against the baseline does not fall below G1's bar. *Disk.*
+13. **T3:** 50 million decisions, all offers drafted by the learner, three seeds. *Check:* after T3 the learner makes offers in most games and some are accepted. *Disk.*
+14. **The two-player gate,** read from the median seed: M6's bars for G1 with the learner drafting (an even share over 1,000 games; above the refuser in the same seat over 5,000 paired games; under 2% cut off), the three bars of the measures table, a table of copies of the trading agent finishing at least 98% of its games, and the promotion match: the trading agent takes `main-2` from G1. *Disk.*
+
+**Part C: inside G2 and G3** ([m06-first-games.md](m06-first-games.md))
+
+15. G2 and G3 start from the trading holder with drafting on: half of the learner's turns drafted by itself for the first 30% of the budget, all of them after; members that trade most at double weight; tables of the learner with copies of itself. Their gates add the suite's bars at their size and a table of copies finishing at least 98%.
+
+**Part D: carried into M7 and M8**
+
+16. The trade report and the study's trading tables (former tasks 7 and 9) are read at each of M7's and M8's gates instead of once at the end; a four-player full-game suite is built for M7. *Check:* the report and the tables appear in each of those stages' results.
+17. **Write up.** *Check:* every figure quoted in the documents can be found in a report under the data directory, the Result section names the command, seeds and commit, and the link check passes.
 
 ## Tests
 
@@ -115,7 +137,7 @@ It also prints offers made and accepted per game, the price over list of what it
 | Run | Size | Cost |
 | --- | --- | --- |
 | Pricing candidate cases for the suite | About 1,000 candidates a size × 2 versions × 40 playouts | 240,000 part-games; about an hour of one core |
-| T2 and T3, each size | 80 million decisions | 4.4 hours a size at the planning rate |
+| T1, T2 and T3 at two players | 10 + 30 million, then 50 million × 3 seeds | About 13 hours at the rate measured on 20 November with the machine to itself (about 4,000 decisions a second) |
 | The trade report | 15,000 games a size, with the network at every decision of a learned seat | Sized from M7's measurement of a learned game |
 
 ## Commands

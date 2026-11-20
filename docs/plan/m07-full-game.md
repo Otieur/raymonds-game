@@ -4,6 +4,8 @@
 
 To carry the learner from the three first games to the full game at every table size (step G4 of [ai.md](../ai.md)), and then to answer requirement R3 with a measurement: whether an agent trained for one table size beats the shared one at that size. The study says the sizes differ in what is worth holding (findings S2, S10 and S11); this stage finds out whether one network can hold all three answers or whether three are needed.
 
+Since 20 November the learner reaches this stage already making its own offers (M9's parts A to C run before it). Every run here keeps drafting on, and each gate adds the trade report and the study's trading tables (M9, part D); a four-player full-game offer suite is built for the shared run.
+
 ## Deliverables
 
 | File | Contents |

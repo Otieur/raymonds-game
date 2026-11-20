@@ -4,6 +4,8 @@
 
 To make the agents hard to beat by any kind of opponent, to produce learned opponents that play in different ways, to learn when it pays to change from one way of playing to another, and to find out which reward signals earn their place. It is step G5 of [ai.md](../ai.md), and it is where requirements R1, R2 and R4 are settled: the final agent holds up against every school and every style it was started from; several learned schools exist beside it; and every reward term is kept or dropped by an ablation, not by taste.
 
+Since 20 November the agents trained here make their own offers (M9 moved forward), so M9's former check that trading did not cost strength elsewhere is part of this stage's gate: the trade report and the study's trading tables are read with every gate.
+
 ## Deliverables
 
 | File | Contents |
