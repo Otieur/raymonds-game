@@ -1,6 +1,6 @@
 {
   "note": "Lines of succession: the holder of each line is the best version so far, and only a challenger that beats it at the table takes its place. Written by scripts/promote.ts; see docs/plan/README.md, \"New against best\".",
-  "nextSeed": 1516000,
+  "nextSeed": 1520000,
   "lines": {
     "style-2": {
       "holder": "found-2-b1t2p2c1",
@@ -155,15 +155,38 @@
       ]
     },
     "main-2": {
-      "holder": "model:/Volumes/Elements/raymonds-game-data/models/clone-baseline-2-v3.ts",
+      "holder": "model:/Volumes/Elements/raymonds-game-data/runs/g1-s1/exports/00180.ts",
       "holders": [
         {
           "member": "model:/Volumes/Elements/raymonds-game-data/models/clone-baseline-2-v3.ts",
           "since": "2026-11-19",
           "note": "Opens the line: the two-player clone of layout version 3 (M5), G1's starting policy, with the baseline making its offers."
+        },
+        {
+          "member": "model:/Volumes/Elements/raymonds-game-data/runs/g1-s1/exports/00180.ts",
+          "since": "2026-11-20",
+          "note": "Beat model:/Volumes/Elements/raymonds-game-data/models/clone-baseline-2-v3.ts by an edge of 77.3 points (75.9 to 78.7)."
         }
       ],
-      "matches": []
+      "matches": [
+        {
+          "date": "2026-11-20",
+          "challenger": "model:/Volumes/Elements/raymonds-game-data/runs/g1-s1/exports/00180.ts",
+          "holder": "model:/Volumes/Elements/raymonds-game-data/models/clone-baseline-2-v3.ts",
+          "seeds": [
+            1516000,
+            1519999
+          ],
+          "a": 0.8808864265927978,
+          "b": 0.10778141526063964,
+          "edge": 0.7731050113321581,
+          "low": 0.7591573470437281,
+          "high": 0.7870526756205882,
+          "baselineDifference": 0.40249999999999997,
+          "worstRow": "not checked: no league report given",
+          "promoted": true
+        }
+      ]
     }
   }
 }

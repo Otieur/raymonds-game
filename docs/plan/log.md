@@ -517,6 +517,8 @@ Ended at 08:10 on 20 November: update 383, 50.04 million decisions, from the two
 **G1's seed 2, gate on evaluation seeds** (export of update 220): bar 1, **90.2% (88.4 to 92.0)** over 1,000 games (seed 1: 89.5% on the same seeds); bar 2, **89.4%** over 5,000 games against **58.2%** for the refuser in the same seat, **+31.2 points (29.8 to 32.7)** paired by seed; bar 3, none of the 5,000 cut off. Bars 1 to 3 pass, as for seed 1. With a free machine the 6,000 games took 26 minutes (2.7 to 2.9 ms a decision, against 8 to 14 ms in the night).
 - 08:44: the promotion match for `main-2` was resumed early, since seed 3 alone left memory to spare (seed 2's gate readings had run beside it without slowing it much).
 
+**G1's promotion match, `main-2`** (seed 1's export of update 180 against the two-player clone, 4,000 games a table, seeds 1,516,000 to 1,519,999): 88.1% among copies of the clone against 10.8% for the clone among copies of it, an edge of **77.3 points (75.9 to 78.7)**; among baselines 89.3% against 49.0%, +40.3 (± 2.6). G1's seed 1 takes the line, and bar 4 passes for it. Lane 2 went on to task 6 (the refuser in the four-player short game) at 10:33.
+
 ### Waiting for the author (20 November, morning)
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?
