@@ -51,7 +51,9 @@ export function Embers() {
         mote.sway += 0.012;
         mote.x += Math.sin(mote.sway) * 0.35;
         const flicker = 0.55 + 0.45 * Math.sin(mote.sway * 3.1);
-        const alpha = mote.glow * flicker * Math.min(1, mote.y / (height * 0.3) + 0.1);
+        // A window of no height (hidden, or being resized) would divide by zero and stop the loop.
+        const fade = height > 0 ? Math.min(1, mote.y / (height * 0.3) + 0.1) : 0;
+        const alpha = Math.max(0, mote.glow * flicker * fade);
         const reach = mote.radius * 5;
         const paint = ctx.createRadialGradient(mote.x, mote.y, 0, mote.x, mote.y, reach);
         paint.addColorStop(0, `hsla(${mote.hue}, 100%, 72%, ${alpha})`);
