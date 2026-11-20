@@ -524,3 +524,18 @@ Ended at 08:10 on 20 November: update 383, 50.04 million decisions, from the two
 ### Waiting for the author (20 November, morning)
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?
+
+### The author's decisions of 20 November, noon
+
+Asked to follow my recommendations in full:
+
+| Question | Decision |
+| --- | --- |
+| Trading | Moved forward: the learner's own offers come right after G1, before G2, so that G2, G3 and every later stage train with them (the plan is rewritten in `ai.md`, the README, M6, M7, M8 and M9). |
+| Step 0c's bar | Passed, read on the point estimate over finished games (83.3%). |
+| M2, the Concentrator | Judged by the direct measure (first buildings on a new group while another buildable group is below four: 27.4% against 42.9%). Pass baron and All in get one more round of retuning. |
+| M3b, Balancer | Fixed, not set aside: once the table goes cold its answers accept deals that cost it little. Its tables are played again. |
+| M3b, gate 7 | The decision point's remedy is built: an accepted invitation not returned counts against the sender's goodwill. |
+| M5, bar 3 | V1 stays the valuation in use; the value network gets one more attempt with more data; the bar stays as written. Bar 1 is done before M8. |
+
+**Disk detached at about 13:10.** Stopped first: `resume.sh` with the sweep (table `sweep2-0.5-0.5-4-two` unfinished) and the politics search (generation 2 of four players unfinished). `queue/disk-back-2.sh` resumes them, and seed 3's bar 2 if it had not finished, as filler on background policy behind the trading work.
