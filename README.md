@@ -158,7 +158,7 @@ A bid lists the range of amounts and a trade proposal the possible partners, rat
 
 ### Artwork, music and licence
 
-The street portraits and the token drawings are third-party illustrations from the card game Sanguosha (三国杀), and the background music is a third-party recording. They are here for private development only and are not licensed for redistribution: replace them or obtain a licence before the repository or any build of the game is made public. The app icon was drawn for this project. No licence has been chosen; the repository is private.
+The street portraits and the token drawings are third-party illustrations from the card game Sanguosha (三国杀), and the background music is a third-party recording. None of them is licensed for redistribution, and they are to be replaced or licensed. The app icon was drawn for this project. No licence has been chosen for the code.
 
 ---
 
@@ -311,6 +311,6 @@ while (state.winner === null) {
 
 ### 美术、音乐和许可
 
-地块上的人物画和棋子图是卡牌游戏《三国杀》的第三方美术，背景音乐也是第三方录音。它们只用于私下开发，没有转发授权：仓库或任何版本的游戏公开之前，要么替换，要么取得授权。应用图标是为这个项目画的。还没有选定许可，仓库是私有的。
+地块上的人物画和棋子图是卡牌游戏《三国杀》的第三方美术，背景音乐也是第三方录音。它们都没有转发授权，之后要么替换，要么取得授权。应用图标是为这个项目画的。代码还没有选定许可。
 
 <p align="center"><a href="#english">↑ English</a> · <a href="#中文">↑ 中文</a></p>
