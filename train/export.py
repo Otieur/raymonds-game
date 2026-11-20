@@ -19,10 +19,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from model import ACTIONS, OBS_SIZE, Net
+from model import ACTIONS, OBS_SIZE, Net, widen_state_dict
 
-OBS_VERSION = 3
-ACTIONS_VERSION = 2
+OBS_VERSION = 4
+ACTIONS_VERSION = 3
 
 
 def main() -> None:
@@ -32,7 +32,7 @@ def main() -> None:
     parser.add_argument("--note", default="")
     args = parser.parse_args()
     net = Net()
-    net.load_state_dict(torch.load(Path(args.run) / "weights.pt", map_location="cpu"))
+    net.load_state_dict(widen_state_dict(torch.load(Path(args.run) / "weights.pt", map_location="cpu")))
     layers = [net.trunk[0], net.trunk[2], net.trunk[4], net.policy, net.value]
     names = ["trunk0", "trunk1", "trunk2", "policy", "value"]
     shapes = []

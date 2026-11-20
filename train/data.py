@@ -12,9 +12,9 @@ from pathlib import Path
 
 import numpy as np
 
-OBS_SIZE = 1023
-OBS_VERSION = 3
-ACTIONS = 188
+OBS_SIZE = 1029
+OBS_VERSION = 4
+ACTIONS = 191
 _O = OBS_SIZE * 2
 RECORD_BYTES = _O + 46
 

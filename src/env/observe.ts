@@ -18,8 +18,14 @@ import type { Draft } from './actions.ts';
 import { habits } from './ledger.ts';
 import type { Ledger } from './ledger.ts';
 
-/** Version 3 (M3b) widens the risk block to every seat and adds the relations and deal-sheet blocks. */
-export const OBS_VERSION = 3;
+/**
+ * Version 3 (M3b) widens the risk block to every seat and adds the relations and deal-sheet blocks.
+ * Version 4 (M9, 20 November 2026) appends the offer block: whether the offer on the table, or the
+ * seat's draft, completes a group for the proposer and for the receiver, how many buildings each
+ * could then pay for on it, and two marks of the draft (naming a sale's partner; a sale). It is at
+ * the end so that a model trained on version 3 is widened by zero weights (`mlp.ts`).
+ */
+export const OBS_VERSION = 4;
 /** The rounds in which goodwill halves, as the observation reads it: the default of a style's `allyTurns`. */
 const GOODWILL_HALF_LIFE = 4;
 export const SEATS = 4;
@@ -35,6 +41,7 @@ export const OBS_LAYOUT: readonly { name: string; offset: number; length: number
     ['risk', SEATS * 3],
     ['relations', 6 + (SEATS - 1) * 6],
     ['sheet', SEATS],
+    ['offer', 6],
   ];
   let offset = 0;
   return blocks.map(([name, length]) => {
@@ -63,6 +70,31 @@ export interface ObserveInput {
   draft: Draft;
   proposalsLeft: number;
   shortGame: boolean;
+}
+
+/**
+ * The group a deal completes for one side, if any (a street group it will hold whole and did not
+ * before), and how many buildings that side could pay for on it with its cash after the deal, at
+ * most 15.
+ */
+export function completion(ctx: Context, state: GameState, deal: Deal, side: PlayerId): { group: string; buildings: number } | null {
+  const ownerAfter = (id: string): PlayerId | null => {
+    if (deal.give.properties.includes(id)) return deal.to;
+    if (deal.receive.properties.includes(id)) return deal.from;
+    return state.properties[id].owner;
+  };
+  const moved = [...deal.give.properties, ...deal.receive.properties];
+  for (const [group, streets] of ctx.groups) {
+    if (!streets.some((sq) => moved.includes(sq.id))) continue;
+    const whole = streets.every((sq) => ownerAfter(sq.id) === side);
+    const before = streets.every((sq) => state.properties[sq.id].owner === side);
+    if (!whole || before) continue;
+    const player = state.players.find((p) => p.id === side);
+    const cash = (player?.cash ?? 0) + (side === deal.to ? deal.give.cash - deal.receive.cash : deal.receive.cash - deal.give.cash);
+    const cost = streets[0].buildingCost;
+    return { group, buildings: Math.max(0, Math.min(15, Math.floor(cash / cost))) };
+  }
+  return null;
 }
 
 export function observe(input: ObserveInput): Float32Array {
@@ -130,7 +162,7 @@ export function observe(input: ObserveInput): Float32Array {
     offer.receive.properties.forEach((id) => giving.add(id));
   }
   if (draft.stage !== 'none') {
-    receiving.add(ctx.propertyOrder[draft.ask].id);
+    if (draft.ask >= 0) receiving.add(ctx.propertyOrder[draft.ask].id);
     if (draft.give !== null) giving.add(ctx.propertyOrder[draft.give].id);
   }
   for (const sq of ctx.propertyOrder) {
@@ -258,11 +290,22 @@ export function observe(input: ObserveInput): Float32Array {
       from: me.id,
       to: draft.partner,
       give: { cash: 0, properties: draft.give === null ? [] : [ctx.propertyOrder[draft.give].id], jailCards: 0 },
-      receive: { cash: 0, properties: [ctx.propertyOrder[draft.ask].id], jailCards: 0 },
+      receive: { cash: 0, properties: draft.ask >= 0 ? [ctx.propertyOrder[draft.ask].id] : [], jailCards: 0 },
     };
   }
   const delta = deal ? dealSheet(ctx, state, deal, v1(n), chances).delta : null;
   for (let r = 0; r < SEATS; r++) put(delta && r < n ? delta[(seat + r) % n] : 0);
+
+  // The offer: what the deal on the table, or the draft so far (with no cash yet), completes, and the draft's marks.
+  block('offer');
+  const proposerSide = deal ? completion(ctx, state, deal, deal.from) : null;
+  const receiverSide = deal ? completion(ctx, state, deal, deal.to) : null;
+  put(proposerSide ? 1 : 0);
+  put(receiverSide ? 1 : 0);
+  put(proposerSide ? proposerSide.buildings / 15 : 0);
+  put(receiverSide ? receiverSide.buildings / 15 : 0);
+  put(draft.stage === 'partner' ? 1 : 0);
+  put(draft.stage !== 'none' && draft.ask < 0 ? 1 : 0);
 
   if (at !== OBS_SIZE) throw new Error(`The observation has ${at} numbers, not ${OBS_SIZE}.`);
   return out;

@@ -1,14 +1,20 @@
 /**
- * The action codec: 188 discrete actions, a mask of the legal ones, and the decoding of an index
+ * The action codec: 191 discrete actions, a mask of the legal ones, and the decoding of an index
  * into an engine action or a step of drafting an offer.
+ *
+ * Version 3 (20 November 2026, M9) adds a second way to draft: a sale. On its own free turn a seat
+ * may start from a property it gives (the same indices as "give" in an ask's second step), then
+ * name the partner (three actions, the seats after it in the order of play), then the price the
+ * partner pays, as a multiple of the property's list price. The 188 actions of version 2 keep
+ * their indices and meanings, so a model trained on them can be widened to these (`mlp.ts`).
  */
 import type { Context } from '../context.ts';
 import type { Engine } from '../engine/engine.ts';
 import { duesInReach, viewOf } from '../sim/measures.ts';
 import type { Action, GameState, LegalAction, PlayerId, PropertySquare, StreetSquare } from '../types.ts';
 
-export const ACTIONS = 188;
-export const ACTIONS_VERSION = 2;
+export const ACTIONS = 191;
+export const ACTIONS_VERSION = 3;
 
 export const FIXED = [
   'ROLL',
@@ -35,16 +41,25 @@ export const GIVE0 = 149;
 export const GIVE_NOTHING = 177;
 export const CASH0 = 178;
 export const DROP = 187;
+/** The partner of a sale: the first, second and third seat after the proposer in the order of play. */
+export const PARTNER0 = 188;
 
 /** Cash from proposer to partner, as a multiple of the list price of the property asked for. The ninth level is all spare cash. */
 export const CASH_LEVELS = [-1, -0.5, 0, 0.5, 1, 1.5, 2, 3];
+/** In a sale, cash from partner to proposer as a multiple of the list price of the property sold. The ninth level is all the partner's spare cash. */
+export const SALE_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 
 export interface Draft {
-  stage: 'none' | 'give' | 'cash';
+  /** An ask goes none, give, cash; a sale goes none, partner, cash. */
+  stage: 'none' | 'give' | 'partner' | 'cash';
   partner: PlayerId | null;
+  /** The property asked for, or -1 in a sale. */
   ask: number;
   give: number | null;
 }
+
+/** Whether a draft is a sale: it started from the property given, and asks for nothing. */
+export const isSale = (draft: Draft): boolean => draft.stage !== 'none' && draft.ask < 0;
 export const emptyDraft = (): Draft => ({ stage: 'none', partner: null, ask: -1, give: null });
 
 export interface CodecOptions {
@@ -53,6 +68,15 @@ export interface CodecOptions {
   proposalsLeft: number;
   /** Property indices this seat was refused this turn. */
   refused: Set<number>;
+  /** Sales this seat was refused this turn, as `${property index}>${partner}`. */
+  refusedSales?: Set<string>;
+}
+
+/** The seats after `actor` in the order of play, first to last. */
+export function partnersInOrder(state: GameState, actor: PlayerId): PlayerId[] {
+  const n = state.players.length;
+  const at = state.players.findIndex((p) => p.id === actor);
+  return Array.from({ length: n - 1 }, (_, r) => state.players[(at + r + 1) % n].id);
 }
 
 export type Decoded = { kind: 'engine'; action: Action } | { kind: 'draft'; draft: Draft };
@@ -143,11 +167,24 @@ export function codecFor(ctx: Context, engine: Engine, state: GameState, actor: 
     if (options.drafting && offer && !top && state.turn.player === actor && options.proposalsLeft > 0) {
       props.forEach((sq, k) => {
         const owner = state.properties[sq.id].owner;
-        if (!owner || owner === actor || !offer.partners.includes(owner) || options.refused.has(k)) return;
         if (sq.kind === 'street' && groupHasBuildings(ctx, state, sq.group)) return;
+        if (owner === actor) {
+          // A sale starts from the property given, if some partner has not refused it this turn.
+          const open = offer.partners.some((partner) => !options.refusedSales?.has(`${k}>${partner}`));
+          if (open) allow(GIVE0 + k, () => ({ kind: 'draft', draft: { stage: 'partner', partner: null, ask: -1, give: k } }));
+          return;
+        }
+        if (!owner || !offer.partners.includes(owner) || options.refused.has(k)) return;
         allow(ASK0 + k, () => ({ kind: 'draft', draft: { stage: 'give', partner: owner, ask: k, give: null } }));
       });
     }
+  } else if (draft.stage === 'partner') {
+    const offer = engine.legalActions(state, actor).find((a): a is Extract<LegalAction, { type: 'PROPOSE_TRADE' }> => a.type === 'PROPOSE_TRADE');
+    partnersInOrder(state, actor).forEach((partner, r) => {
+      if (!offer || !offer.partners.includes(partner) || options.refusedSales?.has(`${draft.give}>${partner}`)) return;
+      allow(PARTNER0 + r, () => ({ kind: 'draft', draft: { ...draft, stage: 'cash', partner } }));
+    });
+    allow(DROP, () => ({ kind: 'draft', draft: emptyDraft() }));
   } else if (draft.stage === 'give') {
     props.forEach((sq, k) => {
       if (state.properties[sq.id].owner !== actor) return;
@@ -155,6 +192,24 @@ export function codecFor(ctx: Context, engine: Engine, state: GameState, actor: 
       allow(GIVE0 + k, () => ({ kind: 'draft', draft: { ...draft, stage: 'cash', give: k } }));
     });
     allow(GIVE_NOTHING, () => ({ kind: 'draft', draft: { ...draft, stage: 'cash', give: null } }));
+    allow(DROP, () => ({ kind: 'draft', draft: emptyDraft() }));
+  } else if (isSale(draft)) {
+    const partner = state.players.find((p) => p.id === draft.partner);
+    const sold = draft.give === null ? undefined : props[draft.give];
+    if (partner && sold) {
+      const spare = Math.max(0, partner.cash - duesInReach(viewOf(ctx, state), partner).largest);
+      const amounts = [...SALE_LEVELS.map((m) => Math.round(m * sold.price)), spare];
+      amounts.forEach((cash, level) => {
+        const action: Action = {
+          type: 'PROPOSE_TRADE',
+          player: actor,
+          to: partner.id,
+          give: { cash: 0, properties: [sold.id], jailCards: 0 },
+          receive: { cash, properties: [], jailCards: 0 },
+        };
+        if (cash > 0 && engine.validate(state, action) === null) allow(CASH0 + level, engineAction(action));
+      });
+    }
     allow(DROP, () => ({ kind: 'draft', draft: emptyDraft() }));
   } else {
     const me = state.players.find((p) => p.id === actor);

@@ -37,7 +37,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from model import Net  # noqa: E402
+from model import Net, widen_optimizer_state, widen_state_dict  # noqa: E402
 import run as training  # noqa: E402
 
 RESETTABLE = ("optimizer", "book", "selves")
@@ -102,10 +102,10 @@ def branch(parent: Path, overlay: dict, run: Path, number: int | None = None) ->
     }
 
     net = Net()
-    net.load_state_dict(saved["net"])
+    net.load_state_dict(widen_state_dict(saved["net"]))
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg["lr"])
     if "optimizer" not in reset:
-        optimizer.load_state_dict(saved["optimizer"])  # run.py sets the learning rate at every update
+        optimizer.load_state_dict(widen_optimizer_state(saved["optimizer"], net))  # run.py sets the learning rate at every update
     state = {
         "update": 0,
         "decisions": 0,

@@ -1,6 +1,10 @@
 /**
  * The network's forward pass in TypeScript: three dense layers with ReLU, a policy head and a value
  * head. The weights come from a module written by train/export.py, as 16-bit floats in base64.
+ *
+ * A model of observation version 3 and action version 2 is widened as it loads: zero weights on the
+ * six inputs that version 4 appends, and zero rows for the three actions that version 3 appends. It
+ * then plays exactly as before wherever the new actions are not offered (drafting off).
  */
 import { ACTIONS, ACTIONS_VERSION } from './actions.ts';
 import { OBS_SIZE, OBS_VERSION } from './observe.ts';
@@ -16,7 +20,7 @@ export interface ModelWeights {
 
 export interface Mlp {
   name: string;
-  /** Policy logits over the 188 actions (not masked) and the value head's three outputs. */
+  /** Policy logits over the 191 actions (not masked) and the value head's three outputs. */
   forward(input: Float32Array): { policy: Float32Array; value: Float32Array };
 }
 
@@ -38,14 +42,20 @@ function halves(base64: string): Float32Array {
   return out;
 }
 
+/** The sizes of the versions a model may have been trained on, and that this build can widen. */
+const WIDENABLE = { obsVersion: 3, actionsVersion: 2, inputs: 1023, actions: 188 };
+
 export function createMlp(weights: ModelWeights): Mlp {
-  if (weights.obsVersion !== OBS_VERSION || weights.actionsVersion !== ACTIONS_VERSION) {
+  const current = weights.obsVersion === OBS_VERSION && weights.actionsVersion === ACTIONS_VERSION;
+  const older = weights.obsVersion === WIDENABLE.obsVersion && weights.actionsVersion === WIDENABLE.actionsVersion;
+  if (!current && !older) {
     throw new Error(`Model ${weights.name} was trained on observation version ${weights.obsVersion} and action version ${weights.actionsVersion}; this build uses ${OBS_VERSION} and ${ACTIONS_VERSION}.`);
   }
-  if (weights.shapes[0][0] !== OBS_SIZE || weights.shapes[3][1] !== ACTIONS) throw new Error(`Model ${weights.name} has the wrong input or output size.`);
+  const [inputs, actions] = current ? [OBS_SIZE, ACTIONS] : [WIDENABLE.inputs, WIDENABLE.actions];
+  if (weights.shapes[0][0] !== inputs || weights.shapes[3][1] !== actions) throw new Error(`Model ${weights.name} has the wrong input or output size.`);
   const all = halves(weights.data);
   let at = 0;
-  const layers = weights.shapes.map(([inputs, outputs]) => {
+  let layers = weights.shapes.map(([inputs, outputs]) => {
     const w = all.subarray(at, at + inputs * outputs);
     at += inputs * outputs;
     const b = all.subarray(at, at + outputs);
@@ -53,6 +63,7 @@ export function createMlp(weights: ModelWeights): Mlp {
     return { inputs, outputs, w, b };
   });
   if (at !== all.length) throw new Error(`Model ${weights.name} has ${all.length} numbers, expected ${at}.`);
+  if (older) layers = widen(layers);
   const dense = (layer: (typeof layers)[number], x: Float32Array, relu: boolean): Float32Array => {
     const y = new Float32Array(layer.outputs);
     for (let o = 0; o < layer.outputs; o++) {
@@ -66,10 +77,29 @@ export function createMlp(weights: ModelWeights): Mlp {
   return {
     name: weights.name,
     forward(input: Float32Array) {
+      if (input.length !== OBS_SIZE) throw new Error(`The observation has ${input.length} numbers, not ${OBS_SIZE}.`);
       let h = dense(layers[0], input, true);
       h = dense(layers[1], h, true);
       h = dense(layers[2], h, true);
       return { policy: dense(layers[3], h, false), value: dense(layers[4], h, false) };
     },
   };
+}
+
+type Layer = { inputs: number; outputs: number; w: Float32Array; b: Float32Array };
+
+/** Widens a model of the older versions: zero weights for the appended inputs, zero rows for the appended actions. */
+function widen(layers: Layer[]): Layer[] {
+  const out = [...layers];
+  const first = layers[0];
+  const w0 = new Float32Array(first.outputs * OBS_SIZE);
+  for (let o = 0; o < first.outputs; o++) w0.set(first.w.subarray(o * first.inputs, (o + 1) * first.inputs), o * OBS_SIZE);
+  out[0] = { inputs: OBS_SIZE, outputs: first.outputs, w: w0, b: first.b };
+  const policy = layers[3];
+  const w3 = new Float32Array(ACTIONS * policy.inputs);
+  w3.set(policy.w);
+  const b3 = new Float32Array(ACTIONS);
+  b3.set(policy.b);
+  out[3] = { inputs: policy.inputs, outputs: ACTIONS, w: w3, b: b3 };
+  return out;
 }

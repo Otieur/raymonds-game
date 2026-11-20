@@ -28,15 +28,16 @@ function generator(seed: number): () => number {
 
 const config = (changes: Partial<EnvConfig> = {}): EnvConfig => ({ ...DEFAULT_CONFIG, drafting: true, ...changes });
 
-test('the observation layout is contiguous, named once each, and 1,023 numbers long', () => {
+test('the observation layout is contiguous, named once each, and 1,029 numbers long, the offer block last', () => {
   let offset = 0;
   for (const block of OBS_LAYOUT) {
     assert.equal(block.offset, offset, block.name);
     offset += block.length;
   }
-  assert.equal(offset, 1023);
-  assert.equal(OBS_SIZE, 1023);
-  assert.equal(OBS_VERSION, 3);
+  assert.equal(offset, 1029);
+  assert.equal(OBS_SIZE, 1029);
+  assert.equal(OBS_VERSION, 4);
+  assert.deepEqual(OBS_LAYOUT[OBS_LAYOUT.length - 1], { name: 'offer', offset: 1023, length: 6 });
   assert.equal(new Set(OBS_LAYOUT.map((b) => b.name)).size, OBS_LAYOUT.length);
 });
 

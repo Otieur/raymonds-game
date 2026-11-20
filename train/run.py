@@ -29,7 +29,7 @@ import numpy as np
 import torch
 
 from envs import VecEnv
-from model import Net
+from model import Net, widen_optimizer_state, widen_state_dict
 from opponents import Book, table_config
 from ppo import PpoConfig, act, ppo_update
 from rollout import Collector
@@ -170,8 +170,8 @@ def save(run: Path, net, optimizer, state: dict, book: Book, rng: np.random.Gene
 
 def restore(saved: dict, net, optimizer, book: Book, rng: np.random.Generator) -> dict:
     """Loads a checkpoint into the training objects; returns its state. Checkpoints written before 20 November have no torch generator."""
-    net.load_state_dict(saved["net"])
-    optimizer.load_state_dict(saved["optimizer"])
+    net.load_state_dict(widen_state_dict(saved["net"]))
+    optimizer.load_state_dict(widen_optimizer_state(saved["optimizer"], net))
     book.load(saved["book"])
     rng.bit_generator.state = saved["rng"]
     if "torch_rng" in saved:
@@ -208,7 +208,7 @@ def main(argv: list[str] | None = None) -> None:
     net = Net().to(device)
     start = None
     if cfg.get("start"):
-        net.load_state_dict(torch.load(cfg["start"], map_location=device))
+        net.load_state_dict(widen_state_dict(torch.load(cfg["start"], map_location=device)))
         start = copy.deepcopy(net).eval()
         for p in start.parameters():
             p.requires_grad_(False)

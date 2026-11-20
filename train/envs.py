@@ -13,10 +13,10 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-OBS_SIZE = 1023
-ACTIONS = 188
-OBS_VERSION = 3
-ACTIONS_VERSION = 2
+OBS_SIZE = 1029
+ACTIONS = 191
+OBS_VERSION = 4
+ACTIONS_VERSION = 3
 
 
 @dataclass

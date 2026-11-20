@@ -103,6 +103,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
   let drafts = new Map<PlayerId, Draft>();
   let proposals = new Map<PlayerId, number>();
   let refused = new Map<PlayerId, Set<number>>();
+  let refusedSales = new Map<PlayerId, Set<string>>();
   let proposerAsked = new Set<PlayerId>();
   let proposerMemory = createStyleMemory();
   let windows = createDebtWindows();
@@ -166,6 +167,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
     drafts = new Map(ids.map((id) => [id, emptyDraft()]));
     proposals = new Map(ids.map((id) => [id, 0]));
     refused = new Map(ids.map((id) => [id, new Set()]));
+    refusedSales = new Map(ids.map((id) => [id, new Set()]));
     proposerAsked = new Set();
     proposerMemory = createStyleMemory();
     windows = createDebtWindows();
@@ -187,11 +189,17 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
       if (event.type === 'TURN_STARTED') {
         for (const id of proposals.keys()) proposals.set(id, 0);
         for (const set of refused.values()) set.clear();
+        for (const set of refusedSales.values()) set.clear();
         proposerAsked.clear();
       }
       if (event.type === 'TRADE_REJECTED') {
         const ask = ctx.propertyOrder.findIndex((sq) => event.offer.receive.properties.includes(sq.id));
         if (ask >= 0) refused.get(event.offer.from)?.add(ask);
+        else {
+          // A sale refused: the same property is not offered to the same partner again this turn.
+          const sold = ctx.propertyOrder.findIndex((sq) => event.offer.give.properties.includes(sq.id));
+          if (sold >= 0) refusedSales.get(event.offer.from)?.add(`${sold}>${event.offer.to}`);
+        }
       }
       if (event.type === 'BANKRUPT') eliminated.push(event.player);
     }
@@ -217,6 +225,7 @@ export function createEnv(config: EnvConfig = DEFAULT_CONFIG) {
       drafting: config.drafting,
       proposalsLeft: config.maxProposals - (proposals.get(actor) ?? 0),
       refused: refused.get(actor) ?? new Set(),
+      refusedSales: refusedSales.get(actor) ?? new Set(),
     });
   }
 
