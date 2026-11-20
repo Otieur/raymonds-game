@@ -95,7 +95,7 @@ The three seeds agree within a point on every measure. What it cannot do yet: ma
 
 ### Where things are
 
-The branch shown here, `ai/m10-opponents`, is the latest. `main` holds only the first commit. Each branch is built on the one below it:
+`main` always holds the latest version, which is now `ai/m10-opponents`. The branches below record how it got there, each built on the one below it:
 
 | Branch | What it adds |
 | --- | --- |
@@ -246,7 +246,7 @@ npm run dev          # 然后打开 http://localhost:5173
 
 ### 东西在哪
 
-这里显示的 `ai/m10-opponents` 是最新的分支；`main` 只有最早的一个提交。每个分支都在下面那个的基础上往上长：
+`main` 永远是最新版本，现在和 `ai/m10-opponents` 一样。下面这些分支记录了一路的进展，每个都在下面那个的基础上往上长：
 
 | 分支 | 新增了什么 |
 | --- | --- |
