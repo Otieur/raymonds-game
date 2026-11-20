@@ -475,3 +475,5 @@ Resumed at 20:23 from update 20 and run to the end of its budget, update 77 (10.
 ### Group 2 and 3: M5's bar 2
 
 Recorded in M5's file under "Bar 2 scored". The clone is level with its teacher in the same seat at two, three and four players (paired differences +0.2, +0.7 and +1.7 points, none clear of zero); against an even share as the bar is written, no size has an interval wholly above it, and three players lies below it, on seeds where seat 1 is unlucky for the teacher too (28.9% for a copy of the baseline among copies of itself, against 32.6% and 34.5% on the next two blocks of 1,000 seeds). The reading is left to the author.
+
+The author decided on 20 November to read bar 2 against the teacher in the same seat on the same seeds, met when the lower end of the paired difference's interval is above −3 points. Bar 2 is met at every size (lower ends −2.7, −1.9, −0.8). M5's file and the plan's README are updated.
