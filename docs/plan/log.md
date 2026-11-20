@@ -510,6 +510,10 @@ At about 03:00 seed 2's updates fell from about 1,300 decisions a second to abou
 - `run.py` now checks the weights a run ends with when its budget runs out between two checkpoints (`final_check_due`): checks followed the checkpoints, every 20 updates, so G1's runs (ending at update 383) and step 0c (update 77) left their final weights unscored. Not for runs stopped early with `--updates` or resumed after their budget. One test added; the Python suite runs 40, all passing. Seed 2 started before the change; seed 3, resumed later, has it.
 - About 05:50 the Slay the Spire game started by another session closed, and seed 2 ran at 3,000 to 5,600 decisions a second (about 40 seconds an update, against 100 to 120 before 03:00 and 6 minutes at the worst), the rate the plan had assumed. One training run on a machine with memory to spare is that fast; at this rate seed 2 ends at about 08:40 and seed 3 about four hours later.
 
+### M6: G1's seed 2
+
+Ended at 08:10 on 20 November: update 383, 50.04 million decisions, from the two-player clone with the same configuration as seed 1 (seed 2, training seeds from 20,000,000). Its checks every 20 updates (500 games against the baseline with the baseline proposing, check seeds): 51.0% at update 20, 53.0, 58.6, 69.7, 80.4 at 100, 86.8 at 120, then between 85.6% and 89.6% to the end, **best 89.6% (86.9 to 92.3) at update 220**, 89.0% at 380. Seed 1's curve was much the same (best 90.6% at 180). Seed 3 resumed from update 60 at 08:10, and `queue/g1-gates.sh` reads seed 2's gate from the export of update 220.
+
 ### Waiting for the author (20 November, morning)
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?
