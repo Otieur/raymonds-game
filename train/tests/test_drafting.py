@@ -43,6 +43,27 @@ class Schedule(unittest.TestCase):
         self.assertTrue(all(c["drafting"] and c["draftShare"] == 0.5 for c in configs))
 
 
+class SuiteInChecks(unittest.TestCase):
+    def test_a_check_with_a_suite_scores_it_and_its_line_is_kept(self):
+        import subprocess
+        import tempfile
+        run = Path(tempfile.mkdtemp())
+        cfg = {**training.DEFAULTS, "checks": {"size": 2, "suite": "offers-2.json"}}
+        proc = training.start_check(run, cfg, 7)
+        self.assertIn("--suite offers-2.json", proc.args)
+        proc.kill()
+        proc.wait()
+        proc.stdout.close()
+        lines = "Wrote x.ts\nm (offers by baseline) as the one among 1 baseline, seeds 1 to 2: 50.0% (1.3 to 98.7) of 2 finished games; 0 fallbacks in 9 decisions; 0.1 ms a decision; no refused action.\nsuite m: 60.0% (31.3 to 83.2) of 10 cases answered as measured; pass 3/5, second 3/5\n"
+        fake = subprocess.Popen(["printf", "%s", lines], stdout=subprocess.PIPE, text=True)
+        fake.wait()
+        training.collect_checks(run, [(7, fake)])
+        import json
+        entry = json.loads((run / "checks.jsonl").read_text().splitlines()[-1])
+        self.assertEqual(len(entry["output"]), 2)
+        self.assertTrue(entry["output"][1].startswith("suite m: 60.0%"))
+
+
 class DraftLoss(unittest.TestCase):
     def batch(self):
         torch.manual_seed(0)

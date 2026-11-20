@@ -368,12 +368,14 @@ def check_list(cfg: dict) -> list[dict]:
 
 
 def start_check(run: Path, cfg: dict, update: int) -> subprocess.Popen:
-    """Exports the latest weights and scores them in the background, without the bridge, once for each check setting."""
+    """Exports the latest weights and scores them in the background, without the bridge, once for each check setting.
+    A setting with `suite` (an offer suite of that size, M9) also scores the model's answers to the suite's offers."""
     out = run / "exports" / f"{update:05d}"
     offers = f" --proposer {cfg['proposer']}" if cfg.get("proposer") else " --no-proposals"
     scores = " && ".join(
         f"node {ROOT / 'scripts' / 'evaluate.ts'} --model {out}.ts --against {check.get('against', 'baseline')} --size {check['size']} "
         f"--games {check.get('games', 500)} --seeds {check.get('seeds', 2_500_000)}{offers}"
+        + (f" --suite {check['suite']}" if check.get("suite") else "")
         for check in check_list(cfg)
     )
     command = f"{sys.executable} {ROOT / 'train' / 'export.py'} --run {run} --out {out} && {scores}"
@@ -392,7 +394,7 @@ def collect_checks(run: Path, checks: list) -> list:
             proc.stdout.close()
         lines = output.strip().splitlines()
         # Every score's line (one for each check setting), or the last lines when there is none (an error).
-        scored = [line for line in lines if " as the one among " in line]
+        scored = [line for line in lines if " as the one among " in line or line.startswith("suite ")]
         with (run / "checks.jsonl").open("a") as f:
             f.write(json.dumps({"update": update, "code": proc.returncode, "output": scored or lines[-3:]}) + "\n")
     return running

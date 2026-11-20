@@ -2,7 +2,7 @@
  * Scores an exported model as one seat among copies of a league member, in TypeScript.
  *
  *   node scripts/evaluate.ts --model assets/models/<name>.ts [--against baseline] [--size 4] [--games 1000] [--seeds 1000000]
- *                            [--proposer baseline] [--tally] [--sample] [--compare <member>] [--workers 1]
+ *                            [--proposer baseline] [--tally] [--sample] [--compare <member>] [--workers 1] [--suite <file>]
  *
  * With --proposer the named school makes the model's offers and the model drafts none, which is how a
  * learner plays while drafting is off (M6). With --compare the named member then plays the same seeds
@@ -12,11 +12,14 @@
  * figures are the same as in one process; only the time a decision takes changes with the load.
  * --tally runs in one process, since its probe of the rules draws from one stream across games.
  *
+ * With --suite the model also answers an offer suite (M9) and its score is printed as one line.
+ *
  * Every action goes through the engine's checks; a refused action or a broken invariant stops the
  * run. Prints the win share with its interval, how often the agent fell back to the rule-based
  * agent, and the time a decision took.
  */
 import { fork } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createLearnedAgent } from '../src/env/learned-agent.ts';
@@ -28,7 +31,10 @@ import type { PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { chooseHeuristicAction, createAgentMemory } from '../src/sim/heuristic-agent.ts';
 import { describePaired, pairedDifference } from '../src/sim/intervals.ts';
+import { describeScore, scoreSuite } from '../src/sim/offer-suite.ts';
+import type { Suite } from '../src/sim/offer-suite.ts';
 import { memberAgent } from '../src/sim/league.ts';
+import { contextOf } from '../src/sim/style-agent.ts';
 import './model-loader.ts';
 import { PRESETS } from '../src/sim/styles.ts';
 import type { SeatAgent } from '../src/sim/styles.ts';
@@ -193,5 +199,12 @@ function report(parts: Part[]): void {
     const share = other.filter((o) => o === 1).length / done;
     console.log(`${compareName} in the same seat on the same seeds: ${(share * 100).toFixed(1)}% of ${done} finished games.`);
     console.log(describePaired(pairedDifference(outcomes, other)));
+  }
+  // --suite: how the model answers the offers of a suite, with the same options as its games.
+  const suiteFile = option('--suite');
+  if (suiteFile) {
+    const suite = JSON.parse(readFileSync(suiteFile, 'utf8')) as Suite;
+    const learned = () => createLearnedAgent(mlp, engine, { rulesFor, rulesWhenLegal, proposals: !process.argv.includes('--no-proposals'), proposer, greedy: !process.argv.includes('--sample') });
+    console.log(describeScore(MODEL.name, scoreSuite(engine, contextOf(engine), suite, learned)));
   }
 }
