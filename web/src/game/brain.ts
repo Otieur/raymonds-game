@@ -95,13 +95,14 @@ function inWorker(weights: ModelWeights, query: string, mode: Mode): Promise<Bra
       }
     };
     const agent: BrainAgent = {
-      choose(_engine, state, actor, random) {
+      choose(_engine, state, actor, random, limits) {
         if (broken) return Promise.reject(broken);
         const id = next++;
         const seed = Math.floor(random() * 2 ** 32);
         return new Promise<Action | null>((resolveAnswer, rejectAnswer) => {
           waiting.set(id, { resolve: resolveAnswer, reject: rejectAnswer });
-          post({ type: 'choose', id, state, actor, seed });
+          // The worker's engine is its own, so the seats this one may not ask again go with the question.
+          post({ type: 'choose', id, state, actor, seed, blocked: [...(limits?.blocked ?? [])] });
         });
       },
       observe(events, state) {

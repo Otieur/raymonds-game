@@ -306,6 +306,49 @@ function DebtPanel(props: PanelProps & { top: Extract<Pending, { kind: 'debt' }>
   );
 }
 
+/** A person asked, at a rival's debt the rival cannot cover, whether to make the debtor an offer first. */
+function WindowPanel(props: PanelProps & { top: Extract<Pending, { kind: 'debt' }> }) {
+  const { store, snap, player, top, onTrade, onSelect } = props;
+  const tg = useTongue();
+  const creditor = top.creditor === null ? tg.t('bank') : tg.who(top.creditor);
+  const debtor = tg.who(top.debtor);
+  const owned = store.engine.board.squares.filter(
+    (sq): sq is PropertySquare => isProperty(sq) && snap.state.properties[sq.id].owner === top.debtor,
+  );
+  return (
+    <>
+      <div className="debt">
+        <span>
+          {debtor} · {tg.t('owes', { who: creditor })} <Money amount={top.amount} />
+        </span>
+        <span>
+          {tg.t('cashInHand')} <Money amount={snap.cash[top.debtor]} />
+        </span>
+      </div>
+      <p className="hint">{tg.t('windowHint', { debtor })}</p>
+      <div className="deeds">
+        {owned.map((sq) => (
+          <button
+            key={sq.id}
+            type="button"
+            className={`deed-chip ${snap.state.properties[sq.id].mortgaged ? 'pawned' : ''}`}
+            style={vars({ '--group': sq.kind === 'street' ? look.groups[sq.group].color : '#8a7448' })}
+            onClick={() => onSelect(sq.id)}
+          >
+            {tg.square(sq.id)}
+          </button>
+        ))}
+      </div>
+      <div className="actions">
+        <Btn tone="primary" onClick={() => onTrade(player)}>
+          {tg.t('windowOffer', { who: debtor })}
+        </Btn>
+        <Btn onClick={() => store.passWindow()}>{tg.t('windowPass')}</Btn>
+      </div>
+    </>
+  );
+}
+
 function TransferPanel(props: PanelProps & { id: SquareId }) {
   const { store, player, id, onSelect } = props;
   const { t } = useTongue();
@@ -413,7 +456,9 @@ export function CommandPanel(props: Props) {
   const top = state.pending.at(-1);
   const waiting = store.engine.awaiting(state);
   const humans = waiting.filter((id) => !store.seat(id).ai);
-  const lead = humans[0] ?? snap.thinking ?? waiting[0] ?? state.turn.player;
+  // While a seat is asked at a rival's debt, it leads, and the debtor waits.
+  const window = snap.window;
+  const lead = window?.player ?? humans[0] ?? snap.thinking ?? waiting[0] ?? state.turn.player;
   const seat = store.seat(lead);
   const me = playerOf(snap, lead);
   const panel: PanelProps = { ...props, player: lead };
@@ -422,7 +467,21 @@ export function CommandPanel(props: Props) {
   let headline = opening ? t('headOrder') : t('headWait');
   let body: ReactNode;
   const humanInTrade = top?.kind === 'trade' && (!store.seat(top.offer.from).ai || !store.seat(top.offer.to).ai);
-  if (snap.busy || (humans.length === 0 && !humanInTrade)) {
+  if (!snap.busy && window && top?.kind === 'debt') {
+    headline = t('headWindow');
+    body = seat.ai ? (
+      <p className="waiting">
+        {t('weighing', { who: tg.who(seat.id), debtor: tg.who(window.debtor) })}
+        <span className="dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </p>
+    ) : (
+      <WindowPanel {...panel} top={top} />
+    );
+  } else if (snap.busy || (humans.length === 0 && !humanInTrade)) {
     body = (
       <p className="waiting">
         {snap.busy ? t('unfolding') : t('thinking', { who: tg.who(seat.id) })}

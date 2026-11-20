@@ -118,3 +118,152 @@ test('every opponent receives every event exactly once, in order, including one 
   for (const id of IDS) assert.deepEqual(seen.get(id), all, id);
   assert.deepEqual(seats.fallen(), []);
 });
+
+/** Offers `target` 20 for 10 at every free decision it can, else plays as the rule-based agent. */
+function chatty(target: PlayerId): OpponentAgent {
+  const rules = memberAgent('rules');
+  return {
+    choose: (e, s, actor, random) => {
+      const open = e.legalActions(s, actor).find((a) => a.type === 'PROPOSE_TRADE');
+      const offer: Action = { type: 'PROPOSE_TRADE', player: actor, to: target, give: { cash: 20, properties: [], jailCards: 0 }, receive: { cash: 10, properties: [], jailCards: 0 } };
+      if (open && open.type === 'PROPOSE_TRADE' && open.partners.includes(target) && e.validate(s, offer) === null) return offer;
+      return rules.choose(e, s, actor, random);
+    },
+    observe: () => {},
+  };
+}
+
+/** The offers made in a game where Wei asks Shu at every chance, with the given limit. */
+async function chattyGame(maxAsks: number): Promise<{ from: PlayerId; to: PlayerId; turn: number; players: number }[]> {
+  const seats = new Seats(engine, [{ id: 'wei', opponent: opponent('chatty', () => chatty('shu')) }, ...IDS.slice(1).map((id) => ({ id, opponent: rules }))], () => {}, { maxAsks });
+  const holder = { rng: seedFrom('chatty') };
+  let state = engine.newGame({ players: IDS, seed: 5 });
+  const asks: { from: PlayerId; to: PlayerId; turn: number; players: number }[] = [];
+  for (let i = 0; i < 1500 && state.winner === null; i++) {
+    const actor = engine.awaiting(state)[0];
+    const action = await seats.ask(state, actor, () => nextFloat(holder));
+    assert.ok(action);
+    const result = engine.apply(state, action);
+    assert.ok(result.ok, JSON.stringify(action));
+    state = result.state;
+    for (const event of result.events) {
+      if (event.type === 'TRADE_PROPOSED') asks.push({ from: event.offer.from, to: event.offer.to, turn: state.turn.number, players: state.players.filter((p) => !p.bankrupt).length });
+    }
+    seats.observe(result.events, state);
+  }
+  return asks;
+}
+
+test('with maxAsks 1, no seat receives two offers from one computer seat in a round', async () => {
+  const limited = (await chattyGame(1)).filter((a) => a.from === 'wei' && a.to === 'shu');
+  assert.ok(limited.length >= 5, `Wei asked Shu ${limited.length} times`);
+  for (let i = 1; i < limited.length; i++) {
+    assert.ok(limited[i].turn - limited[i - 1].turn >= limited[i].players, `asks on turns ${limited[i - 1].turn} and ${limited[i].turn}`);
+  }
+  // The limit is what holds it back: without one, the same seat asks again within the round.
+  const unlimited = (await chattyGame(Number.POSITIVE_INFINITY)).filter((a) => a.from === 'wei' && a.to === 'shu');
+  assert.ok(unlimited.some((a, i) => i > 0 && a.turn - unlimited[i - 1].turn < a.players), 'asks again within a round when unlimited');
+});
+
+test("an opponent's inputs are the same whether another seat is a person or a computer seat", async () => {
+  /** Wraps the rule-based agent and records everything it is given. */
+  const recorder = (log: string[]) =>
+    opponent('recorder', () => {
+      const inner = memberAgent('rules');
+      return {
+        choose: (e, s, actor, random, limits) => {
+          log.push(JSON.stringify({ choose: s, actor, limits, legal: e.legalActions(s, actor) }));
+          return inner.choose(e, s, actor, random);
+        },
+        observe: (events, s) => {
+          log.push(JSON.stringify({ events, s }));
+        },
+      };
+    });
+  const run = async (weiIsPerson: boolean, seed: number): Promise<string[]> => {
+    const log: string[] = [];
+    const computers = [{ id: 'shu', opponent: recorder(log) }, ...['wu', 'qun'].map((id) => ({ id, opponent: rules }))];
+    const seats = new Seats(engine, weiIsPerson ? computers : [{ id: 'wei', opponent: rules }, ...computers]);
+    // The person's hands: the same moves, made outside the seats the opponents share.
+    const person = new Seats(engine, [{ id: 'wei', opponent: rules }]);
+    const holder = { rng: seedFrom(`person-blind-${seed}`) };
+    const random = () => nextFloat(holder);
+    let state = engine.newGame({ players: IDS, seed });
+    for (let i = 0; i < 2500 && state.winner === null; i++) {
+      // The debt window, as the store runs it; a person asked there lets it pass.
+      let action: Action | null = null;
+      for (let asked = seats.nextAtDebt(state); asked !== null && !action; asked = seats.nextAtDebt(state)) {
+        if (asked !== 'wei' || !weiIsPerson) action = await seats.atDebt(state, asked, random);
+      }
+      const actor = engine.awaiting(state)[0];
+      action ??= weiIsPerson && actor === 'wei' ? await person.ask(state, actor, random) : await seats.ask(state, actor, random);
+      assert.ok(action);
+      const result = engine.apply(state, action);
+      assert.ok(result.ok);
+      state = result.state;
+      seats.observe(result.events, state);
+      person.observe(result.events, state);
+    }
+    return log;
+  };
+  let recorded = 0;
+  for (const seed of [21, 22, 23]) {
+    const asPerson = await run(true, seed);
+    assert.deepEqual(asPerson, await run(false, seed), `seed ${seed}`);
+    recorded += asPerson.length;
+  }
+  assert.ok(recorded > 1500, `only ${recorded} inputs recorded`);
+});
+
+test('at a debt the debtor cannot cover, the other seats are asked in order after the debtor, leaving out the creditor', async () => {
+  // A position with such a debt, from a game among rule-based agents.
+  let state: GameState | null = null;
+  for (let seed = 1; seed < 60 && !state; seed++) {
+    const memory = createAgentMemory();
+    let s = engine.newGame({ players: IDS, seed });
+    for (let i = 0; i < 4000 && s.winner === null; i++) {
+      const top = s.pending.at(-1);
+      if (top?.kind === 'debt' && top.creditor !== null) {
+        const debtor = s.players.find((p) => p.id === top.debtor);
+        if (debtor && debtor.cash < top.amount && s.players.every((p) => !p.bankrupt)) {
+          state = s;
+          break;
+        }
+      }
+      const actor = engine.awaiting(s)[0];
+      const result = engine.apply(s, chooseHeuristicAction(engine, s, actor, Math.random, memory) ?? { type: 'END_TURN', player: actor });
+      assert.ok(result.ok);
+      s = result.state;
+    }
+  }
+  assert.ok(state, 'found a debt the debtor cannot cover');
+  const top = state.pending.at(-1) as Extract<GameState['pending'][number], { kind: 'debt' }>;
+  const at = state.players.findIndex((p) => p.id === top.debtor);
+  const expected = [1, 2, 3].map((k) => state.players[(at + k) % 4].id).filter((id) => id !== top.creditor);
+
+  const order: PlayerId[] = [];
+  const seats = new Seats(engine, IDS.map((id) => ({ id, opponent: rules })));
+  for (let next = seats.nextAtDebt(state); next !== null; next = seats.nextAtDebt(state)) order.push(next);
+  assert.deepEqual(order, expected);
+  assert.equal(await seats.atDebt(state, expected[0], Math.random), null, 'the rule-based agent makes no offer at a debt');
+
+  // A seat that offers for one of the debtor's properties: its offer is played before the debtor acts.
+  const buyer = expected[0];
+  const target = engine.board.squares.find((sq) => state.properties[sq.id]?.owner === top.debtor && state.properties[sq.id].level === 0);
+  assert.ok(target, 'the debtor owns a property without buildings');
+  const offer: Action = { type: 'PROPOSE_TRADE', player: buyer, to: top.debtor, give: { cash: 10, properties: [], jailCards: 0 }, receive: { cash: 0, properties: [target.id], jailCards: 0 } };
+  const windowed = (answer: Action) => opponent('windowed', () => ({ ...memberAgent('rules'), window: () => answer }));
+  const offering = new Seats(engine, [{ id: buyer, opponent: windowed(offer) }]);
+  assert.equal(engine.validate(state, offer), null, 'the offer is a legal one');
+  assert.equal(offering.nextAtDebt(state), buyer);
+  assert.deepEqual(await offering.atDebt(state, buyer, Math.random), offer);
+  const result = engine.apply(state, offer);
+  assert.ok(result.ok);
+  assert.equal(result.state.pending.at(-1)?.kind, 'trade');
+  assert.deepEqual(engine.awaiting(result.state), [top.debtor], 'the debtor answers the offer first');
+  // An answer at a debt that is not an offer to the debtor is a failure.
+  const reports: PlayerId[] = [];
+  const wrong = new Seats(engine, [{ id: buyer, opponent: windowed({ type: 'END_TURN', player: buyer }) }], (seat) => reports.push(seat));
+  assert.equal(await wrong.atDebt(state, buyer, Math.random), null);
+  assert.deepEqual(reports, [buyer]);
+});

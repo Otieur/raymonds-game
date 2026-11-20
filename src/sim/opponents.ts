@@ -24,10 +24,18 @@ export interface Label {
 
 export type Mode = 'regular' | 'short';
 
+/** What the client tells an agent beyond the engine it is handed. */
+export interface AskLimits {
+  /** The seats this one may not ask again this round; the engine it is handed already leaves them out. */
+  blocked: readonly PlayerId[];
+}
+
 /** A seat agent as the client uses it: `SeatAgent` is one, and so is an agent that answers later. */
 export interface OpponentAgent {
-  choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null | Promise<Action | null>;
+  choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number, limits?: AskLimits): Action | null | Promise<Action | null>;
   observe(events: GameEvent[], state: GameState): void;
+  /** At a rival's debt: an offer to the debtor, if the seat makes one (see `src/sim/window.ts`). */
+  window?(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null | Promise<Action | null>;
   /** Releases what the agent holds, such as a worker, when its game is left or it is replaced. */
   dispose?(): void;
 }

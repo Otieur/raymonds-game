@@ -30,6 +30,8 @@ export interface Seat {
 export interface GameConfig {
   seats: Seat[];
   mode: 'regular' | 'short';
+  /** The most offers a computer seat sends one seat in a round; 1 unless set. */
+  maxAsks?: number;
 }
 
 export interface LogEntry {
@@ -77,6 +79,11 @@ export interface Snapshot {
   error: RuleError | null;
   fast: boolean;
   thinking: PlayerId | null;
+  /**
+   * At a debt the debtor cannot cover, the seat being asked whether it would make the debtor an
+   * offer before the debtor acts: a computer seat weighing it, or a person to answer.
+   */
+  window: { player: PlayerId; debtor: PlayerId } | null;
 }
 
 /**
@@ -169,6 +176,7 @@ export class GameStore {
       config.seats.filter((seat) => seat.ai).map((seat) => ({ id: seat.id, opponent: opponentFor(seat.opponent, size, config.mode) })),
       (seat, opponent, reason) =>
         console.warn(`${seat} plays the standard computer player from here on: ${opponent.name.en} failed.`, reason),
+      { maxAsks: config.maxAsks },
     );
     const state =
       saved?.state ??
@@ -191,6 +199,7 @@ export class GameStore {
       error: null,
       fast: false,
       thinking: null,
+      window: null,
       orderRolls: { ...(state.opening?.rolls ?? {}) },
       ...this.mirror(state),
     };
@@ -224,7 +233,7 @@ export class GameStore {
   /** Begins (or resumes) play: settles the view and lets the AI move if it is its turn. */
   start(): void {
     this.generation += 1;
-    this.patch({ busy: false, rolling: false, card: null, spot: null, thinking: null, ...this.mirror(this.snap.state) });
+    this.patch({ busy: false, rolling: false, card: null, spot: null, thinking: null, window: null, ...this.mirror(this.snap.state) });
     this.schedule();
   }
 
@@ -273,6 +282,14 @@ export class GameStore {
     this.skipCard?.();
   }
 
+  /** A person asked at a rival's debt makes no offer; the next seat is asked, or the debtor acts. */
+  passWindow(): void {
+    const window = this.snap.window;
+    if (!window || this.snap.busy || this.seat(window.player).ai) return;
+    this.patch({ window: null });
+    this.schedule();
+  }
+
   private patch(change: Partial<Snapshot>): void {
     this.snap = { ...this.snap, ...change };
     for (const listener of this.listeners) listener();
@@ -304,7 +321,7 @@ export class GameStore {
     const squares = this.engine.board.squares;
     const size = squares.length;
     const jail = squares.findIndex((sq) => sq.kind === 'jail');
-    this.patch({ busy: true, error: null, thinking: null });
+    this.patch({ busy: true, error: null, thinking: null, window: null });
 
     /** A pause for what just happened: full length for an AI player's doing, brisk for a person's own. */
     const hold = (ms: number, actor?: PlayerId | null) =>
@@ -467,14 +484,36 @@ export class GameStore {
    */
   private schedule(): void {
     const { state } = this.snap;
+    const run = this.generation;
+    const current = () => run === this.generation && !this.snap.busy && this.snap.state === state;
+    // At a debt the debtor cannot cover, the other seats are asked first, one at a time.
+    const asked = this.seats.nextAtDebt(state);
+    if (asked !== null) {
+      const debtor = (state.pending[state.pending.length - 1] as Extract<GameState['pending'][number], { kind: 'debt' }>).debtor;
+      if (!this.seat(asked).ai) {
+        this.patch({ window: { player: asked, debtor }, thinking: null });
+        return;
+      }
+      this.patch({ window: { player: asked, debtor }, thinking: asked });
+      void this.seats.atDebt(state, asked, Math.random).then(async (offer) => {
+        if (!current()) return;
+        if (!offer) {
+          this.patch({ window: null });
+          this.schedule();
+          return;
+        }
+        await this.wait(PACE.think);
+        if (current()) this.dispatch(offer);
+      });
+      return;
+    }
+    if (this.snap.window !== null) this.patch({ window: null });
     const actor = state.winner === null ? this.engine.awaiting(state).find((id) => this.seat(id).ai) : undefined;
     if (actor === undefined) {
       if (this.snap.thinking !== null) this.patch({ thinking: null });
       return;
     }
     this.patch({ thinking: actor });
-    const run = this.generation;
-    const current = () => run === this.generation && !this.snap.busy && this.snap.state === state;
     void Promise.all([this.seats.ask(state, actor, Math.random), this.wait(PACE.think)]).then(([action]) => {
       if (action && current()) this.dispatch(action);
     });

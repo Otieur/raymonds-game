@@ -7,9 +7,19 @@
  * choice, and keeps playing it for the rest of the game; the failure is reported once. A game never
  * stops because a model failed.
  *
+ * Two parts of playing the table live here too (M10, task 5a). A computer seat sends any one seat at
+ * most `maxAsks` offers a round (see `src/sim/asks.ts`). And at a debt the debtor cannot cover, the
+ * other seats are asked in the order of play after the debtor, leaving out its creditor, whether they
+ * would make it an offer, before the debtor acts (see `src/sim/window.ts`); the store asks a person
+ * the same question.
+ *
+ * Nothing here knows which seats are people: an opponent is given the engine, the state and the
+ * events, and the store passes nothing that would tell it.
+ *
  * Kept free of the browser so that the tests can run it.
  */
 import type { Action, Engine, GameEvent, GameState, PlayerId } from '../../../src/index.ts';
+import { askedEnough, createAskLedger, MAX_ASKS, noteAsks, withoutAsking } from '../../../src/sim/asks.ts';
 import { memberAgent } from '../../../src/sim/league.ts';
 import { DEFAULT_OPPONENT } from '../../../src/sim/opponents.ts';
 import type { Opponent, OpponentAgent } from '../../../src/sim/opponents.ts';
@@ -27,15 +37,25 @@ interface SeatSlot {
 
 export type FallbackReport = (seat: PlayerId, opponent: Opponent, reason: unknown) => void;
 
+export interface SeatsOptions {
+  /** The most offers a computer seat sends one seat in a round; 1 unless set. */
+  maxAsks?: number;
+}
+
 export class Seats {
   private readonly slots = new Map<PlayerId, SeatSlot>();
   private disposed = false;
   private readonly engine: Engine;
   private readonly report: FallbackReport;
+  private readonly maxAsks: number;
+  private readonly asks = createAskLedger();
+  /** The debt now open, and the seats already asked at it. */
+  private debt = { key: '', asked: new Set<PlayerId>() };
 
-  constructor(engine: Engine, seats: { id: PlayerId; opponent: Opponent }[], report: FallbackReport = () => {}) {
+  constructor(engine: Engine, seats: { id: PlayerId; opponent: Opponent }[], report: FallbackReport = () => {}, options: SeatsOptions = {}) {
     this.engine = engine;
     this.report = report;
+    this.maxAsks = options.maxAsks ?? MAX_ASKS;
     for (const { id, opponent } of seats) {
       const slot: SeatSlot = { opponent, agent: null, making: null, missed: [], rules: memberAgent('rules'), fallen: false };
       this.slots.set(id, slot);
@@ -84,6 +104,7 @@ export class Seats {
 
   /** Passes the events of an applied action, and the state after it, to every seat's opponent. */
   observe(events: GameEvent[], state: GameState): void {
+    noteAsks(this.asks, events, state);
     for (const [id, slot] of this.slots) {
       if (slot.fallen) continue;
       if (slot.agent) this.feed(id, slot, events, state);
@@ -98,23 +119,72 @@ export class Seats {
   async ask(state: GameState, actor: PlayerId, random: () => number): Promise<Action | null> {
     const slot = this.slots.get(actor);
     if (!slot || !this.engine.awaiting(state).includes(actor)) return null;
+    const blocked = askedEnough(this.asks, state, actor, this.maxAsks);
+    const view = withoutAsking(this.engine, blocked);
+    const asksAgain = (action: Action) => action.type === 'PROPOSE_TRADE' && blocked.includes(action.to);
     if (!slot.fallen) {
       try {
         const agent = slot.agent ?? (await slot.making);
         if (agent && !slot.fallen) {
-          const action = await agent.choose(this.engine, state, actor, random);
+          const action = await agent.choose(view, state, actor, random, { blocked });
           // The rule-based agent has no answer for a few rare decisions; that is not a failure.
           if (!action && slot.opponent.id === DEFAULT_OPPONENT) return this.simple(state, actor);
           if (!action) throw new Error('it answered nothing while its seat was awaited');
           const tried = this.engine.apply(state, action);
           if (!tried.ok) throw new Error(`the engine refused ${action.type}: ${tried.error.message}`);
-          return action;
+          // An agent that asks again past the limit is overruled for this decision only.
+          if (!asksAgain(action)) return action;
         }
       } catch (reason) {
         this.fall(actor, slot, reason);
       }
     }
-    return (await slot.rules.choose(this.engine, state, actor, random)) ?? this.simple(state, actor);
+    const ruled = await slot.rules.choose(view, state, actor, random);
+    return ruled && !asksAgain(ruled) ? ruled : this.simple(state, actor);
+  }
+
+  /**
+   * At a debt the debtor's cash does not cover: the next seat to ask whether it would make the debtor
+   * an offer, in the order of play after the debtor, leaving out the creditor and the seats already
+   * asked at this debt. Any seat, a person's included; it counts as asked from here on. Null when no
+   * such debt is open or everyone has been asked.
+   */
+  nextAtDebt(state: GameState): PlayerId | null {
+    const top = state.pending[state.pending.length - 1];
+    if (state.winner !== null || !top || top.kind !== 'debt') return null;
+    const start = state.players.findIndex((p) => p.id === top.debtor);
+    if (start === -1 || state.players[start].cash >= top.amount) return null;
+    const key = `${state.turn.number}:${top.debtor}:${top.creditor}:${top.amount}`;
+    if (this.debt.key !== key) this.debt = { key, asked: new Set() };
+    for (let k = 1; k < state.players.length; k++) {
+      const seat = state.players[(start + k) % state.players.length];
+      if (seat.bankrupt || seat.id === top.creditor || this.debt.asked.has(seat.id)) continue;
+      this.debt.asked.add(seat.id);
+      return seat.id;
+    }
+    return null;
+  }
+
+  /** A computer seat's offer to the debtor of the debt now open, or null when it makes none. */
+  async atDebt(state: GameState, actor: PlayerId, random: () => number): Promise<Action | null> {
+    const slot = this.slots.get(actor);
+    const top = state.pending[state.pending.length - 1];
+    if (!slot || slot.fallen || !slot.agent?.window || !top || top.kind !== 'debt') return null;
+    const blocked = askedEnough(this.asks, state, actor, this.maxAsks);
+    try {
+      const action = await slot.agent.window(withoutAsking(this.engine, blocked), state, actor, random);
+      if (!action) return null;
+      if (action.type !== 'PROPOSE_TRADE' || action.player !== actor || action.to !== top.debtor) {
+        throw new Error(`at a debt it answered ${action.type}, not an offer to the debtor`);
+      }
+      if (blocked.includes(action.to)) return null;
+      const tried = this.engine.apply(state, action);
+      if (!tried.ok) throw new Error(`the engine refused its offer at a debt: ${tried.error.message}`);
+      return action;
+    } catch (reason) {
+      this.fall(actor, slot, reason);
+      return null;
+    }
   }
 
   private feed(id: PlayerId, slot: SeatSlot, events: GameEvent[], state: GameState): void {

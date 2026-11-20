@@ -634,3 +634,16 @@ Not done, and why:
 - **Gate 4 on the main thread.** A rare decision takes up to 180 ms, over the 50 ms bar; the worker meets the gate, and Chrome started it from `file://`, so the main thread is only the fallback.
 - **Task 5, the person's check,** is the author's to do: three games for each opponent at each table size, with the record in M10's plan.
 - **Task 5a,** playing the table in the client (`maxAsks`, the debt window, invitations shown as offers), is next.
+
+### Task 5a: playing the table in the client
+
+| Part | What was built | How it was checked |
+| --- | --- | --- |
+| `maxAsks` | `src/sim/asks.ts`: a ledger of offers, the seats a computer seat has asked enough this round, and the engine view that leaves them out; `GameConfig.maxAsks`, 1 by default; the worker is sent the same list | A seat that asks Shu at every chance asks once a round with the limit (at least five asks, never two within a round) and more often without it |
+| The debt window | `Seats.nextAtDebt` and `atDebt`: the seats after the debtor in the order of play, the creditor left out, each asked once a debt; the store asks computer seats through their opponent's `window` and shows a person a prompt to make the debtor an offer or let it pass; the debtor acts once everyone has been asked | The order, a computer seat's offer played before the debtor acts, and a wrong answer counted as a failure, in the tests; in the client, a saved game at such a debt: the prompt, the composer with the debtor as only partner, a refused and an accepted offer, and letting it pass |
+| Offers shown in full | Already so: an offer to a person shows both sides with accept and reject | Seen in the client |
+| No one told who is a person | Nothing new to hide; now tested | An opponent's inputs (states, legal actions, events, limits) recorded over three games are identical whether Wei is a person or a computer seat making the same moves |
+
+The drifting sparks behind the client stopped for good, with an error in the console, when the window had no height (a hidden pane); fixed with a guard.
+
+`npm run typecheck` passes and 286 TypeScript tests pass. Task 5a's check is met in the tests and in the client; `maxAsks` and the debt window wait on the person's check (task 5b) for how they feel at the table.

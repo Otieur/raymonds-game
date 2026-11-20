@@ -38,7 +38,7 @@ Wei, Shu, Wu and Qun roll for the order of play, travel a board of warlords, pas
 | **Languages** | Chinese and English, switched at any time |
 | **Computer players** | Chosen for each computer seat on the opening screen: today's rule-based player, named characters such as the pass baron and the dealer, the strongest style the search found, and, once shipped, the two-player agent trained by reinforcement learning |
 | **Code** | A rules engine in TypeScript with no dependencies; a React client; training in Python and PyTorch |
-| **Tests** | 283 TypeScript tests and 53 Python tests |
+| **Tests** | 286 TypeScript tests and 53 Python tests |
 
 <p align="center">
   <img src="docs/images/game-en.jpg" alt="A game in progress at turn 35: the board, the dice, the warlords' standings and the chronicle" width="100%">
@@ -80,7 +80,7 @@ The goal is computer players that are strong, varied and pleasant to play agains
 | **M9** | **Trading: the learner makes its own offers** | **Moved forward to come before four players; foundation built** |
 | M7 | Every table size in the full game; one shared agent against specialists | Code for its first steps written |
 | M8 | League training, and learning when to change plan | To do |
-| M10 | The opponents in the client | First version in the game: an opponent for each computer seat, learned ones run in the background; the two-player agent ships when the data disk is back |
+| M10 | The opponents in the client | First version in the game: an opponent for each computer seat, learned ones run in the background, one offer to a seat a round, and a chance for everyone, you included, to buy from a player who cannot pay; the two-player agent ships when the data disk is back |
 
 **Where the two-player agent stands (G1).** Trained from the imitation network over 50 million decisions, three times from different random seeds:
 
@@ -189,7 +189,7 @@ The street portraits and the token drawings are third-party illustrations from t
 | **语言** | 中文、英文，随时切换 |
 | **电脑对手** | 开局界面给每个电脑座位单独挑：游戏原有的规则打法、关隘大亨和掮客这样有名有姓的流派人物、程序搜索出的最强打法，以及（装进游戏后）用强化学习练出来的二人局 AI |
 | **代码** | TypeScript 写的规则引擎（不依赖任何库）、React 前端、Python 和 PyTorch 训练 |
-| **测试** | TypeScript 测试 283 项，Python 测试 53 项 |
+| **测试** | TypeScript 测试 286 项，Python 测试 53 项 |
 
 <p align="center">
   <img src="docs/images/game-zh.jpg" alt="第 33 回合的对局：棋盘、骰子、群雄排名和战报" width="100%">
@@ -231,7 +231,7 @@ npm run dev          # 然后打开 http://localhost:5173
 | **M9** | **交易：AI 自己提交易** | **已提前到四人局之前；地基已写好** |
 | M7 | 所有人数的完整对局；比较一个通用 AI 和各人数的专门 AI | 前几步的代码已写好 |
 | M8 | 联赛训练，学会什么时候换打法 | 未开始 |
-| M10 | 把对手放进游戏里 | 第一版已进游戏：每个电脑座位都能挑对手，神经网络对手在后台运行；二人局 AI 等数据硬盘接回后装进去 |
+| M10 | 把对手放进游戏里 | 第一版已进游戏：每个电脑座位都能挑对手，神经网络对手在后台运行；电脑每轮最多向同一家提一次交易；有人还不起债时，包括你在内的其他人都有机会先出价买它的地；二人局 AI 等数据硬盘接回后装进去 |
 
 **二人局 AI（G1）的成绩。** 从模仿网络出发练了 5000 万步，换三组随机数各练了一遍：
 

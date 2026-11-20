@@ -17,7 +17,7 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size. M3b, table poli
 | M7 | [The full game and the specialists](m07-full-game.md) | G | M6 | Code for tasks 1 and 6 written and checked (19 November 2026): `train/branch.py`, past selves, checks at every size, the configurations, `study.ts --members`. No run made |
 | M8 | [League training and the reward search](m08-league-training.md) | E, G | M7 | Not started |
 | M9 | [Trading](m09-trading.md) | H | Moved forward on 20 November: parts A and B after G1 and before G2; part C inside G2 and G3; part D in M7 and M8 | Next: part A (action version 3, layout version 4, the drafting schedule, the offer suite, gate 7's remedy, Balancer's fix) |
-| M10 | [In the client](m10-in-the-client.md) | J | M5 for a first model; M9 for the last | First version's tasks 1 to 4 built |
+| M10 | [In the client](m10-in-the-client.md) | J | M5 for a first model; M9 for the last | First version's tasks 1 to 4 and 5a built; the person's checks open |
 
 ```text
 M0 ── M1 ──┬── M2 ── M3 ── M3b ──┐

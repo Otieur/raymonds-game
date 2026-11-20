@@ -8,6 +8,7 @@ import type { ModelWeights } from '../../../src/env/mlp.ts';
 import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../../../src/index.ts';
 import type { Action, Engine, GameEvent, GameState, PlayerId } from '../../../src/index.ts';
 import { nextFloat } from '../../../src/rng.ts';
+import { withoutAsking } from '../../../src/sim/asks.ts';
 import { learnedOptions, learnedSeatAgent } from '../../../src/sim/league.ts';
 import type { Mode } from '../../../src/sim/opponents.ts';
 import type { SeatAgent } from '../../../src/sim/styles.ts';
@@ -15,7 +16,7 @@ import type { SeatAgent } from '../../../src/sim/styles.ts';
 export type ToBrain =
   | { type: 'start'; weights: ModelWeights; query: string; mode: Mode }
   | { type: 'observe'; events: GameEvent[]; state: GameState }
-  | { type: 'choose'; id: number; state: GameState; actor: PlayerId; seed: number };
+  | { type: 'choose'; id: number; state: GameState; actor: PlayerId; seed: number; blocked: PlayerId[] };
 
 export type FromBrain =
   | { type: 'ready' }
@@ -49,7 +50,8 @@ scope.onmessage = ({ data }) => {
       const holder = { rng: data.seed };
       try {
         if (!engine || !agent) throw new Error('the worker was asked before it started');
-        scope.postMessage({ type: 'answer', id: data.id, action: agent.choose(engine, data.state, data.actor, () => nextFloat(holder)) });
+        const view = withoutAsking(engine, data.blocked);
+        scope.postMessage({ type: 'answer', id: data.id, action: agent.choose(view, data.state, data.actor, () => nextFloat(holder)) });
       } catch (error) {
         scope.postMessage({ type: 'answer', id: data.id, action: null, error: error instanceof Error ? error.message : String(error) });
       }
