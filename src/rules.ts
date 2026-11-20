@@ -29,3 +29,8 @@ export const SHORT_GAME_RULES: Readonly<Partial<RuleConfig>> = Object.freeze({
   housesBeforeHotel: 3,
   endAfterBankruptcies: 2,
 });
+
+/** Whether a set of rules includes every change of the short game. */
+export function isShortGame(rules: Partial<RuleConfig>): boolean {
+  return (Object.keys(SHORT_GAME_RULES) as (keyof RuleConfig)[]).every((key) => rules[key] === SHORT_GAME_RULES[key]);
+}

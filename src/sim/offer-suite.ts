@@ -255,21 +255,25 @@ export interface SuiteScore {
   low: number;
   high: number;
   byTemplate: Record<string, { cases: number; right: number }>;
+  /** By label: cases labelled accept and how many were accepted; labelled refuse and how many were refused. */
+  byLabel: { accept: { cases: number; right: number }; refuse: { cases: number; right: number } };
 }
 
 /** The share of a suite's cases an agent answers as labelled; `agentFor` gives a fresh agent for each case. */
 export function scoreSuite(engine: Engine, ctx: Context, suite: Pick<Suite, 'cases'>, agentFor: () => SeatAgent): SuiteScore {
   const byTemplate: SuiteScore['byTemplate'] = {};
+  const byLabel: SuiteScore['byLabel'] = { accept: { cases: 0, right: 0 }, refuse: { cases: 0, right: 0 } };
   let right = 0;
   for (const kase of suite.cases) {
     const ok = answerCase(engine, ctx, agentFor(), kase) === kase.label;
     if (ok) right += 1;
-    const t = (byTemplate[kase.template] ??= { cases: 0, right: 0 });
-    t.cases += 1;
-    if (ok) t.right += 1;
+    for (const tally of [(byTemplate[kase.template] ??= { cases: 0, right: 0 }), byLabel[kase.label]]) {
+      tally.cases += 1;
+      if (ok) tally.right += 1;
+    }
   }
   const [low, high] = wilson(right, suite.cases.length);
-  return { cases: suite.cases.length, right, share: suite.cases.length ? right / suite.cases.length : NaN, low, high, byTemplate };
+  return { cases: suite.cases.length, right, share: suite.cases.length ? right / suite.cases.length : NaN, low, high, byTemplate, byLabel };
 }
 
 /** One line for a suite's score, as the checks log it. */

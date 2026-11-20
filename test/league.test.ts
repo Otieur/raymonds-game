@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import '../scripts/model-loader.ts';
 import { ACTIONS, ACTIONS_VERSION } from '../src/env/actions.ts';
 import { OBS_SIZE, OBS_VERSION } from '../src/env/observe.ts';
-import { createEngine, threeKingdoms } from '../src/index.ts';
+import { createEngine, isShortGame, SHORT_GAME_RULES, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { memberAgent } from '../src/sim/league.ts';
@@ -49,4 +49,39 @@ test('a member named model:<path> plays an exported model at a table, every acti
 
 test('a model member names a file that must exist', () => {
   assert.throws(() => memberAgent('model:/no/such/model.ts'));
+});
+
+test('model members: ?own lets the network draft and plays a full game; ?trade=<school> lets the school answer offers', () => {
+  const engine = createEngine(threeKingdoms);
+  const path = tinyModel();
+  // A full game with the network drafting its own offers: every action is accepted.
+  const agents = new Map<PlayerId, SeatAgent>([['p1', memberAgent('baseline')], ['p2', memberAgent(`model:${path}?own`)]]);
+  const holder = { rng: seedFrom('model-own') };
+  const random = () => nextFloat(holder);
+  let state = engine.newGame({ players: ['p1', 'p2'], seed: 4 });
+  for (let i = 0; i < 800 && state.winner === null; i++) {
+    const waiting = engine.awaiting(state);
+    const actor = waiting[Math.floor(random() * waiting.length)];
+    const action = agents.get(actor)?.choose(engine, state, actor, random);
+    assert.ok(action);
+    const result = engine.apply(state, action);
+    assert.ok(result.ok, `${JSON.stringify(action)} is accepted`);
+    state = result.state;
+    for (const agent of agents.values()) agent.observe(result.events, state);
+  }
+  // An offer to the model's seat: the all-zero network takes the first legal answer (accept); the refuser, answering for it, refuses.
+  const offered = engine.newGame({ players: ['p1', 'p2'], seed: 5, startingPlayer: 'p1' });
+  offered.properties['hulao-pass'].owner = 'p2';
+  offered.turn.phase = 'postRoll';
+  offered.pending = [{ kind: 'trade', offer: { from: 'p1', to: 'p2', give: { cash: 10, properties: [], jailCards: 0 }, receive: { cash: 0, properties: ['hulao-pass'], jailCards: 0 } } }];
+  const answer = (name: string) => memberAgent(name).choose(engine, offered, 'p2', () => 0.5)?.type;
+  assert.equal(answer(`model:${path}`), 'ACCEPT_TRADE');
+  assert.equal(answer(`model:${path}?trade=refuser`), 'REJECT_TRADE');
+  assert.throws(() => memberAgent(`model:${path}?drafts`), /Unknown option/);
+  assert.throws(() => memberAgent(`model:${path}?trade=nobody`), /No school named nobody/);
+});
+
+test('the short game is recognised from an engine\'s rules', () => {
+  assert.equal(isShortGame(createEngine(threeKingdoms, SHORT_GAME_RULES).rules), true);
+  assert.equal(isShortGame(createEngine(threeKingdoms).rules), false);
 });

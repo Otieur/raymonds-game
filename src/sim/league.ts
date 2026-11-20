@@ -98,7 +98,15 @@ export function setModelLoader(loader: (path: string) => ModelWeights): void {
  */
 function modelAgent(name: string): SeatAgent | null {
   if (!name.startsWith('model:')) return null;
-  const path = name.slice('model:'.length);
+  // `model:<path>` lets the baseline make the seat's offers; `?own` lets the network draft them;
+  // `?trade=<school>` lets the school (a preset or a found style) make the offers and answer them (M9).
+  const [path, query = ''] = name.slice('model:'.length).split('?');
+  const school = query.startsWith('trade=') ? query.slice('trade='.length) : null;
+  if (query && query !== 'own' && !school) throw new Error(`Unknown option "${query}" in ${name}: use ?own or ?trade=<school>.`);
+  const found = school ? FOUND.find((f) => f.name === school) : undefined;
+  const trader = school ? (PRESETS[school]?.playbook.base ?? (found ? completeStyle(found.playbook.base) : undefined)) : undefined;
+  if (school && !trader) throw new Error(`No school named ${school} in ${name}.`);
+  const options = query === 'own' ? { greedy: true } : trader ? { greedy: true, proposer: trader, answerer: trader } : { proposer: PRESETS.baseline.playbook.base, greedy: true };
   let mlp = models.get(path);
   if (!mlp) {
     if (!loadModel) throw new Error(`No model loader in this process for ${name}; import scripts/model-loader.ts.`);
@@ -110,7 +118,7 @@ function modelAgent(name: string): SeatAgent | null {
   const early: [GameEvent[], GameState][] = [];
   const ready = (engine: Engine): SeatAgent => {
     if (!agent) {
-      agent = createLearnedAgent(model, engine, { proposer: PRESETS.baseline.playbook.base, greedy: true });
+      agent = createLearnedAgent(model, engine, options);
       for (const [events, state] of early.splice(0)) agent.observe(events, state);
     }
     return agent;

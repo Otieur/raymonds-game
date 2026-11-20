@@ -3,6 +3,7 @@
  *
  *   node scripts/evaluate.ts --model assets/models/<name>.ts [--against baseline] [--size 4] [--games 1000] [--seeds 1000000]
  *                            [--proposer baseline] [--tally] [--sample] [--compare <member>] [--workers 1] [--suite <file>]
+ *                            [--rules full|short]
  *
  * With --proposer the named school makes the model's offers and the model drafts none, which is how a
  * learner plays while drafting is off (M6). With --compare the named member then plays the same seeds
@@ -13,6 +14,7 @@
  * --tally runs in one process, since its probe of the rules draws from one stream across games.
  *
  * With --suite the model also answers an offer suite (M9) and its score is printed as one line.
+ * With --rules short the games are the short game (G2's four players), and the model is told so.
  *
  * Every action goes through the engine's checks; a refused action or a broken invariant stops the
  * run. Prints the win share with its interval, how often the agent fell back to the rule-based
@@ -26,7 +28,7 @@ import { createLearnedAgent } from '../src/env/learned-agent.ts';
 import { createMlp } from '../src/env/mlp.ts';
 import { DECISION_KINDS } from '../src/env/observe.ts';
 import type { ModelWeights } from '../src/env/mlp.ts';
-import { createEngine, threeKingdoms } from '../src/index.ts';
+import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { chooseHeuristicAction, createAgentMemory } from '../src/sim/heuristic-agent.ts';
@@ -61,7 +63,9 @@ const rulesWhenLegal = option('--rules-when-legal')?.split(',');
 const proposerName = option('--proposer');
 const proposer = proposerName ? PRESETS[proposerName]?.playbook.base : undefined;
 if (proposerName && !proposer) throw new Error(`No school named ${proposerName}.`);
-const engine = createEngine(threeKingdoms);
+const rules = option('--rules') ?? 'full';
+if (rules !== 'full' && rules !== 'short') throw new Error(`--rules is full or short, not ${rules}.`);
+const engine = rules === 'short' ? createEngine(threeKingdoms, SHORT_GAME_RULES) : createEngine(threeKingdoms);
 const mlp = createMlp(MODEL);
 let wins = 0;
 let finished = 0;
@@ -185,7 +189,7 @@ function report(parts: Part[]): void {
   const p = wins / finished;
   const half = 1.96 * Math.sqrt((p * (1 - p)) / finished);
   console.log(
-    `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${proposerName ? ` (offers by ${proposerName})` : ''}${process.argv.includes('--sample') ? ' (sampling)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
+    `${MODEL.name}${rulesFor.length ? ` (rules for ${rulesFor.map((k) => DECISION_KINDS[k]).join(', ')})` : ''}${rules === 'short' ? ' (short game)' : ''}${process.argv.includes('--no-proposals') ? ' (no offers)' : ''}${proposerName ? ` (offers by ${proposerName})` : ''}${process.argv.includes('--sample') ? ' (sampling)' : ''}${rulesWhenLegal ? ` (rules when ${rulesWhenLegal.join(', ')} is legal)` : ''} as the one among ${size - 1} ${against}, seeds ${start} to ${start + games - 1}: ${(p * 100).toFixed(1)}% (${((p - half) * 100).toFixed(1)} to ${((p + half) * 100).toFixed(1)}) of ${finished} finished games; ` +
       `${fallbacks} fallbacks in ${decisions} decisions; ${(thinking / Math.max(1, decisions)).toFixed(2)} ms a decision; no refused action.`,
   );
   if (process.argv.includes('--tally')) {

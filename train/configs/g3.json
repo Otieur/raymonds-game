@@ -1,11 +1,119 @@
 {
   "name": "g3",
-  "note": "Three players, full game, with one game in five at each of the earlier sizes.",
+  "note": "Three players, full game, with one game in five at each of the earlier sizes. Branched from the holder after G2, with the learner's own offers as in G2. The same settings as G2, the warm-up for the three-player value head. Checked at three players, two, and four in the short game, each with its offer suite.",
   "games": [
-    { "players": 3, "rules": "full", "share": 0.6 },
-    { "players": 2, "rules": "full", "share": 0.2 },
-    { "players": 4, "rules": "short", "share": 0.2 }
+    {
+      "players": 3,
+      "rules": "full",
+      "share": 0.6
+    },
+    {
+      "players": 2,
+      "rules": "full",
+      "share": 0.2
+    },
+    {
+      "players": 4,
+      "rules": "short",
+      "share": 0.2
+    }
   ],
   "budget": 50000000,
-  "checks": { "size": 3, "games": 500, "seeds": 2500000, "against": "baseline" }
+  "lr": 0.0003,
+  "entropy": [
+    0.01,
+    0.001
+  ],
+  "shaping": {
+    "value": {
+      "start": 1.0,
+      "until": 0.7
+    },
+    "milestones": {
+      "start": 0.2,
+      "until": 0.3
+    }
+  },
+  "kappa": {
+    "start": 0.0,
+    "until": 0.0
+  },
+  "critic_warmup": 2000000,
+  "drafting": {
+    "share": 0.5,
+    "then": 1.0,
+    "at": 0.3
+  },
+  "pull": null,
+  "kappa_draft": {
+    "start": 0.0,
+    "until": 0.0
+  },
+  "holder": null,
+  "members": {
+    "2": [
+      "baseline",
+      "refuser",
+      "found-2-b1t2p2c1",
+      "found-2-b2t2p1c1",
+      "warden",
+      "grudger",
+      "scavenger",
+      "reference-2"
+    ],
+    "3": [
+      "baseline",
+      "refuser",
+      "found-3-b2t2p1c1",
+      "statesman-book-2",
+      "statesman-book-2",
+      "broker-2",
+      "broker-2",
+      "envoy-2",
+      "envoy-2",
+      "prober-2",
+      "early-bird-2",
+      "warden-2",
+      "reference-3"
+    ],
+    "4": [
+      "baseline",
+      "refuser",
+      "found-4-b2t1p1c2",
+      "statesman-book-2",
+      "statesman-book-2",
+      "broker-2",
+      "broker-2",
+      "envoy-2",
+      "envoy-2",
+      "prober-2",
+      "early-bird-2",
+      "warden-2",
+      "reference"
+    ]
+  },
+  "checks": [
+    {
+      "size": 3,
+      "games": 500,
+      "seeds": 2500000,
+      "against": "baseline",
+      "suite": "test/fixtures/offers-3.json"
+    },
+    {
+      "size": 2,
+      "games": 500,
+      "seeds": 2500000,
+      "against": "baseline",
+      "suite": "test/fixtures/offers-2.json"
+    },
+    {
+      "size": 4,
+      "rules": "short",
+      "games": 500,
+      "seeds": 2500000,
+      "against": "baseline",
+      "suite": "test/fixtures/offers-4-short.json"
+    }
+  ]
 }

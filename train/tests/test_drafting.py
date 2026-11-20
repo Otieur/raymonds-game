@@ -64,6 +64,46 @@ class SuiteInChecks(unittest.TestCase):
         self.assertTrue(entry["output"][1].startswith("suite m: 60.0%"))
 
 
+class MembersAndChecks(unittest.TestCase):
+    def test_members_by_table_size(self):
+        by_size = {"2": ["baseline", "refuser"], "4": ["baseline", "statesman-book-2", "statesman-book-2"]}
+        cfg = {**training.DEFAULTS, "members": by_size, "workers": 4,
+               "games": [{"players": 4, "rules": "short", "share": 0.5}, {"players": 2, "rules": "full", "share": 0.5}]}
+        members = training.members_now(cfg, {"selves": []})
+        self.assertEqual(members, by_size)
+        self.assertEqual(training.members_for(members, 4), by_size["4"])
+        self.assertEqual(training.members_for(["baseline"], 3), ["baseline"])
+        with self.assertRaises(SystemExit):
+            training.members_for(members, 3)
+        configs, _ = training.draw_tables(cfg, Book(), np.random.default_rng(1), members)
+        for c in configs:
+            if "opponents" in c and c["opponents"] and c["opponents"][0]["member"] not in ("baseline",):
+                names = [o["member"] for o in c["opponents"]]
+                self.assertEqual(names, by_size[str(c["players"])])
+        # Past selves join every size's list.
+        cfg["past_selves"] = {"every": 200, "newest": 1, "spread": 0}
+        self.assertEqual(training.members_now(cfg, {"selves": ["/r/a.ts"]})["2"], ["baseline", "refuser", "model:/r/a.ts"])
+
+    def test_checks_of_a_drafting_run_in_the_short_game(self):
+        import tempfile
+        cfg = {**training.DEFAULTS, "drafting": {"share": 0.5}, "checks": [{"size": 4, "rules": "short"}, {"size": 2}]}
+        proc = training.start_check(Path(tempfile.mkdtemp()), cfg, 3)
+        proc.kill()
+        proc.wait()
+        proc.stdout.close()
+        command = proc.args
+        self.assertNotIn("--proposer", command)
+        self.assertNotIn("--no-proposals", command)
+        self.assertEqual(command.count("--rules short"), 1)
+        cfg = {**training.DEFAULTS, "checks": {"size": 2}}
+        proc = training.start_check(Path(tempfile.mkdtemp()), cfg, 3)
+        proc.kill()
+        proc.wait()
+        proc.stdout.close()
+        self.assertIn("--proposer baseline", proc.args)
+        self.assertNotIn("--rules", proc.args)
+
+
 class DraftLoss(unittest.TestCase):
     def batch(self):
         torch.manual_seed(0)

@@ -137,13 +137,25 @@ def kept_selves(history: list[str], newest: int, spread: int) -> list[str]:
     return [self for self in history if self in chosen]
 
 
-def members_now(cfg: dict, state: dict) -> list[str]:
-    """The league members tables are drawn from: the configured ones, and the past selves seated now."""
+def members_now(cfg: dict, state: dict) -> list[str] | dict[str, list[str]]:
+    """The league members tables are drawn from: the configured ones, and the past selves seated now.
+    `members` is one list for every table size, or a list for each size keyed "2", "3", "4" (G2 and G3);
+    a name listed twice is met twice as often (M9's double weight for the members that trade most)."""
     selves = cfg.get("past_selves")
-    if not selves:
-        return list(cfg["members"])
-    kept = kept_selves(state.get("selves", []), selves.get("newest", 4), selves.get("spread", 4))
-    return list(cfg["members"]) + [f"model:{path}" for path in kept]
+    kept = kept_selves(state.get("selves", []), selves.get("newest", 4), selves.get("spread", 4)) if selves else []
+    extra = [f"model:{path}" for path in kept]
+    if isinstance(cfg["members"], dict):
+        return {size: list(names) + extra for size, names in cfg["members"].items()}
+    return list(cfg["members"]) + extra
+
+
+def members_for(members: list[str] | dict[str, list[str]], players: int) -> list[str]:
+    """The members for a table of `players`: the list for that size when they are given by size."""
+    if isinstance(members, dict):
+        if str(players) not in members:
+            raise SystemExit(f"No members are given for tables of {players}.")
+        return members[str(players)]
+    return members
 
 
 def add_self(run: Path, net, state: dict) -> str:
@@ -157,7 +169,7 @@ def add_self(run: Path, net, state: dict) -> str:
     return path
 
 
-def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[str] | None = None, share: float = 0.0) -> tuple[list[dict], list[str]]:
+def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[str] | dict[str, list[str]] | None = None, share: float = 0.0) -> tuple[list[dict], list[str]]:
     """One environment configuration for each worker: a game (table size and rules) and a kind of table, each drawn by its share."""
     from opponents import sample_kind
 
@@ -177,7 +189,7 @@ def draw_tables(cfg: dict, book: Book, rng: np.random.Generator, members: list[s
             configs.append({**base, "learners": 1, "opponents": cfg["opponents"]})
         else:
             kind = sample_kind(rng)
-            configs.append(table_config(kind, base, game["players"], members, book, cfg["holder"]))
+            configs.append(table_config(kind, base, game["players"], members_for(members, game["players"]), book, cfg["holder"]))
         labels.append(f"{game['players']}p {game['rules']} {kind}")
     return configs, labels
 
@@ -371,11 +383,13 @@ def start_check(run: Path, cfg: dict, update: int) -> subprocess.Popen:
     """Exports the latest weights and scores them in the background, without the bridge, once for each check setting.
     A setting with `suite` (an offer suite of that size, M9) also scores the model's answers to the suite's offers."""
     out = run / "exports" / f"{update:05d}"
-    offers = f" --proposer {cfg['proposer']}" if cfg.get("proposer") else " --no-proposals"
+    # A run that drafts its own offers (M9) is checked drafting them; otherwise its school proposes, as in training.
+    offers = "" if cfg.get("drafting") else f" --proposer {cfg['proposer']}" if cfg.get("proposer") else " --no-proposals"
     scores = " && ".join(
         f"node {ROOT / 'scripts' / 'evaluate.ts'} --model {out}.ts --against {check.get('against', 'baseline')} --size {check['size']} "
         f"--games {check.get('games', 500)} --seeds {check.get('seeds', 2_500_000)}{offers}"
         + (f" --suite {check['suite']}" if check.get("suite") else "")
+        + (f" --rules {check['rules']}" if check.get("rules", "full") != "full" else "")
         for check in check_list(cfg)
     )
     command = f"{sys.executable} {ROOT / 'train' / 'export.py'} --run {run} --out {out} && {scores}"

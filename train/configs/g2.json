@@ -1,10 +1,92 @@
 {
   "name": "g2",
-  "note": "Four players, short game, with one game in five still at two players. Starts from the holder of main-2.",
+  "note": "Four players, short game, with one game in five still at two players. Branched from the holder of main-2 after M9's two-player steps (the trading agent), with the learner's own offers from the start: on half its turns for the first 30% of the budget, on all after (M9, part C). G1's settings for a new size (learning rate, entropy, shaping), a warm-up of 2 million decisions for the four-player value head, no pull toward the starting policy. Members by size; the schools that trade most (the Statesman with its playbook, the Broker, the Envoy) are listed twice, so they are met twice as often. Checked at four players in the short game and at two, each with its offer suite.",
   "games": [
-    { "players": 4, "rules": "short", "share": 0.8 },
-    { "players": 2, "rules": "full", "share": 0.2 }
+    {
+      "players": 4,
+      "rules": "short",
+      "share": 0.8
+    },
+    {
+      "players": 2,
+      "rules": "full",
+      "share": 0.2
+    }
   ],
   "budget": 50000000,
-  "checks": { "size": 4, "games": 500, "seeds": 2500000, "against": "baseline" }
+  "lr": 0.0003,
+  "entropy": [
+    0.01,
+    0.001
+  ],
+  "shaping": {
+    "value": {
+      "start": 1.0,
+      "until": 0.7
+    },
+    "milestones": {
+      "start": 0.2,
+      "until": 0.3
+    }
+  },
+  "kappa": {
+    "start": 0.0,
+    "until": 0.0
+  },
+  "critic_warmup": 2000000,
+  "drafting": {
+    "share": 0.5,
+    "then": 1.0,
+    "at": 0.3
+  },
+  "pull": null,
+  "kappa_draft": {
+    "start": 0.0,
+    "until": 0.0
+  },
+  "holder": null,
+  "members": {
+    "2": [
+      "baseline",
+      "refuser",
+      "found-2-b1t2p2c1",
+      "found-2-b2t2p1c1",
+      "warden",
+      "grudger",
+      "scavenger",
+      "reference-2"
+    ],
+    "4": [
+      "baseline",
+      "refuser",
+      "found-4-b2t1p1c2",
+      "statesman-book-2",
+      "statesman-book-2",
+      "broker-2",
+      "broker-2",
+      "envoy-2",
+      "envoy-2",
+      "prober-2",
+      "early-bird-2",
+      "warden-2",
+      "reference"
+    ]
+  },
+  "checks": [
+    {
+      "size": 4,
+      "rules": "short",
+      "games": 500,
+      "seeds": 2500000,
+      "against": "baseline",
+      "suite": "test/fixtures/offers-4-short.json"
+    },
+    {
+      "size": 2,
+      "games": 500,
+      "seeds": 2500000,
+      "against": "baseline",
+      "suite": "test/fixtures/offers-2.json"
+    }
+  ]
 }
