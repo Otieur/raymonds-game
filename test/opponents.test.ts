@@ -6,8 +6,7 @@ import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
 import { memberAgent } from '../src/sim/league.ts';
 import { DEFAULT_OPPONENT, opponentFor, opponentsFor } from '../src/sim/opponents.ts';
-import type { Lines, Mode } from '../src/sim/opponents.ts';
-import type { SeatAgent } from '../src/sim/styles.ts';
+import type { Lines, Mode, OpponentAgent } from '../src/sim/opponents.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 
 const lines = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'assets', 'lines.json'), 'utf8')) as Lines;
@@ -26,14 +25,22 @@ test('the opponents offered: the rule-based agent first, characters by size, the
       assert.equal(new Set(offered.map((x) => x.id)).size, offered.length);
     }
   }
-  const shipped = { 'main-2': { create: async () => memberAgent('rules') } };
+  const holder = lines.lines['main-2'].holder;
+  const shipped = { 'main-2': { holder, create: async () => memberAgent('rules') } };
   assert.ok(opponentsFor(2, 'regular', lines, shipped).some((o) => o.id === 'main-2' && o.level === 4));
   assert.ok(!opponentsFor(2, 'short', lines, shipped).some((o) => o.id === 'main-2'));
   assert.ok(!opponentsFor(3, 'regular', lines, shipped).some((o) => o.id === 'main-2'));
-  // A choice that cannot sit at the table falls back to the default.
+  // A shipped model that no longer holds its line is not offered.
+  const stale = { 'main-2': { holder: 'model:an-older-export.ts', create: async () => memberAgent('rules') } };
+  assert.ok(!opponentsFor(2, 'regular', lines, stale).some((o) => o.id === 'main-2'));
+  // A choice that cannot sit at the table falls back: a character to the default, a level to the nearest below.
   assert.equal(opponentFor('school-statesman-book-2', 2, 'regular', lines).id, DEFAULT_OPPONENT);
   assert.equal(opponentFor('nobody', 3, 'short', lines).id, DEFAULT_OPPONENT);
   assert.equal(opponentFor('school-dealer', 3, 'short', lines).id, 'school-dealer');
+  assert.equal(opponentFor('main-2', 2, 'regular', lines).id, 'style-2');
+  assert.equal(opponentFor('main-2', 2, 'short', lines, shipped).id, 'style-2');
+  assert.equal(opponentFor('main-2', 2, 'regular', lines, shipped).id, 'main-2');
+  assert.equal(opponentFor('style-3', 2, 'regular', lines).id, 'style-2');
 });
 
 test('every opponent plays full games at each of its sizes, in both modes, with every action accepted', async () => {
@@ -43,7 +50,7 @@ test('every opponent plays full games at each of its sizes, in both modes, with 
       for (const opponent of opponentsFor(size, mode, lines)) {
         for (let game = 0; game < GAMES; game++) {
           const ids: PlayerId[] = Array.from({ length: size }, (_, i) => `p${i + 1}`);
-          const agents = new Map<PlayerId, SeatAgent>();
+          const agents = new Map<PlayerId, OpponentAgent>();
           for (const [i, id] of ids.entries()) agents.set(id, i === 0 ? await opponent.create() : memberAgent('rules'));
           const holder = { rng: seedFrom(`opponents-${opponent.id}-${size}-${mode}-${game}`) };
           const random = () => nextFloat(holder);

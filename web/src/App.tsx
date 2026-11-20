@@ -53,6 +53,7 @@ export function App() {
   };
   const quit = () => {
     if (store?.getSnapshot().state.winner !== null) clearSave();
+    store?.dispose();
     setStore(null);
     setSaved(loadSave());
   };

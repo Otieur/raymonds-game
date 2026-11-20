@@ -8,10 +8,14 @@
  * Level 3 is the holder of the table size's style line, and level 4 the holder of its main line
  * when a model of it is shipped with the client; both come from `assets/lines.json`, so only a
  * holder is ever offered.
+ *
+ * An opponent's agent may answer with a promise: a learned one runs its network off the main thread
+ * in the client.
  */
+import type { Engine } from '../engine/engine.ts';
+import type { Action, GameEvent, GameState, PlayerId } from '../types.ts';
 import { memberAgent } from './league.ts';
 import { PRESETS } from './styles.ts';
-import type { SeatAgent } from './styles.ts';
 
 export interface Label {
   zh: string;
@@ -19,6 +23,14 @@ export interface Label {
 }
 
 export type Mode = 'regular' | 'short';
+
+/** A seat agent as the client uses it: `SeatAgent` is one, and so is an agent that answers later. */
+export interface OpponentAgent {
+  choose(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null | Promise<Action | null>;
+  observe(events: GameEvent[], state: GameState): void;
+  /** Releases what the agent holds, such as a worker, when its game is left or it is replaced. */
+  dispose?(): void;
+}
 
 export interface Opponent {
   id: string;
@@ -29,7 +41,7 @@ export interface Opponent {
   name: Label;
   describe: Label;
   /** An agent for one seat of one game; a learned opponent may need to load its model first. */
-  create(): SeatAgent | Promise<SeatAgent>;
+  create(): OpponentAgent | Promise<OpponentAgent>;
 }
 
 /** The lines of succession as `assets/lines.json` stores them; only the holders are read. */
@@ -37,9 +49,14 @@ export interface Lines {
   lines: Record<string, { holder: string }>;
 }
 
-/** A model shipped with the client for a line (such as `main-2`), and how to make its agent. */
+/**
+ * A model shipped with the client for a line (such as `main-2`): the member it was exported from, as
+ * the line names it, and how to make its agent. It is offered only while that member holds the line.
+ */
 export interface ShippedModel {
-  create(): Promise<SeatAgent>;
+  holder: string;
+  /** `query` is what follows the `?` in the holder's name (see `learnedOptions`). */
+  create(query: string, mode: Mode): Promise<OpponentAgent>;
 }
 
 export const DEFAULT_OPPONENT = 'rules';
@@ -111,13 +128,15 @@ export function opponentsFor(size: 2 | 3 | 4, mode: Mode, lines: Lines, models: 
       level: 3,
       sizes: [size],
       modes: BOTH,
-      name: { zh: '寻优之将', en: 'The searched style' },
+      name: { zh: '寻优之将', en: 'The optimiser' },
       describe: { zh: '程序在数万局对局里为这个人数搜出的最强打法。', en: 'The strongest style the search found for this table size, over tens of thousands of games.' },
       create: () => memberAgent(style),
     });
   }
+  const main = lines.lines[`main-${size}`]?.holder;
   const learned = models[`main-${size}`];
-  if (learned && mode === 'regular') {
+  if (learned && main?.startsWith('model:') && learned.holder === main && mode === 'regular') {
+    const query = main.split('?')[1] ?? '';
     out.push({
       id: `main-${size}`,
       level: 4,
@@ -128,14 +147,31 @@ export function opponentsFor(size: 2 | 3 | 4, mode: Mode, lines: Lines, models: 
         zh: '神经网络自己下了几千万步练出来的；交易暂由常规打法代提。',
         en: 'A network trained over tens of millions of moves; its offers are still made by the standard player.',
       },
-      create: () => learned.create(),
+      create: () => learned.create(query, mode),
     });
   }
   return out;
 }
 
-/** The opponent with this id at a table of `size` in `mode`, or the default when it cannot sit there. */
+/** The level an opponent's id stands for, whether or not it can be offered here. */
+function levelOf(id: string): number | null {
+  if (id === DEFAULT_OPPONENT) return 1;
+  if (id.startsWith('style-')) return 3;
+  if (id.startsWith('main-')) return 4;
+  return null;
+}
+
+/**
+ * The opponent with this id at a table of `size` in `mode`. One that cannot sit there gives way to
+ * the offered opponent of the nearest level at or below its own (a saved game's learned opponent the
+ * build no longer carries becomes the style line's holder), and a character to the default.
+ */
 export function opponentFor(id: string | undefined, size: 2 | 3 | 4, mode: Mode, lines: Lines, models: Record<string, ShippedModel> = {}): Opponent {
   const offered = opponentsFor(size, mode, lines, models);
-  return offered.find((o) => o.id === id) ?? offered[0];
+  const exact = offered.find((o) => o.id === id);
+  if (exact) return exact;
+  const level = id ? levelOf(id) : null;
+  if (level === null) return offered[0];
+  const below = offered.filter((o) => o.level !== null && o.level <= level);
+  return below.reduce((best, o) => ((o.level ?? 0) > (best.level ?? 0) ? o : best), offered[0]);
 }

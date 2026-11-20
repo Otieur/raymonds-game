@@ -90,30 +90,28 @@ export function setModelLoader(loader: (path: string) => ModelWeights): void {
   loadModel = loader;
 }
 
+/** How a learned seat plays besides its network: who makes and answers its offers. */
+export type LearnedOptions = NonNullable<Parameters<typeof createLearnedAgent>[2]>;
+
 /**
- * A learned member, named `model:<path>` after a model exported by train/export.py. It plays as the
- * learners of M6 play: the baseline makes its offers and the network every other decision, greedily.
- * The model is loaded once a process. The agent is made at its first decision, from that game's
- * engine, and is given the events it observed before then.
+ * The options named by the query after a model's path: nothing lets the baseline make the seat's
+ * offers, `own` lets the network draft them, and `trade=<school>` lets the school (a preset or a
+ * found style) make the offers and answer them (M9). The network plays every other decision, greedily.
  */
-function modelAgent(name: string): SeatAgent | null {
-  if (!name.startsWith('model:')) return null;
-  // `model:<path>` lets the baseline make the seat's offers; `?own` lets the network draft them;
-  // `?trade=<school>` lets the school (a preset or a found style) make the offers and answer them (M9).
-  const [path, query = ''] = name.slice('model:'.length).split('?');
+export function learnedOptions(query: string, name = query): LearnedOptions {
   const school = query.startsWith('trade=') ? query.slice('trade='.length) : null;
   if (query && query !== 'own' && !school) throw new Error(`Unknown option "${query}" in ${name}: use ?own or ?trade=<school>.`);
   const found = school ? FOUND.find((f) => f.name === school) : undefined;
   const trader = school ? (PRESETS[school]?.playbook.base ?? (found ? completeStyle(found.playbook.base) : undefined)) : undefined;
   if (school && !trader) throw new Error(`No school named ${school} in ${name}.`);
-  const options = query === 'own' ? { greedy: true } : trader ? { greedy: true, proposer: trader, answerer: trader } : { proposer: PRESETS.baseline.playbook.base, greedy: true };
-  let mlp = models.get(path);
-  if (!mlp) {
-    if (!loadModel) throw new Error(`No model loader in this process for ${name}; import scripts/model-loader.ts.`);
-    mlp = createMlp(loadModel(path));
-    models.set(path, mlp);
-  }
-  const model = mlp;
+  return query === 'own' ? { greedy: true } : trader ? { greedy: true, proposer: trader, answerer: trader } : { proposer: PRESETS.baseline.playbook.base, greedy: true };
+}
+
+/**
+ * A seat agent for a loaded model. The agent is made at its first decision, from that game's engine,
+ * and is given the events it observed before then.
+ */
+export function learnedSeatAgent(model: Mlp, options: LearnedOptions): SeatAgent {
   let agent: SeatAgent | null = null;
   const early: [GameEvent[], GameState][] = [];
   const ready = (engine: Engine): SeatAgent => {
@@ -131,6 +129,23 @@ function modelAgent(name: string): SeatAgent | null {
     },
     rules: () => ({ ever: [], last: [] }),
   };
+}
+
+/**
+ * A learned member, named `model:<path>` after a model exported by train/export.py, with the options
+ * of `learnedOptions` after a `?`. The model is loaded once a process.
+ */
+function modelAgent(name: string): SeatAgent | null {
+  if (!name.startsWith('model:')) return null;
+  const [path, query = ''] = name.slice('model:'.length).split('?');
+  const options = learnedOptions(query, name);
+  let mlp = models.get(path);
+  if (!mlp) {
+    if (!loadModel) throw new Error(`No model loader in this process for ${name}; import scripts/model-loader.ts.`);
+    mlp = createMlp(loadModel(path));
+    models.set(path, mlp);
+  }
+  return learnedSeatAgent(mlp, options);
 }
 
 /** A fresh agent for one seat of one game. */

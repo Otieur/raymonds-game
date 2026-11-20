@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { DEFAULT_RULES, threeKingdomsPresentation as look } from '../../../src/index.ts';
+import { DEFAULT_OPPONENT } from '../../../src/sim/opponents.ts';
+import type { Opponent } from '../../../src/sim/opponents.ts';
 import { FACTIONS, PORTRAITS, TOKENS } from '../game/assets.ts';
 import type { TokenId } from '../game/assets.ts';
 import { useMusic } from '../game/music.ts';
+import { opponentFor, opponentsFor } from '../game/opponents.ts';
 import type { GameConfig, SavedGame } from '../game/store.ts';
 import { useTongue } from '../i18n.tsx';
 import { Btn, vars } from './ui.tsx';
@@ -34,13 +37,32 @@ export function Setup({ saved, onStart, onResume }: Props) {
     Object.fromEntries(FACTIONS.map((faction) => [faction.id, faction.token])),
   );
 
+  /** Each faction's chosen opponent, for when the computer commands it; the table may not seat every choice. */
+  const [choices, setChoices] = useState<Record<string, string>>(() =>
+    Object.fromEntries(FACTIONS.map((faction) => [faction.id, DEFAULT_OPPONENT])),
+  );
+  /** The faction whose opponent the hint line describes: the one last chosen. */
+  const [described, setDescribed] = useState<string | null>(null);
+
   const fielded = FACTIONS.filter((faction) => roles[faction.id] !== 'bench');
   const atMinimum = fielded.length <= DEFAULT_RULES.minPlayers;
+  const size = Math.max(2, fielded.length) as 2 | 3 | 4;
+  const offered = opponentsFor(size, mode);
+  const opponentOf = (id: string): Opponent => opponentFor(choices[id], size, mode);
   const begin = () =>
     onStart({
       mode,
-      seats: fielded.map((faction) => ({ id: faction.id, ai: roles[faction.id] === 'ai', token: tokens[faction.id] })),
+      seats: fielded.map((faction) => {
+        const ai = roles[faction.id] === 'ai';
+        return { id: faction.id, ai, token: tokens[faction.id], ...(ai ? { opponent: opponentOf(faction.id).id } : {}) };
+      }),
     });
+  /** The name as the narrow menu shows it; the hint line gives the full name and the level. */
+  const label = (o: Opponent) =>
+    lang === 'en' ? o.name.en.replace(/^The (.)/, (_, first: string) => first.toUpperCase()) : o.name.zh;
+  const leveled = offered.filter((o) => o.level !== null);
+  const characters = offered.filter((o) => o.level === null);
+  const describedOpponent = described && roles[described] === 'ai' ? opponentOf(described) : null;
 
   /** Hands the faction the next token; whoever held that one takes the faction's old token. */
   const nextToken = (id: string) => {
@@ -122,12 +144,58 @@ export function Setup({ saved, onStart, onResume }: Props) {
                       </button>
                     ))}
                   </div>
+                  {role === 'ai' && (
+                    <select
+                      className="banner-opponent"
+                      aria-label={`${tg.who(faction.id)} · ${t('opponent')}`}
+                      title={opponentOf(faction.id).describe[lang]}
+                      value={opponentOf(faction.id).id}
+                      onChange={(event) => {
+                        setChoices({ ...choices, [faction.id]: event.target.value });
+                        setDescribed(faction.id);
+                      }}
+                      onFocus={() => setDescribed(faction.id)}
+                    >
+                      <optgroup label={t('byLevel')}>
+                        {leveled.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {label(o)}
+                          </option>
+                        ))}
+                      </optgroup>
+                      {characters.length > 0 && (
+                        <optgroup label={t('characters')}>
+                          {characters.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {label(o)}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          <p className="hint banner-hint">{t('tokenHint')}</p>
+          <p className="hint banner-hint" aria-live="polite">
+            {describedOpponent ? (
+              <>
+                <strong>
+                  {tg.who(described as string)} · {describedOpponent.name[lang]}
+                  {describedOpponent.level !== null &&
+                    (lang === 'zh'
+                      ? `（${t('levelN', { n: describedOpponent.level })}）`
+                      : ` (${t('levelN', { n: describedOpponent.level }).toLowerCase()})`)}
+                </strong>
+                {lang === 'zh' ? '：' : ': '}
+                {describedOpponent.describe[lang]}
+              </>
+            ) : (
+              t('tokenHint')
+            )}
+          </p>
 
           <h2 className="panel-title">{t('mode')}</h2>
           <div className="modes">

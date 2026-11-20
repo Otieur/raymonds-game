@@ -1,10 +1,4 @@
-import {
-  chooseHeuristicAction,
-  createAgentMemory,
-  createEngine,
-  SHORT_GAME_RULES,
-  threeKingdoms,
-} from '../../../src/index.ts';
+import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../../../src/index.ts';
 import type {
   Action,
   CardId,
@@ -19,12 +13,18 @@ import type {
 } from '../../../src/index.ts';
 import { FACTIONS, factionOf, TOKENS } from './assets.ts';
 import type { TokenId } from './assets.ts';
+import { opponentFor } from './opponents.ts';
+import { Seats } from './seats.ts';
 
-/** One side at the table. Its id is a faction id, which also names it; the token is the player's pick. */
+/**
+ * One side at the table. Its id is a faction id, which also names it; the token is the player's pick.
+ * A computer seat plays as its chosen opponent (see `opponents.ts`); none chosen is the default.
+ */
 export interface Seat {
   id: PlayerId;
   ai: boolean;
   token: TokenId;
+  opponent?: string;
 }
 
 export interface GameConfig {
@@ -155,15 +155,21 @@ export class GameStore {
   readonly config: GameConfig;
   private snap: Snapshot;
   private readonly listeners = new Set<() => void>();
-  private readonly memory = createAgentMemory();
+  private readonly seats: Seats;
   private generation = 0;
-  private timer: ReturnType<typeof setTimeout> | undefined;
   private skipCard: (() => void) | null = null;
   private nextId = 1;
 
   constructor(config: GameConfig, saved?: SavedGame) {
     this.config = config;
     this.engine = createEngine(threeKingdoms, config.mode === 'short' ? SHORT_GAME_RULES : {});
+    const size = config.seats.length as 2 | 3 | 4;
+    this.seats = new Seats(
+      this.engine,
+      config.seats.filter((seat) => seat.ai).map((seat) => ({ id: seat.id, opponent: opponentFor(seat.opponent, size, config.mode) })),
+      (seat, opponent, reason) =>
+        console.warn(`${seat} plays the standard computer player from here on: ${opponent.name.en} failed.`, reason),
+    );
     const state =
       saved?.state ??
       this.engine.newGame({
@@ -222,11 +228,21 @@ export class GameStore {
     this.schedule();
   }
 
-  /** Stops timers and abandons any animation in flight. */
+  /** Stops timers and abandons any animation in flight. Play can start again. */
   stop(): void {
     this.generation += 1;
-    clearTimeout(this.timer);
     this.skipCard?.();
+  }
+
+  /** Ends this store for good when its game is left: releases the opponents' workers. */
+  dispose(): void {
+    this.stop();
+    this.seats.dispose();
+  }
+
+  /** The computer seats whose opponent failed and that now play the standard computer player. */
+  fallenBack(): PlayerId[] {
+    return this.seats.fallen();
   }
 
   dispatch(action: Action): boolean {
@@ -236,6 +252,7 @@ export class GameStore {
       this.patch({ error: result.error });
       return false;
     }
+    this.seats.observe(result.events, result.state);
     void this.play(result.events, result.state);
     return true;
   }
@@ -287,7 +304,6 @@ export class GameStore {
     const squares = this.engine.board.squares;
     const size = squares.length;
     const jail = squares.findIndex((sq) => sq.kind === 'jail');
-    clearTimeout(this.timer);
     this.patch({ busy: true, error: null, thinking: null });
 
     /** A pause for what just happened: full length for an AI player's doing, brisk for a person's own. */
@@ -444,9 +460,12 @@ export class GameStore {
     this.schedule();
   }
 
-  /** If the game is waiting on an AI player, lets it act after a short pause. */
+  /**
+   * If the game is waiting on an AI player, asks its opponent and acts after a short pause. The pause
+   * starts when the opponent is asked, so it covers a model's work. An answer to a state that has
+   * since moved on (a person acted meanwhile, or play stopped) is dropped.
+   */
   private schedule(): void {
-    clearTimeout(this.timer);
     const { state } = this.snap;
     const actor = state.winner === null ? this.engine.awaiting(state).find((id) => this.seat(id).ai) : undefined;
     if (actor === undefined) {
@@ -455,28 +474,10 @@ export class GameStore {
     }
     this.patch({ thinking: actor });
     const run = this.generation;
-    this.timer = setTimeout(
-      () => {
-        if (run !== this.generation || this.snap.busy) return;
-        const action =
-          chooseHeuristicAction(this.engine, this.snap.state, actor, Math.random, this.memory) ?? this.fallback(actor);
-        if (action) this.dispatch(action);
-      },
-      PACE.think * (this.snap.fast ? FAST : 1),
-    );
-  }
-
-  /** A safe move for an AI player the heuristics had no answer for. */
-  private fallback(actor: PlayerId): Action | null {
-    const legal = this.engine.legalActions(this.snap.state, actor);
-    const simple = ['END_TURN', 'ROLL', 'PASS', 'DECLINE', 'REJECT_TRADE', 'USE_JAIL_CARD', 'PAY_BAIL'] as const;
-    for (const type of simple) {
-      if (legal.some((action) => action.type === type)) return { type, player: actor };
-    }
-    if (legal.some((action) => action.type === 'SETTLE_TRANSFER')) {
-      return { type: 'SETTLE_TRANSFER', player: actor, lift: false };
-    }
-    return null;
+    const current = () => run === this.generation && !this.snap.busy && this.snap.state === state;
+    void Promise.all([this.seats.ask(state, actor, Math.random), this.wait(PACE.think)]).then(([action]) => {
+      if (action && current()) this.dispatch(action);
+    });
   }
 
   private save(): void {

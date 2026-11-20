@@ -2589,6 +2589,59 @@ input[type='range'] {
   cursor: not-allowed;
 }
 
+/* A computer seat's opponent. */
+.banner-opponent {
+  align-self: stretch;
+  min-width: 0;
+  height: 27px;
+  margin-top: 5px;
+  padding: 0 18px 0 6px;
+  border: 1px solid var(--gold-line);
+  border-radius: 2px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--gold-2) 50%) right 9px top 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--gold-2) 50%, transparent 50%) right 5px top 50% / 5px 5px no-repeat,
+    rgba(6, 5, 9, 0.7);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  color: var(--gold-1);
+  appearance: none;
+  cursor: pointer;
+}
+
+:lang(en) .banner-opponent {
+  padding: 0 13px 0 5px;
+  background-position:
+    right 7px top 50%,
+    right 3px top 50%,
+    0 0;
+  font-family: var(--font-serif);
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+}
+
+.banner-opponent:hover {
+  border-color: var(--gold-2);
+}
+
+.banner-opponent:focus-visible {
+  outline: 2px solid var(--gold-1);
+  outline-offset: 1px;
+}
+
+.banner-opponent option,
+.banner-opponent optgroup {
+  background: var(--ink-2);
+  color: var(--paper);
+}
+
+.banner-hint strong {
+  font-weight: 600;
+  color: var(--gold-1);
+}
+
 .banner-human {
   border-color: var(--gold-1);
   box-shadow:
@@ -2708,7 +2761,8 @@ input[type='range'] {
     --size: min(104px, 90cqw, 9.2dvh);
   }
 
-  .banner-roles button {
+  .banner-roles button,
+  .banner-opponent {
     height: clamp(22px, 2.9dvh, 27px);
   }
 

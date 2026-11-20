@@ -10,7 +10,7 @@ Vite serves `web/` on port 5173 (`vite.config.ts`). `npm run build` writes a sta
 
 ## What a player sees
 
-1. **The opening screen.** Each of the four factions (Wei, Shu, Wu, Qun) is set to a person, the computer, or out of the game; at least two must play. Each faction holds one of four tokens, changed by tapping it. The game is the full one or the short one. An unfinished game can be resumed.
+1. **The opening screen.** Each of the four factions (Wei, Shu, Wu, Qun) is set to a person, the computer, or out of the game; at least two must play. A computer seat picks its opponent from a menu, and the line under the banners describes the one last picked. Each faction holds one of four tokens, changed by tapping it. The game is the full one or the short one. An unfinished game can be resumed.
 2. **The opening roll.** Everyone throws for the order of play, and the roster is reseated in that order.
 3. **The table.** The board on the left; on the right, a command panel for whoever must act, the roster, and a chronicle of events.
 4. **The finale.** The winner's token and the final ranking.
@@ -23,6 +23,9 @@ Vite serves `web/` on port 5173 (`vite.config.ts`). `npm run build` writes a sta
 | `web/src/main.tsx` | Mounts the app. |
 | `web/src/App.tsx` | Holds the language, the saved game and the game in progress. Shows the opening screen or the table. |
 | `web/src/game/store.ts` | `GameStore`: runs one game, plays events back as animation, moves the computer players, saves. |
+| `web/src/game/seats.ts` | `Seats`: each computer seat's opponent, the events it is fed, and the fallback to the rule-based agent. Free of the browser, so the tests run it. |
+| `web/src/game/opponents.ts` | The opponents this build offers: the lines of succession and the shipped models. |
+| `web/src/game/brain.ts`, `brain-worker.ts` | A learned opponent's network, in a web worker or on the main thread. |
 | `web/src/game/describe.ts` | Words each engine event as a line of the chronicle, in both languages. |
 | `web/src/game/assets.ts` | Portraits, tokens, factions, and small helpers about squares. |
 | `web/src/game/music.ts` | The background music and its on/off switch. |
@@ -98,11 +101,19 @@ A computer player's ordinary turn takes 7 to 9 seconds at normal speed.
 
 ### Computer players
 
-When the settled state is waiting on a seat marked as computer-played, `schedule()` waits `think` milliseconds and asks the rule-based agent for an action (`chooseHeuristicAction`). If the agent has no answer, `fallback()` picks a safe one (end the turn, pass, decline, reject). This is the one place to change when another agent is plugged in; see [ai.md](ai.md).
+Each computer seat plays as an **opponent**, chosen on the opening screen and kept in the seat as `opponent` (an id). `src/sim/opponents.ts` defines what can be offered: today's rule-based agent (level 1, the default, so a game set up as before plays exactly as before), six named schools as characters without a level, the holder of the table size's style line (level 3), and the holder of its main line (level 4) when a model of it is shipped, in the full game only. Levels 3 and 4 are read from `assets/lines.json`, so only a line's holder is ever offered. M10's plan, [m10-in-the-client.md](plan/m10-in-the-client.md), is the design.
+
+When the settled state is waiting on a computer seat, `schedule()` asks that seat's opponent through `Seats.ask` and starts the `think` pause at the same moment; the action is played when both are done, so the pause covers a model's work. An answer to a state that has since moved on (a person acted meanwhile, or play stopped) is dropped and the seat is asked again. After every applied action, the person's included, the store passes the events and the new state to every opponent, in order; an opponent still loading collects them and catches up when it is ready.
+
+**Fallback.** An opponent fails when it cannot be made, throws, answers nothing while its seat is awaited, or answers with an action the engine refuses. Its seat then plays the rule-based agent's choice for the rest of the game, the console says so once, and `fallenBack()` lists the seat. A game never stops because a model failed. If the rule-based agent itself has no answer, a safe action is picked (end the turn, pass, decline, reject).
+
+**Learned opponents.** A model ships as `assets/models/<line>.ts`, the module train/export.py writes, beside `assets/models/<line>.json`, its record, which must name in `holder` the member it was exported from; it is offered only while that member holds the line. The app's build carries the weights inside its one script (about 3 MB a model); the dev server loads a model on first use. `brain.ts` runs the opponent's agent, with its own engine, in a web worker built into the script, and sends it the same events; each decision is one message each way. If the worker cannot start, the first refusal settles every later opponent on the main thread. A model the worker refuses (its observation or action version differs from the build's) fails only its own seat. `GameStore.dispose()`, called when a game is left, shuts the workers down.
+
+**Development opponents.** In the dev server only, any model put in `assets/models/dev/` (ignored by git) is offered at every table as a development opponent. The dev server does not watch `assets/`, so after adding a model, restart it or touch `web/src/game/opponents.ts`.
 
 ### Saving
 
-After every action the store writes `{ config, state, log }` to `localStorage` under `three-kingdoms.save.v3`. On load, a save is offered for resuming only if:
+After every action the store writes `{ config, state, log }` to `localStorage` under `three-kingdoms.save.v3`; each computer seat's opponent id is part of `config`. A saved game whose opponent this build cannot seat (a learned model no longer shipped, say) reopens with that seat at the nearest level at or below it, and a character with the default. Opponents start afresh on resuming: they have not seen the events before the save. On load, a save is offered for resuming only if:
 
 - its board and state format match;
 - every seat is a known faction with a known token, no token twice;
@@ -213,9 +224,13 @@ This builds the app and also installs a copy in `/Applications`, which puts it i
 
 ## What has been checked
 
-There are no automated tests of the client. The following were checked by hand in a browser, in both languages, at desktop and phone widths: the opening screen and token choice, the opening roll including ties, a save made mid-roll and resumed, moving, rent, buying, auctions against computer bidders, cards, deeds and selling a building, debt, the finale, and tokens on corners, on portraits, stacked, and in jail.
+The computer seats are tested in `test/seats.test.ts`: a game with every seat at the default plays the same actions as the store's former loop on the same random draws; an opponent that throws, answers nothing, answers an illegal action, rejects, or fails to load is replaced by the rule-based agent, reported once, and the game goes on; every opponent receives every event exactly once and in order, including one still loading. `test/opponents.test.ts` checks what is offered and plays every opponent through full games.
+
+The rest of the client has no automated tests. The following were checked by hand in a browser, in both languages, at desktop and phone widths: the opening screen and token choice, the opening roll including ties, a save made mid-roll and resumed, moving, rent, buying, auctions against computer bidders, cards, deeds and selling a building, debt, the finale, and tokens on corners, on portraits, stacked, and in jail.
 
 The opening screen was measured at window sizes from 1280 by 720 to 1920 by 1080, including a 14-inch MacBook's full screen (1512 by 945): the page never scrolls, and from 780 px of height upward the column does not either. The table was measured at the same sizes and never overflows.
+
+The opponent menu was checked at 1512 by 945 in both languages with four seats: the page does not scroll and every name fits. Learned opponents were checked with an untrained network of the real size (no trained model is in the repository yet): in the dev server, two seats ran in two workers; a model of the wrong version failed only its own seat, with one console line; with workers unavailable the seat ran on the main thread, with no task over 50 ms in 20 seconds of play. In the from-disk app build in headless Chrome, with that network standing in for `main-2`, the worker started and the seat played. Timed in Node, a decision of the network takes 3.3 ms at the median, 15.7 ms at the 95th percentile, 40 ms at the 99th, and 180 ms at most, so on the main thread a rare decision exceeds M10's 50 ms; in the worker none touches the main thread.
 
 The music was checked in the dev client: it starts at the first click, wraps at the end of the track, follows the switch, and stays silent on a fresh visit with the switch off. The from-disk build was checked in headless Chrome over `file://`: the page mounts with its styles, portraits and tokens. The app was launched once and macOS accepted it; the window Chrome then opened was not inspected by the tooling.
 
