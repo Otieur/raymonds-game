@@ -237,6 +237,16 @@ Run in part on 18 November 2026, unattended; the details are in [log.md](log.md)
 
 So the clone's fault is its own offers, and in M6, where a school makes the learner's offers, a clone of one size starts level with its teacher. Bar 2 is not read: it asks for 1,000 games on evaluation seeds with the clone drafting for itself, which the plan wrote before drafting was split from the rest of play; with the baseline proposing the figure is level with the rules, and with its own drafting far below. Which of the two the bar means is the author's to say. **Decided on 19 November:** the bar is read with the baseline proposing, as M6 plays the learner. On that reading two and four players are level with the rules on 400 seeds (47.8%, 24.8%) and are to be scored again over the bar's 1,000 games on evaluation seeds; three players needs a clone of its own, since one size at a time matches its teacher and the clone of three sizes does not (21.8%). Both wait for the disk, before G3.
 
+**Bar 2 scored, 19 and 20 November** (1,000 games on seeds 1,000,000 to 1,000,999, the baseline making the clone's offers; `--compare baseline` plays the baseline in the clone's seat on the same seeds, and the difference is paired by seed). The three-player clone, `clone-baseline-3-v3`, was trained on the three-player sets written for `clone-baseline-234-v3` (12 epochs, best epoch 11, 92.9% agreement on held-out decisions; auctions 78.4%).
+
+| Players | Clone | Even share | Baseline in the clone's seat | Clone less baseline, paired |
+| ---: | --- | ---: | ---: | --- |
+| 2 | 50.9% (47.8 to 54.0) | 50.0% | 50.7% | +0.2 (−2.7 to 3.1) |
+| 3 | 29.6% (26.8 to 32.4) | 33.3% | 28.9% | +0.7 (−1.9 to 3.3) |
+| 4 | 27.5% (24.7 to 30.3) | 25.0% | 25.8% | +1.7 (−0.8 to 4.2) |
+
+At every size the clone is level with its teacher in the same seat. Against the bar's words, "an interval that lies at or above an even share": at two and four players the interval holds the even share but does not lie wholly above it, and at three players it lies wholly below. The three-player figure is held down by the seeds: in `evaluate.ts`'s own game loop with the baseline in every seat, seat 1 wins 28.9% on these 1,000 seeds, 32.6% on the next 1,000 and 34.5% on the 1,000 after (32.0% over the 3,000, within chance of an even share; `$DATA_DIR/checks/evaluate-loop-baseline-seats-3.txt`). So on these seeds no copy of the teacher would meet the bar at three players either. Read wholly above an even share, the bar asks the clone to beat its teacher, which a clone is not trained to do. How the bar is read is the author's to say: against an even share as written, against the teacher in the same seat on the same seeds, or over more seeds.
+
 **Gate:** not met; bars 1 to 3 need the teachers and the value network. Bar 4's timing part is met in the engine (2.1 to 4.3 ms a decision against 50 ms); the client was not tried.
 
 Commands: `node scripts/make-dataset.ts --out $DATA_DIR/datasets --set <name> --size 4 --decisions <n> --seeds <start> [--learner <model.ts>]`; `train/.venv/bin/python train/bc.py --data <set>[,<set>] --val <set> --run $DATA_DIR/runs/<name> --epochs 12`; `train/.venv/bin/python train/export.py --run $DATA_DIR/runs/<name> --out $DATA_DIR/models/<name>`; `node scripts/evaluate.ts --model $DATA_DIR/models/<name>.ts --size 4 --games 400`.
