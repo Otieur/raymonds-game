@@ -295,11 +295,25 @@ def main(argv: list[str] | None = None) -> None:
                 batch = env.reset()
             checks = collect_checks(run, checks)
         save(run, net, optimizer, state, book, rng)
+        if final_check_due(cfg, state, done_here):
+            checks.append((state["update"], start_check(run, cfg, state["update"])))
     finally:
         env.close()
         for _, proc in checks:
             proc.wait()
         collect_checks(run, checks)
+
+
+def final_check_due(cfg: dict, state: dict, done_here: int) -> bool:
+    """Whether the weights a run ends with still need a check. Checks follow the checkpoints, every `checkpoint_every`
+    updates, so a run whose budget runs out between two of them would leave its final weights unscored (G1's runs end at
+    update 383). Not for a run stopped early with --updates, nor for one resumed after it had already used its budget."""
+    return (
+        bool(check_list(cfg))
+        and done_here > 0
+        and state["decisions"] >= cfg["budget"]
+        and state["update"] % cfg["checkpoint_every"] != 0
+    )
 
 
 def check_list(cfg: dict) -> list[dict]:

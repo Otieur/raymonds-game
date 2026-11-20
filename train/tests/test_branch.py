@@ -200,6 +200,16 @@ class Resuming(unittest.TestCase):
         self.assertEqual(training.restore(saved, Net(), torch.optim.Adam(Net().parameters()), Book(), np.random.default_rng(0))["update"], 1)
 
 
+class FinalCheck(unittest.TestCase):
+    def test_the_last_weights_are_checked_when_the_budget_ends_between_checkpoints(self):
+        cfg = {"checks": {"size": 2}, "budget": 50_000_000, "checkpoint_every": 20}
+        self.assertTrue(training.final_check_due(cfg, {"update": 383, "decisions": 50_046_595}, done_here=5))
+        self.assertFalse(training.final_check_due(cfg, {"update": 380, "decisions": 50_000_000}, done_here=5))
+        self.assertFalse(training.final_check_due(cfg, {"update": 383, "decisions": 49_000_000}, done_here=5))
+        self.assertFalse(training.final_check_due(cfg, {"update": 383, "decisions": 50_046_595}, done_here=0))
+        self.assertFalse(training.final_check_due({**cfg, "checks": None}, {"update": 383, "decisions": 50_046_595}, done_here=5))
+
+
 class PastSelves(unittest.TestCase):
     def test_the_newest_and_an_even_spread_of_the_rest(self):
         history = [f"s{i}" for i in range(20)]
