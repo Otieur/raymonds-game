@@ -196,4 +196,11 @@ npm run app:install                            # the desktop app, with the shipp
 
 ## Result
 
-Not yet run.
+First version, tasks 1 to 4, built on 20 November 2026 without the disk; the record is in [log.md](log.md) under that date.
+
+- Task 1: every opponent offered, at each of its sizes, in both games, 200 games each (46 combinations, 9,200 games): every action answered and accepted.
+- Task 2: the store's tests pass, including the unchanged play of default seats.
+- Task 3: the menu fits the 1512 by 945 window with four seats in both languages.
+- Task 4: checked with an untrained network of the real size, in the dev server and in the from-disk build in headless Chrome, where the worker started. G1's model is not shipped yet: it is on the disk.
+
+Gate 4 holds through the worker; on the main thread a decision takes 3.3 ms at the median and up to 180 ms at worst. Tasks 5 and 5a are open, and so is everything of the final version.

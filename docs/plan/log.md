@@ -609,3 +609,28 @@ Later the same afternoon, at the author's word ("the full plan, checked carefull
 | The two-player gate | `scripts/queue/m9-two-player.sh` | A dry run on fake finished runs; a run without a suite stops at once |
 
 278 TypeScript tests and 53 Python tests pass; both type checks pass. Pushed as `ai/m9-trading`. When the disk is back, the order is: `queue/disk-back-2.sh` (filler), the suites (M9's commands), then `scripts/queue/m9-two-player.sh`.
+
+## 20 November, night, without the disk: M10 in the client
+
+### Task 1: the opponents offered
+
+`src/sim/opponents.ts` lists what a computer seat can play as: today's rule-based agent (level 1, the default), six named schools as characters without a level (the author's style, the pass baron, the blocker, the dealer, the opportunist, and the statesman at three and four players), the holder of the table size's style line (level 3), and the holder of its main line (level 4) when a model of it is shipped and it is the regular game. A shipped model is offered only while the member it was exported from holds its line. A choice that cannot sit at a table gives way to the offered opponent of the nearest level at or below its own, and a character to the default.
+
+Task 1's check, `OPPONENT_GAMES=200 node --test test/opponents.test.ts`: every opponent offered, at each of its sizes, in both the regular and the short game, in seat one against rule-based seats, 200 games each. That is 46 combinations and 9,200 games, with every action answered and accepted by the engine. It took 44 minutes 48 seconds in one process.
+
+### Tasks 2 to 4: the store, the setup screen, the brain
+
+| Task | What was built | How it was checked |
+| --- | --- | --- |
+| 2. The store | `web/src/game/seats.ts`: an opponent per computer seat, events to every opponent after every applied action, answers that may be promises (the 850 ms pause starts when the seat is asked), and the fallback to the rule-based agent for the rest of the game when an opponent fails | `test/seats.test.ts`: default seats play the same actions as the former loop on the same random draws (three seeds, up to 3,000 actions each); five kinds of failure each fall back once and the game goes on; every opponent receives every event exactly once, in order, one of them while still loading |
+| 3. The setup screen | A menu under each computer seat, grouped by level and characters; the hint line gives the full name, the level and the description of the one last picked | At 1512 by 945 with four seats, in both languages: no scrolling, every name fits. The English name of the style line's holder became "The optimiser" to fit |
+| 4. The brain | `web/src/game/brain.ts` and `brain-worker.ts`: the agent with its own engine in a web worker built into the app's one script, the main thread when no worker starts; `web/src/game/opponents.ts`: the shipped models from `assets/models/`, offered only while their record's `holder` holds the line; development models from `assets/models/dev/` in the dev server only | With an untrained network of the real size: two workers in the dev server; a model of the wrong version failed only its seat; with workers unavailable, no main-thread task over 50 ms; in the from-disk app build in headless Chrome the worker started and the seat played. Decision time in Node: median 3.3 ms, 95th percentile 15.7 ms, 99th 40 ms, worst 180 ms |
+
+`npm run typecheck` passes and 283 TypeScript tests pass; both builds succeed, the app's copy still one script (835 kB, about 3.9 MB with one model inside).
+
+Not done, and why:
+
+- **Shipping G1's model as `main-2`.** The export (`runs/g1-s1/exports/00180.ts`) is on the disk. When it is back: copy it to `assets/models/main-2.ts`, write `assets/models/main-2.json` with `holder` set to the line's holder, and play a full game against it in the dev server and in the installed app (task 4's check with the real model).
+- **Gate 4 on the main thread.** A rare decision takes up to 180 ms, over the 50 ms bar; the worker meets the gate, and Chrome started it from `file://`, so the main thread is only the fallback.
+- **Task 5, the person's check,** is the author's to do: three games for each opponent at each table size, with the record in M10's plan.
+- **Task 5a,** playing the table in the client (`maxAsks`, the debt window, invitations shown as offers), is next.
