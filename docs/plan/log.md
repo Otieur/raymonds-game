@@ -508,8 +508,8 @@ At about 03:00 seed 2's updates fell from about 1,300 decisions a second to abou
 - For later runs: two training runs at once do not fit beside the usual applications on this machine; one run, plus one other job, does.
 - 05:18: seed 2 had not recovered (about 400 decisions a second, an update every 6 minutes, with the load average under 8). Its environment servers were nearly all compressed (about 245 MB of 272 MB each), so every step waited for one of them to be decompressed. The promotion match for `main-2` (about 1 GB, started 01:50) was frozen with SIGSTOP. It is not on the critical path: G1's gate needs seed 3 first. `queue/after-g1-seeds.sh` resumes the match when seed 3 has used its budget, and the frozen sweep and search when the match has ended.
 - `run.py` now checks the weights a run ends with when its budget runs out between two checkpoints (`final_check_due`): checks followed the checkpoints, every 20 updates, so G1's runs (ending at update 383) and step 0c (update 77) left their final weights unscored. Not for runs stopped early with `--updates` or resumed after their budget. One test added; the Python suite runs 40, all passing. Seed 2 started before the change; seed 3, resumed later, has it.
-
 - About 05:50 the Slay the Spire game started by another session closed, and seed 2 ran at 3,000 to 5,600 decisions a second (about 40 seconds an update, against 100 to 120 before 03:00 and 6 minutes at the worst), the rate the plan had assumed. One training run on a machine with memory to spare is that fast; at this rate seed 2 ends at about 08:40 and seed 3 about four hours later.
+
 ### Waiting for the author (20 November, morning)
 
 - **Step 0c's bar.** 83.3% (79.9 to 86.7) of finished games against random play, 77.6% of all games counting those that reached the action limit. Is "over 80%" read on the point estimate over finished games (met), on the interval (not met), or on all games (not met)?
