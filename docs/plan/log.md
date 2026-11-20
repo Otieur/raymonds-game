@@ -416,12 +416,14 @@ node scripts/evaluate.ts --model $DATA_DIR/models/clone-baseline-3-v3.ts --size 
 
 # 4. Gate 7 at four players again, paired: the same two tables on the same seeds, with the holder of style-4 named
 #    (found-4-b2t1p1c2), so that a later change of holder does not change the table.
-node scripts/table.ts --seats found-4-b2t1p1c2,baseline,envoy,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-envoy-4.json > $DATA_DIR/tables/gate7-envoy-4.md
-node scripts/table.ts --seats found-4-b2t1p1c2,baseline,balancer,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-balancer-4.json > $DATA_DIR/tables/gate7-balancer-4.md
+#    Corrected when the disk came back: the night's tables (queue/m3b-rest2.sh) used the fixed forms
+#    envoy+completeBy=list and balancer+completeBy=list, not the first forms written here before.
+node scripts/table.ts --seats found-4-b2t1p1c2,baseline,envoy+completeBy=list,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-envoy-4.json > $DATA_DIR/tables/gate7-envoy-4.md
+node scripts/table.ts --seats found-4-b2t1p1c2,baseline,balancer+completeBy=list,false-friend --games 5000 --seeds 1140000 --json $DATA_DIR/tables/gate7-balancer-4.json > $DATA_DIR/tables/gate7-balancer-4.md
 node scripts/compare-tables.ts $DATA_DIR/tables/gate7-envoy-4.json $DATA_DIR/tables/gate7-balancer-4.json --seats 3 > $DATA_DIR/tables/gate7-paired-4.txt
 ```
 
-Step 4 should reproduce the night's shares exactly (23.8% and 26.1%) if the night's two tables were played on these seeds, which `queue/m3b-rest3.sh` on the disk shows (to be checked first), since the first forms of the presets have not changed. If the shares differ on the same seeds, that is a finding in itself, to be explained before the paired figure is used.
+Step 4 should reproduce the night's shares exactly (23.8% and 26.1%): the night's two tables (`signals-4-envoy-false` and `signals-4-balancer-false`, in `queue/m3b-rest2.sh`, not `m3b-rest3.sh` as written here first) were played on these seeds, with style-4 held by `found-4-b2t1p1c2`, and the fixed forms have not changed since. If the shares differ on the same seeds, that is a finding in itself, to be explained before the paired figure is used.
 
 ### Code: M7's branching and members in the study
 
@@ -431,3 +433,13 @@ On branch `ai/m7-branch-and-members`, at the author's word to go on with what ne
 - `scripts/study.ts --members` (M7 task 6), with `--sizes`; saved runs keep the options that made their tables, so `--from` reprints a run made with `--only`, `--styles` or `--members` without them on the command line. `scripts/lines.ts` reads lines of succession, now `main-<n>` as well as `style-<n>`.
 - Settings where M7's plan is silent are listed in its new section "Settings chosen in writing the code". The author accepted them the same evening.
 - Checks: `npm run typecheck` passes, `npm test` runs 262 tests and the Python suite 37, all passing. Task 6's check passed (M7's Progress section has the figures): 24,000 games in 193 seconds, written only to scratch space. A four-update trial of a branch with past selves ran without error.
+
+## 19 November, evening, with the disk again
+
+The disk was attached again at about 20:20, with 395 GB free. At 20:23 `queue/resume.sh` was started as written, and the four groups above as a fifth lane, `queue/disk-back.sh` (log `queue/disk-back.log`). Before starting, these were checked:
+
+- The outputs left by the runs stopped at 15:31 (G1's two scores and its promotion match) were empty files, so the resume plays them again rather than skipping them. The shaped step 0c resumes from update 20.
+- The names in the four groups resolve: `prober-2`, `broker-2`, `statesman-book-2`, `found-4-b2t1p1c2`, and the three-player sets `baseline-3-train-v3` and `baseline-3-val-v3`.
+- Step 4 as first written named the first forms of the Envoy and the Balancer; the night's tables used the fixed forms. Corrected above before it ran.
+
+In `disk-back.sh` each step writes to a `.part` file renamed only on success, so a step stopped part-way is played again on restart.
