@@ -596,3 +596,16 @@ All of M9's part A that needs no games, on `ai/m7-branch-and-members`:
 | 11 to 13 | The configurations of T1, T2 and the three seeds of T3. |
 
 Checks: `npm run typecheck` passes; 271 TypeScript tests and 51 Python tests pass. Not done, because they play games for data: the suites themselves, the scores on them, the count of inexpressible offers, gate 7's and Balancer's tables, and every training run.
+
+Later the same afternoon, at the author's word ("the full plan, checked carefully"), on the new branch `ai/m9-trading` (from `ai/m7-branch-and-members`):
+
+| Item | What was built | How it was checked |
+| --- | --- | --- |
+| The trade report | `scripts/trade-report.ts`: the suite's bar, dealing between copies, trading against ruled trading (both ways round), the agent alone finishing, and how it trades; arithmetic in `src/sim/trade-measures.ts` | Unit tests of every bar; run end to end at two and three players with a tiny model (its games never end, so its bars correctly fail) |
+| Model members | `model:<path>?own` (the network drafts), `model:<path>?trade=<school>` (a preset or found style makes and answers its offers); the learned agent reads the short game from the engine's rules and does not repeat a refused offer in a turn | Tests in `test/league.test.ts`; plain `model:<path>` members play as before |
+| The offer count | `scripts/count-offers.ts` (M9 task 8) | Unit tests of the shapes; a trial of 24 four-player and 10 two-player league games |
+| The short game and members by size | `evaluate.ts --rules short` (marked in its line), checks with `rules`, members keyed by table size, own offers in the checks of drafting runs | Python tests of members, tables and check commands; one short-game evaluation |
+| G2 and G3 | Configurations for branching from the trading holder | A test that every member named in every configuration exists and every check is playable; the merged schedules read at 0, 30% and 90% of the budget |
+| The two-player gate | `scripts/queue/m9-two-player.sh` | A dry run on fake finished runs; a run without a suite stops at once |
+
+278 TypeScript tests and 53 Python tests pass; both type checks pass. Pushed as `ai/m9-trading`. When the disk is back, the order is: `queue/disk-back-2.sh` (filler), the suites (M9's commands), then `scripts/queue/m9-two-player.sh`.
