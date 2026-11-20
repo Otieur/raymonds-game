@@ -572,5 +572,27 @@ for n in 3 4; do node scripts/paired.ts --size $n --a "$B" --b baseline --games 
 ```
 
    The remedied Envoy must win no less than the Balancer beside a False friend by more than the interval; the Balancers' tables must finish at least 98% of their games, and the fixed Balancer is compared with the baseline as the first form was.
-3. The rest of M9's part A, as the main job, once its code is written: deals priced by playout, the suites at two, three and four players, today's agents scored on them, the count of offers a draft cannot express, gate 7's tables and Balancer's tables played again, and M2's last retuning (Pass baron, All in) with the Concentrator's interval.
-4. M9's part B: T1, T2 and T3 at two players (three seeds of T3), then the two-player gate.
+3. The rest of M9's part A, as the main job (its code was written on 20 November; commands in M9's Commands section): the suites at two players, three players and four players in the short game (`make-offer-suite.ts`; the short one may first need snapshots of short games), today's agents and G1 scored on them (`score-suite.ts`), the count of accepted offers a draft cannot express, and M2's last retuning (Pass baron, All in) with the Concentrator's interval.
+4. M9's part B, with the configurations in `train/configs/trade-*.json`:
+
+```sh
+train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/g1-s1 --checkpoint 180 --config train/configs/trade-t1.json --run $DATA_DIR/runs/trade-t1-2
+train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/trade-t1-2 --config train/configs/trade-t2.json --run $DATA_DIR/runs/trade-t2-2
+for s in 1 2 3; do train/.venv/bin/python train/branch.py --from $DATA_DIR/runs/trade-t2-2 --config train/configs/trade-t3-s$s.json --run $DATA_DIR/runs/trade-t3-2-s$s; done
+```
+
+   One training run at a time (the memory rule of 20 November); then the two-player gate from the median seed of T3, and its promotion match for `main-2`.
+
+### Code written without the disk, 20 November afternoon
+
+All of M9's part A that needs no games, on `ai/m7-branch-and-members`:
+
+| Task | What was built |
+| --- | --- |
+| 1, 2 | Observation version 4 (six numbers appended: what a deal completes for each side, the buildings each could then pay for, two marks of the draft) and action version 3 (a sale: give, partner, price; 191 actions). Every older model is widened as it loads, in TypeScript and Python, so G1 and the clones load unchanged. |
+| 3 | `run.py`: `drafting` (the share of the learner's turns it drafts itself), `pull` and `kappa_draft`, `draft_entropy`; the environment's per-turn `draftShare`, with a share of 0 playing exactly as drafting off; the learner's offers drafted and its school's, with acceptances, logged a game. A four-update trial ran. |
+| 4 to 6 | The offer suite: thirteen templates (`src/sim/offer-suite.ts`), `scripts/make-offer-suite.ts` (pricing by paired playouts, keeping clear cases, balancing), `scripts/score-suite.ts`, `evaluate.ts --suite`, suites in the checks. Run end to end on a scratch file of 36 positions. |
+| 9, 10 | Gate 7's remedy (`unreturned`, `goodwillBound`) and Balancer's fix (`coldMood`, `coldEdge`), as style fields that change nothing at their defaults. |
+| 11 to 13 | The configurations of T1, T2 and the three seeds of T3. |
+
+Checks: `npm run typecheck` passes; 271 TypeScript tests and 51 Python tests pass. Not done, because they play games for data: the suites themselves, the scores on them, the count of inexpressible offers, gate 7's and Balancer's tables, and every training run.

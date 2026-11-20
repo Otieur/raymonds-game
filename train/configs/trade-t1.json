@@ -1,0 +1,40 @@
+{
+  "name": "trade-t1-2",
+  "note": "M9 task 11 (T1): branched from G1's holder (g1-s1, update 180), widened to observation version 4 and action version 3. The school still proposes; the checks add the two-player offer suite. Settings as for M7's continuing runs (learning rate 1e-4, entropy 0.001, no shaping, no pull toward the clone, no warm-up). 10 million decisions.",
+  "games": [
+    {
+      "players": 2,
+      "rules": "full",
+      "share": 1.0
+    }
+  ],
+  "lr": 0.0001,
+  "entropy": [
+    0.001,
+    0.001
+  ],
+  "shaping": {
+    "value": {
+      "start": 0.0,
+      "until": 0.0
+    },
+    "milestones": {
+      "start": 0.0,
+      "until": 0.0
+    }
+  },
+  "kappa": {
+    "start": 0.0,
+    "until": 0.0
+  },
+  "critic_warmup": 0,
+  "checks": {
+    "size": 2,
+    "games": 500,
+    "seeds": 2500000,
+    "against": "baseline",
+    "suite": "test/fixtures/offers-2.json"
+  },
+  "budget": 10000000,
+  "drafting": null
+}
