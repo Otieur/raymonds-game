@@ -95,11 +95,12 @@ The three seeds agree within a point on every measure. What it cannot do yet: ma
 
 ### Where things are
 
-`main` always holds the latest version, which is now `ai/m10-opponents`. The branches below record how it got there, each built on the one below it:
+`main` always holds the latest version, which is now `ai/night-2026-11-21`. The branches below record how it got there, each built on the one below it:
 
 | Branch | What it adds |
 | --- | --- |
-| [`ai/m10-opponents`](https://github.com/Otieur/raymonds-game/tree/ai/m10-opponents) | **The latest.** Choosing an opponent for each computer seat (M10, in progress) |
+| [`ai/night-2026-11-21`](https://github.com/Otieur/raymonds-game/tree/ai/night-2026-11-21) | **The latest.** The night of 20 to 21 November: M9's trading runs at two players, and what came of them |
+| [`ai/m10-opponents`](https://github.com/Otieur/raymonds-game/tree/ai/m10-opponents) | The opponents in the client (M10's first version), 深思 shipped, M2's last bars met |
 | [`ai/m9-trading`](https://github.com/Otieur/raymonds-game/tree/ai/m9-trading) | Trading: sales for cash, the offer suite, the trade report, G2 and G3 set up to trade |
 | [`ai/m7-branch-and-members`](https://github.com/Otieur/raymonds-game/tree/ai/m7-branch-and-members) | G1's results, branching training runs, paired intervals |
 | [`ai/paired-intervals`](https://github.com/Otieur/raymonds-game/tree/ai/paired-intervals), [`ai/decisions-2026-11-19`](https://github.com/Otieur/raymonds-game/tree/ai/decisions-2026-11-19), [`ai/m3b-to-m6`](https://github.com/Otieur/raymonds-game/tree/ai/m3b-to-m6) | The overnight runs of 18 and 19 November and the decisions that followed |
@@ -246,11 +247,12 @@ npm run dev          # 然后打开 http://localhost:5173
 
 ### 东西在哪
 
-`main` 永远是最新版本，现在和 `ai/m10-opponents` 一样。下面这些分支记录了一路的进展，每个都在下面那个的基础上往上长：
+`main` 永远是最新版本，现在和 `ai/night-2026-11-21` 一样。下面这些分支记录了一路的进展，每个都在下面那个的基础上往上长：
 
 | 分支 | 新增了什么 |
 | --- | --- |
-| [`ai/m10-opponents`](https://github.com/Otieur/raymonds-game/tree/ai/m10-opponents) | **最新。**给每个电脑座位挑对手（M10，进行中） |
+| [`ai/night-2026-11-21`](https://github.com/Otieur/raymonds-game/tree/ai/night-2026-11-21) | **最新。**11 月 20 日到 21 日夜里：二人局交易训练（M9），以及它的结果 |
+| [`ai/m10-opponents`](https://github.com/Otieur/raymonds-game/tree/ai/m10-opponents) | 游戏里的电脑对手（M10 第一版）、深思装进游戏、M2 全部过线 |
 | [`ai/m9-trading`](https://github.com/Otieur/raymonds-game/tree/ai/m9-trading) | 交易：卖地换钱、交易题库、交易报告，G2、G3 改成会自己提交易 |
 | [`ai/m7-branch-and-members`](https://github.com/Otieur/raymonds-game/tree/ai/m7-branch-and-members) | G1 的成绩、训练分支、按局配对的比较方法 |
 | [`ai/paired-intervals`](https://github.com/Otieur/raymonds-game/tree/ai/paired-intervals)、[`ai/decisions-2026-11-19`](https://github.com/Otieur/raymonds-game/tree/ai/decisions-2026-11-19)、[`ai/m3b-to-m6`](https://github.com/Otieur/raymonds-game/tree/ai/m3b-to-m6) | 11 月 18、19 日两晚的运行，以及之后的决定 |
