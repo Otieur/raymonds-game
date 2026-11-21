@@ -1,0 +1,35 @@
+{
+  "line": "main-2",
+  "holder": "model:/Volumes/Elements/raymonds-game-data/runs/g1-s1/exports/00180.ts",
+  "name": "00180",
+  "date": "2026-11-19",
+  "commit": "928bd95",
+  "run": "/Volumes/Elements/raymonds-game-data/runs/g1-s1",
+  "obsVersion": 3,
+  "actionsVersion": 2,
+  "obs": 1023,
+  "actions": 188,
+  "layers": {
+    "trunk0": [
+      1023,
+      512
+    ],
+    "trunk1": [
+      512,
+      512
+    ],
+    "trunk2": [
+      512,
+      512
+    ],
+    "policy": [
+      512,
+      188
+    ],
+    "value": [
+      512,
+      3
+    ]
+  },
+  "note": "G1, seed 1, update 180: the holder of the two-player main line since 20 November 2026 (G1 gate passed on three seeds). Copied unchanged from the run export named in holder."
+}

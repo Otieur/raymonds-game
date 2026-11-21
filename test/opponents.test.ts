@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { ACTIONS } from '../src/env/actions.ts';
+import { createMlp } from '../src/env/mlp.ts';
+import type { ModelWeights } from '../src/env/mlp.ts';
+import { OBS_SIZE } from '../src/env/observe.ts';
 import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../src/index.ts';
 import type { PlayerId } from '../src/index.ts';
 import { memberAgent } from '../src/sim/league.ts';
@@ -68,5 +72,18 @@ test('every opponent plays full games at each of its sizes, in both modes, with 
         }
       }
     }
+  }
+});
+
+test('every shipped model loads and is the holder of its line', async () => {
+  const dir = join(import.meta.dirname, '..', 'assets', 'models');
+  const records = existsSync(dir) ? readdirSync(dir).filter((name) => name.endsWith('.json') && !name.startsWith('._')) : [];
+  for (const name of records) {
+    const record = JSON.parse(readFileSync(join(dir, name), 'utf8')) as { line: string; holder: string };
+    assert.equal(record.line, name.replace(/\.json$/, ''), `${name} names its own line`);
+    assert.equal(record.holder, lines.lines[record.line]?.holder, `${name}: its line is now held by another member; ship that one`);
+    const { MODEL } = (await import(join(dir, name.replace(/\.json$/, '.ts')))) as { MODEL: ModelWeights };
+    const mlp = createMlp(MODEL);
+    assert.equal(mlp.forward(new Float32Array(OBS_SIZE)).policy.length, ACTIONS);
   }
 });
