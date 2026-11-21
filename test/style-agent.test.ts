@@ -652,3 +652,12 @@ test('passOffers: asks a rival for its pass at offerLow to offerHigh times list,
   assert.equal(PRESETS['pass-baron'].playbook.base.passOffers, true);
   assert.deepEqual(Object.values(PRESETS).filter((preset) => preset.playbook.base.passOffers).map((preset) => preset.name), ['pass-baron']);
 });
+
+test("M2's fifth round changes All in alone: Sky rush and the build-out rule keep All in's first cash part", () => {
+  assert.equal(PRESETS['all-in'].playbook.base.redeemSpare, 0);
+  assert.equal(PRESETS['sky-rush'].playbook.base.redeemSpare, BASELINE.redeemSpare);
+  assert.equal(school('all-in-first').redeemSpare, BASELINE.redeemSpare);
+  assert.ok(!('all-in-first' in PRESETS), 'not a preset');
+  const buildOut = PRESETS.opportunist.playbook.rules.find((rule) => rule.name === 'build out');
+  assert.deepEqual(buildOut?.take?.find((t) => t.part === 'cash'), { part: 'cash', from: 'all-in-first' });
+});

@@ -275,6 +275,12 @@ for (const [name, extra] of Object.entries(CORRECTED)) {
 }
 
 const plain: Record<string, Style> = Object.fromEntries(Object.entries(STYLES).map(([name, spec]) => [name, styleFrom(name, spec.changes)]));
+/**
+ * All in as it was measured before M2's fifth round (21 November 2026), which made it redeem with any spare
+ * cash. Sky rush and the playbooks' "build out" rule borrow its cash part from this, so that they play, and
+ * their measured results stand, as before. Not a preset: no league or menu lists it.
+ */
+plain['all-in-first'] = styleFrom('all-in-first', { ...STYLES['all-in'].changes, redeemSpare: BASELINE.redeemSpare });
 
 /** A plain school by name, for composing and for playbooks. */
 export function school(name: string): Style {
@@ -285,7 +291,7 @@ export function school(name: string): Style {
 
 const OPPORTUNIST_RULES: Rule[] = [
   { name: 'opening', when: [{ signal: 'owned', is: '<', value: 0.6 }], take: [{ part: 'buy', from: 'land-grabber' }], hold: 0 },
-  { name: 'build out', when: [{ signal: 'unbuilt', is: '>=', value: 1 }], take: [{ part: 'build', from: 'all-in' }, { part: 'cash', from: 'all-in' }], hold: 2 },
+  { name: 'build out', when: [{ signal: 'unbuilt', is: '>=', value: 1 }], take: [{ part: 'build', from: 'all-in' }, { part: 'cash', from: 'all-in-first' }], hold: 2 },
   {
     name: 'under threat',
     when: [{ signal: 'rivalLevel', is: '>=', value: 3 }, { signal: 'danger', is: '>=', value: 0.5 }],
@@ -324,7 +330,7 @@ const OPPORTUNIST_RULES: Rule[] = [
 const COMPOSED: Record<string, { describe: string; style: Style }> = {
   'sky-rush': {
     describe: 'Buys and values like Orange and sky, builds and keeps cash like All in, answers like Blocker.',
-    style: compose(BASELINE, { buy: plain['orange-and-sky'], value: plain['orange-and-sky'], build: plain['all-in'], cash: plain['all-in'], answer: plain.blocker }, 'sky-rush'),
+    style: compose(BASELINE, { buy: plain['orange-and-sky'], value: plain['orange-and-sky'], build: plain['all-in'], cash: plain['all-in-first'], answer: plain.blocker }, 'sky-rush'),
   },
   'iron-bank': {
     describe: 'Buys like Pass baron, keeps cash like Hoarder, bids like Vulture, answers like Refuser.',
