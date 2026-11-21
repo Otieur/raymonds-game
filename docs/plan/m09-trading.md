@@ -145,10 +145,14 @@ In order, from 20 November. Tasks marked *disk* play games for data and wait for
 As built on 20 November:
 
 ```sh
-# The suites (task 6): positions from the study's snapshots, priced by playouts of the best rule-based members.
-node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots --size 2 --players found-2-b1t2p2c1 --out test/fixtures/offers-2.json > $DATA_DIR/probes/suite-2.md
-node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots --size 3 --players statesman-book-2,found-3-b2t2p1c1,statesman-book-2 --out test/fixtures/offers-3.json > $DATA_DIR/probes/suite-3.md
-node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots --size 4 --rules short --players statesman-book-2,found-4-b2t1p1c2,statesman-book-2,found-4-b2t1p1c2 --out test/fixtures/offers-4-short.json > $DATA_DIR/probes/suite-4-short.md
+# The suites (task 6): positions from games on seeds from 2,500,000, snapshotted apart from the study's (whose seeds fitted
+# the valuation), priced by playouts of the best rule-based members. scripts/queue/m9-suites.sh runs all of this in order.
+node scripts/study.ts 3000 --only full-2 --first-seed 2500000 --snapshots $DATA_DIR/snapshots-suite --workers 4
+node scripts/study.ts 3000 --only full-3 --first-seed 2500000 --snapshots $DATA_DIR/snapshots-suite --workers 4
+node scripts/study.ts 15000 --only short-4 --first-seed 2500000 --snapshots $DATA_DIR/snapshots-suite --workers 4
+node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots-suite --size 2 --players found-2-b1t2p2c1 --out test/fixtures/offers-2.json > $DATA_DIR/probes/suite-2.md
+node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots-suite --size 3 --players statesman-book-2,found-3-b2t2p1c1,statesman-book-2 --out test/fixtures/offers-3.json > $DATA_DIR/probes/suite-3.md
+node scripts/make-offer-suite.ts --snapshots $DATA_DIR/snapshots-suite --size 4 --rules short --players statesman-book-2,found-4-b2t1p1c2,statesman-book-2,found-4-b2t1p1c2 --out test/fixtures/offers-4-short.json > $DATA_DIR/probes/suite-4-short.md
 # Today's agents on them (task 7), and a model on its own.
 node scripts/score-suite.ts --suite test/fixtures/offers-2.json --members baseline,refuser,found-2-b1t2p2c1,model:$DATA_DIR/runs/g1-s1/exports/00180.ts
 node scripts/evaluate.ts --model $DATA_DIR/runs/g1-s1/exports/00180.ts --size 2 --games 1000 --proposer baseline --suite test/fixtures/offers-2.json --workers 4
@@ -192,4 +196,15 @@ At each shipped size:
 
 ## Result
 
-Not yet run.
+Part A, begun on 20 November at night ([log.md](log.md) under that date).
+
+**The two-player suite** (`test/fixtures/offers-2.json`, report in `$DATA_DIR/probes/suite-2.md`): 1,000 positions from 250 games on seeds from 2,500,000, forty playouts a version by `found-2-b1t2p2c1`; 316 clear cases, of which the suite takes 100 to accept and 69 to refuse, all the clear refusals there were (169 cases, not 200). Denial, failing, partner-swap and invitation have no candidates at two players. Scored (`score-suite.ts`):
+
+| Member | Answered as measured |
+| --- | ---: |
+| G1 (`g1-s1` update 180, the baseline proposing) | 80.5% (73.8 to 85.7) |
+| baseline | 79.3% (72.6 to 84.7) |
+| `found-2-b1t2p2c1` | 78.1% (71.3 to 83.7) |
+| refuser | 40.8% (33.7 to 48.4) |
+
+G1 answers free streets badly (2 of 10, where the baseline answers all 10): it turns down offers that cost it nothing. Trading training (T1 to T3) started from it the same night.

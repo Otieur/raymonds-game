@@ -649,3 +649,16 @@ The drifting sparks behind the client stopped for good, with an error in the con
 `npm run typecheck` passes and 286 TypeScript tests pass. Task 5a's check is met in the tests and in the client; `maxAsks` and the debt window wait on the person's check (task 5b) for how they feel at the table.
 
 **Changed the same night, at the author's word:** one offer to a seat in a round was too few ("一回合最多五人次提交易"). `maxAsks` now counts a computer seat's offers in one turn, to any seats, and is 5 by default. The test checks that a seat asking at every chance makes at most five offers in a turn, reaches five, and makes more without the limit.
+
+## 20 November, night, with the disk
+
+The disk was attached at about 20:50. Another project's runs (self-play and benchmarks, about fourteen processes) shared the machine all night, holding the load average between 25 and 52 on ten cores; they were left alone, so every figure of time below is slower than the machine alone would give.
+
+- **The queue** (`scripts/queue/disk-back-3.sh`, started 20:56): M3b's filler (`$DATA_DIR/queue/disk-back-2.sh`) beside M9's suites and the runs that read them (`scripts/queue/m9-suites.sh`), ending in M9's two-player steps (`scripts/queue/m9-two-player.sh`).
+- **A fault in the suites' commands, found at once.** The suite takes positions from seeds 2,500,000 on, as M9 says, but the study's snapshots are seeds 1 to 100,000 (the ones that fitted the valuation), so the first try chose no position. Fixed: `study.ts --first-seed`, snapshots for the suites written apart in `$DATA_DIR/snapshots-suite` (joined into the study's own folder they would have replaced its `full-2.jsonl`), and the short game's tables now write snapshots too. `make-offer-suite.ts` now makes its output folder. Lanes A and C were stopped and started again from `m9-suites.sh` at 21:05; the filler went on.
+- **The two-player suite**, 21:07 to 22:04: 169 cases (100 accept, 69 refuse: every clear refusal found in 1,000 positions). G1 answers 80.5% as measured, the baseline 79.3%, `found-2-b1t2p2c1` 78.1%, the refuser 40.8%. G1's weak template is free streets (2 of 10). Details in M9's Result.
+- **T1** started at 22:04 from G1 (seed 1, update 180): 10 million decisions, 750 to 950 a second beside the other load; T2 (30 million) and the three seeds of T3 (50 million each) follow, one at a time.
+- **深思 shipped.** G1's export copied unchanged to `assets/models/main-2.ts`, with a record naming the line's holder; a test fails if a shipped model stops holding its line. Full games to the end in headless Chrome: the dev server (won at turn 90) and the from-disk app build (won at turn 109), in a worker, no fallback.
+- **M2's fifth round.** The four earlier rounds could not move the Pass baron because the style agent's value-priced asks look only at street groups: it never asked for a pass outside a rival's distress. New field `passOffers` (off by default, so every other style plays as before): asks a rival for its pass at `offerLow` to `offerHigh` times list. On for the Pass baron. All in now redeems its mortgages with any spare cash (`redeemSpare: 0`). The study of both, 2,000 games at each size, started at 21:01 on background policy.
+
+`npm run typecheck` passes and 288 TypeScript tests pass.

@@ -201,7 +201,7 @@ First version, tasks 1 to 4, built on 20 November 2026 without the disk; the rec
 - Task 1: every opponent offered, at each of its sizes, in both games, 200 games each (46 combinations, 9,200 games): every action answered and accepted.
 - Task 2: the store's tests pass, including the unchanged play of default seats.
 - Task 3: the menu fits the 1512 by 945 window with four seats in both languages.
-- Task 4: checked with an untrained network of the real size, in the dev server and in the from-disk build in headless Chrome, where the worker started. G1's model is not shipped yet: it is on the disk.
+- Task 4: G1's model shipped as `main-2` (深思) on 20 November at night, and full games against the standard player played to the end in the dev server and in the from-disk app build, in a worker, with no fallback; first checked with an untrained network of the real size, in the dev server and in the from-disk build in headless Chrome, where the worker started. G1's model is not shipped yet: it is on the disk.
 
 - Task 5a: `maxAsks` (five offers a turn, the author's setting), the debt window for computer seats and for a person, and offers shown in full; its three checks are met in `test/seats.test.ts`, and the window was played through in the client from a saved game.
 

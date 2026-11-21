@@ -115,6 +115,8 @@ When the settled state is waiting on a computer seat, `schedule()` asks that sea
 
 **Learned opponents.** A model ships as `assets/models/<line>.ts`, the module train/export.py writes, beside `assets/models/<line>.json`, its record, which must name in `holder` the member it was exported from; it is offered only while that member holds the line. The app's build carries the weights inside its one script (about 3 MB a model); the dev server loads a model on first use. `brain.ts` runs the opponent's agent, with its own engine, in a web worker built into the script, and sends it the same events; each decision is one message each way. If the worker cannot start, the first refusal settles every later opponent on the main thread. A model the worker refuses (its observation or action version differs from the build's) fails only its own seat. `GameStore.dispose()`, called when a game is left, shuts the workers down.
 
+**Shipped now:** `main-2`, G1's model (seed 1, update 180, the two-player main line's holder), offered as 深思 at level 4 in the two-player full game. After a promotion changes a line's holder, `test/opponents.test.ts` fails until the new holder is shipped.
+
 **Development opponents.** In the dev server only, any model put in `assets/models/dev/` (ignored by git) is offered at every table as a development opponent. The dev server does not watch `assets/`, so after adding a model, restart it or touch `web/src/game/opponents.ts`.
 
 ### Saving
@@ -237,6 +239,8 @@ The rest of the client has no automated tests. The following were checked by han
 The opening screen was measured at window sizes from 1280 by 720 to 1920 by 1080, including a 14-inch MacBook's full screen (1512 by 945): the page never scrolls, and from 780 px of height upward the column does not either. The table was measured at the same sizes and never overflows.
 
 The debt window was checked with a saved game stopped at a debt its debtor could not cover, a person at the table: the computer seat before the person was asked first; the person was shown the prompt; the composer offered only the debtor; an offer for a street in a group with a building was refused with the reason; an offer the debtor accepted let it pay the debt, and play went on; letting it pass let the debtor act.
+
+With G1's model shipped as `main-2`, full games against the standard player were played to the end in headless Chrome, in the dev server (深思 won at turn 90) and in the from-disk app build (won at turn 109), the network in its worker, with no fallback and no console warning. A first run in the dev server stopped at turn 36 when edits to `src/sim/` reloaded the page; the dev server does that, the built app does not.
 
 The opponent menu was checked at 1512 by 945 in both languages with four seats: the page does not scroll and every name fits. Learned opponents were checked with an untrained network of the real size (no trained model is in the repository yet): in the dev server, two seats ran in two workers; a model of the wrong version failed only its own seat, with one console line; with workers unavailable the seat ran on the main thread, with no task over 50 ms in 20 seconds of play. In the from-disk app build in headless Chrome, with that network standing in for `main-2`, the worker started and the seat played. Timed in Node, a decision of the network takes 3.3 ms at the median, 15.7 ms at the 95th percentile, 40 ms at the 99th, and 180 ms at most, so on the main thread a rare decision exceeds M10's 50 ms; in the worker none touches the main thread.
 
