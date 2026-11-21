@@ -38,7 +38,7 @@ Wei, Shu, Wu and Qun roll for the order of play, travel a board of warlords, pas
 | **Languages** | Chinese and English, switched at any time |
 | **Computer players** | Chosen for each computer seat on the opening screen: today's rule-based player, named characters such as the pass baron and the dealer, the strongest style the search found, and, once shipped, the two-player agent trained by reinforcement learning |
 | **Code** | A rules engine in TypeScript with no dependencies; a React client; training in Python and PyTorch |
-| **Tests** | 288 TypeScript tests and 53 Python tests |
+| **Tests** | 289 TypeScript tests and 53 Python tests |
 
 <p align="center">
   <img src="docs/images/game-en.jpg" alt="A game in progress at turn 35: the board, the dice, the warlords' standings and the chronicle" width="100%">
@@ -71,7 +71,7 @@ The goal is computer players that are strong, varied and pleasant to play agains
 | --- | --- | --- |
 | M0 | A study of 706,000 simulated games: what the board rewards | Done |
 | M1 | Valuation: what a property is really worth, not its list price | Done |
-| M2 | Schools of play: dozens of named styles, from the pass baron to the dealer | Built; 33 of 36 behaviour bars met, the rest being retuned |
+| M2 | Schools of play: dozens of named styles, from the pass baron to the dealer | Done: all 36 behaviour bars met |
 | M3 | Style search, and lines of succession (a new version must beat the best so far) | Run; four players short of one style |
 | M3b | Table politics: deal values, alliances by offers, buying from a failing player | Four of eight bars met; two being fixed, two waiting on runs |
 | M4 | The environment that lets a network play thousands of moves a second | Done |
@@ -189,7 +189,7 @@ The street portraits and the token drawings are third-party illustrations from t
 | **语言** | 中文、英文，随时切换 |
 | **电脑对手** | 开局界面给每个电脑座位单独挑：游戏原有的规则打法、关隘大亨和掮客这样有名有姓的流派人物、程序搜索出的最强打法，以及（装进游戏后）用强化学习练出来的二人局 AI |
 | **代码** | TypeScript 写的规则引擎（不依赖任何库）、React 前端、Python 和 PyTorch 训练 |
-| **测试** | TypeScript 测试 288 项，Python 测试 53 项 |
+| **测试** | TypeScript 测试 289 项，Python 测试 53 项 |
 
 <p align="center">
   <img src="docs/images/game-zh.jpg" alt="第 33 回合的对局：棋盘、骰子、群雄排名和战报" width="100%">
@@ -222,7 +222,7 @@ npm run dev          # 然后打开 http://localhost:5173
 | --- | --- | --- |
 | M0 | 模拟 70.6 万局，摸清这个棋盘的规律 | 完成 |
 | M1 | 估价：算出一块地真正值多少，而不是只看标价 | 完成 |
-| M2 | 流派：几十种有名有姓的打法，从关隘大亨到掮客 | 已建好；36 条行为检查过了 33 条，其余在调 |
+| M2 | 流派：几十种有名有姓的打法，从关隘大亨到掮客 | 完成：36 条行为检查全部通过 |
 | M3 | 打法搜索，以及“冠军线”：新版本必须打赢历史最强才能接班 | 已跑；四人局还差一种打法 |
 | M3b | 桌面政治：交易估价、用交易示好结盟、收快破产者的地 | 8 条门槛过了 4 条；2 条在修，2 条等跑 |
 | M4 | 训练环境：让神经网络一秒下几千步 | 完成 |

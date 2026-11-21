@@ -864,11 +864,11 @@ Stage M2 of [the plan](plan/m02-schools.md) turned the rule-based agent's settin
 | sniper | What to buy | Buys only what completes or blocks a group; always the passes; never the works. | 68.8% | 35.9% | 11.3% | yes |
 | prestige | What to buy | The passes and House of Sima first. | 50.2% | 33.3% | 26.0% | yes |
 | orange-and-sky | What to buy | The passes, Cao Wei and Chain Stratagem first. | 55.4% | 37.4% | 27.8% | yes |
-| pass-baron | What to buy | Passes above everything; streets mostly to block. | 69.0% | 35.3% | 11.5% | no, narrowly |
+| pass-baron | What to buy | Passes above everything; streets mostly to block. | 65.7% | 30.4% | 13.9% | yes (fifth round) |
 | land-grabber | What to buy | Buys everything and mortgages to keep buying. | 44.5% | 31.6% | 26.0% | yes |
 | three-and-hold | How to build | Every group to three buildings, then cash. | 58.3% | 33.8% | 22.1% | yes |
 | rusher | How to build | The cheap groups, built up at once, everything else mortgaged to pay. | 78.8% | 55.5% | 31.4% | yes |
-| all-in | How to build | No spare cash, ever: everything into buildings. | 56.0% | 38.6% | 31.3% | no, narrowly |
+| all-in | How to build | No spare cash, ever: everything into buildings. | 53.1% | 37.0% | 31.1% | yes (fifth round) |
 | slumlord | How to build | Han Court and Chain Stratagem to a fortress as early as possible. | 77.5% | 48.5% | 19.8% | yes |
 | concentrator | How to build | One group to four before the next gets anything. | 51.8% | 33.6% | 24.9% | no: the bar does not separate it from the baseline |
 | ambusher | How to build | Holds its cash until a rival is within one roll of its group, then builds. | 44.0% | 31.4% | 25.9% | yes |
@@ -899,7 +899,7 @@ Stage M2 of [the plan](plan/m02-schools.md) turned the rule-based agent's settin
 
 - **Selling well beats buying well among today's agents.** The schools that sell to rivals at high prices or refuse to sell at all (Squeezer, Kingmaker, Refuser, Blocker) and the schools that build fast (Rusher, Sky rush, Slumlord, All in) win the most. Today's agent pays too much for the last street of a group and accepts too little for its own.
 - **Sky rush, composed from three schools' parts, is the strongest at four players:** it buys and values like Orange and sky, builds and keeps cash like All in, and answers like Blocker, and wins 40.7% of four-player games against an even share of 25%.
-- **What is strong depends on the table size.** Sniper and Pass baron win two-player games (68.8% and 69.0%) and lose four-player ones (11.3% and 11.5%). Cheap side is strong with three players and weak with four.
+- **What is strong depends on the table size.** Sniper and Pass baron win two-player games (68.8% and 65.7%) and lose four-player ones (11.3% and 13.9%). Cheap side is strong with three players and weak with four.
 - **Hoarding, staying out of trade, and the dear side lose at every size.** Hermit wins 6.4% of four-player games; Dear side 10.8%; Hoarder 7.8%.
 - **The Opportunist, which changes plan through the game, beats an even share at every size** (65.3%, 39.4%, 27.4%) and falls short of the best fixed schools.
 

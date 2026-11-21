@@ -662,3 +662,16 @@ The disk was attached at about 20:50. Another project's runs (self-play and benc
 - **M2's fifth round.** The four earlier rounds could not move the Pass baron because the style agent's value-priced asks look only at street groups: it never asked for a pass outside a rival's distress. New field `passOffers` (off by default, so every other style plays as before): asks a rival for its pass at `offerLow` to `offerHigh` times list. On for the Pass baron. All in now redeems its mortgages with any spare cash (`redeemSpare: 0`). The study of both, 2,000 games at each size, started at 21:01 on background policy.
 
 `npm run typecheck` passes and 288 TypeScript tests pass.
+
+## 21 November, early: M2's fifth round
+
+`node scripts/study.ts 10000 --only style --styles pass-baron,all-in --workers 3` (2,000 games at each size, 3 hours 26 minutes on background policy beside the night's load), judged against the baseline's control tables of `presets-final.json` with `check-style.ts --gate`:
+
+| School | Bar | Before | Now | Passes |
+| --- | --- | --- | --- | --- |
+| Pass baron | 0.5 more passes at round 20 | 1.65 against 1.23 | 3.13 against 1.23 | yes |
+| All in | Under half the baseline's cash at round 20 | 194 against 367 | 179 against 367 | yes |
+
+With the Concentrator judged by the direct measure, M2's gate 2 is met in full: 36 of 36. Every game finished. Win shares moved little: Pass baron 65.7%, 30.4%, 13.9% at two, three and four players (from 69.0%, 35.3%, 11.5%); All in 53.1%, 37.0%, 31.1% (from 56.0%, 38.6%, 31.3%).
+
+All in's change (`redeemSpare: 0`) is in its cash part, which Sky rush and the playbooks' "build out" rule borrow (the Opportunist among them). They now borrow All in's first form, kept as `all-in-first`, so they play exactly as measured; a test checks it. No run that night used either between the change and the fix: T1's opponents, the tables and the search draw on neither. `check-style.ts --gate presets-final.json` fails on the whole file, as it did before this round (some of its runs predate the measures of the last four bars); the bars are read run by run, as on 18 November.

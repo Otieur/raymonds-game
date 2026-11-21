@@ -8,7 +8,7 @@ M0, M1 and M4 are done, M2 is built, M3 was run at reduced size. M3b, table poli
 | --- | --- | --- | --- | --- |
 | M0 | The simulation study: [statistics.md](../statistics.md) | | | Done |
 | M1 | [Valuation](m01-valuation.md) | A | M0 | Done 18 November 2026: gate passed |
-| M2 | [Schools of play](m02-schools.md) | B | M1 for the presets that price by the valuation; nothing for the baseline preset | Built 18 November 2026; gate not met in full (33 of 36 bars) |
+| M2 | [Schools of play](m02-schools.md) | B | M1 for the presets that price by the valuation; nothing for the baseline preset | Built 18 November 2026; gate met in full on 21 November (all 36 bars, after a fifth round of retuning) |
 | M3 | [Style search and the league](m03-search-and-league.md) | B, C | M2 | Run 18 November 2026 at reduced size; gate not met in full (bar 2 passed at every size; bar 1 failed at four players) |
 | M3b | [Table politics](m03b-table-politics.md) | K | M1, M2, M3 | Run 18 to 19 November 2026, in part. Bars 1 and 6 passed; bar 2 passed by means; bar 3 met by Early bird with the last street at today's price; bar 7 met at three players and not at four (an Envoy beside a False friend wins 2.3 points less than a Balancer; met narrowly with a smaller gift); bars 4 and 8 wait on runs; bar 5, as rewritten on 19 November (test opponents that stall are exempt), met by every school but Balancer. Corrected forms of the value-pricing schools adopted as presets |
 | M4 | [The environment](m04-environment.md) | D, E | M1; can run alongside M2 and M3 | Done 18 November 2026: gate passed |
