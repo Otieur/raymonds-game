@@ -16,9 +16,9 @@
  * the templates, and is written as JSON with a report on standard output.
  */
 import { fork } from 'node:child_process';
-import { createReadStream, existsSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { createEngine, SHORT_GAME_RULES, threeKingdoms } from '../src/index.ts';
@@ -209,6 +209,7 @@ if (process.argv.includes('--worker')) {
   };
   const suiteCases = [...take('accept', Math.ceil(cases / 2)), ...take('refuse', Math.floor(cases / 2))];
   const suite: Suite = { version: SUITE_VERSION, size, rules, players, playouts, seeds, cases: suiteCases };
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(suite));
 
   const lines = [

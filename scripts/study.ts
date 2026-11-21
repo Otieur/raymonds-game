@@ -12,7 +12,9 @@
  *   node scripts/study.ts ... --details                    adds the full report of every table
  *   node scripts/study.ts ... --rates src/sim/landing-rates.ts   writes the four-player landing rates
  *   node scripts/study.ts 100000 --snapshots <dir>         writes a snapshot every five rounds of the main tables
+ *                                                          and of the short game's (`--only short-4` for those alone)
  *   node scripts/study.ts 100000 --only full               plays only the tables whose names start so
+ *   node scripts/study.ts 5000 --first-seed 2500000 ...    numbers every table's seeds from 2,500,000 instead of 1
  *   node scripts/study.ts 20000 --members main-4,baseline --sizes 4 --only member
  *                                                          league members by name: each alone at a table,
  *                                                          and each as the odd player among each other
@@ -836,6 +838,8 @@ function close(tally: Tally, notes: Notes, state: GameState, policyOf: Map<Playe
 const SNAPSHOT_DIR = option('--snapshots');
 /** Rounds between snapshots in the snapshot files. */
 const SNAPSHOT_EVERY = 5;
+/** The first seed of every table: 1 unless `--first-seed` is given, as for the offer suites' fresh positions (M9). */
+const FIRST_SEED = Number(option('--first-seed') ?? 1);
 
 function playGame(table: Table, seed: number, tally: Tally, lines?: string[]): void {
   const { engine, seats } = table;
@@ -2153,8 +2157,9 @@ function reportSummary(entries: Map<string, Entry>): void {
 
 function runChunk(table: Table, from: number, to: number): Tally {
   const tally = emptyTally(table);
-  const lines = SNAPSHOT_DIR && table.key.startsWith('full-') ? [] : undefined;
-  for (let seed = from; seed <= to; seed++) playGame(table, seed, tally, lines);
+  // The full and short games among rule-based players; the short game's feed its offer suite (M9).
+  const lines = SNAPSHOT_DIR && /^(full|short)-\d$/.test(table.key) ? [] : undefined;
+  for (let seed = from; seed <= to; seed++) playGame(table, seed + FIRST_SEED - 1, tally, lines);
   if (SNAPSHOT_DIR && lines) {
     // Each chunk writes its own part under a temporary name; the parts are joined in order at the end.
     const part = join(SNAPSHOT_DIR, `${table.key}.part-${String(from).padStart(8, '0')}.jsonl`);
@@ -2208,6 +2213,7 @@ function runAll(tables: Table[], games: number, workers: number): Promise<Tally[
         ...(option('--styles') ? ['--styles', option('--styles') as string] : []),
         ...(option('--members') ? ['--members', option('--members') as string] : []),
         ...(option('--sizes') ? ['--sizes', option('--sizes') as string] : []),
+        ...(option('--first-seed') ? ['--first-seed', option('--first-seed') as string] : []),
       ]);
       const give = () => {
         if (next < jobs.length) child.send(jobs[next++]);
@@ -2249,7 +2255,7 @@ function option(name: string): string | undefined {
 /** The options that decide which tables a run has, as given. */
 function tableOptions(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const name of ['--only', '--styles', '--members', '--sizes']) {
+  for (const name of ['--only', '--styles', '--members', '--sizes', '--first-seed']) {
     const value = option(name);
     if (value !== undefined) out[name] = value;
   }
@@ -2306,7 +2312,7 @@ function chosenTables(games: number): Table[] {
 function describe(tables: Table[], tallies: Tally[]): string {
   const counts = [...new Set(tables.map((table) => table.games))].join(', ');
   const played = tallies.reduce((sum, tally) => sum + tally.games, 0);
-  return `Three Kingdoms board. Games per table, by kind of table: ${counts}. Seeds from 1. ${played} games in all.`;
+  return `Three Kingdoms board. Games per table, by kind of table: ${counts}. Seeds from ${FIRST_SEED}. ${played} games in all.`;
 }
 
 const saved = option('--from');
