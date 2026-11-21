@@ -50,6 +50,8 @@ export interface Opponent {
   modes: Mode[];
   name: Label;
   describe: Label;
+  /** For a learned opponent, the member its model was exported from, which a saved game records. */
+  version?: string;
   /** An agent for one seat of one game; a learned opponent may need to load its model first. */
   create(): OpponentAgent | Promise<OpponentAgent>;
 }
@@ -152,6 +154,7 @@ export function opponentsFor(size: 2 | 3 | 4, mode: Mode, lines: Lines, models: 
       level: 4,
       sizes: [size],
       modes: ['regular'],
+      version: learned.holder,
       name: { zh: '深思', en: 'The learned player' },
       describe: {
         zh: '神经网络自己下了几千万步练出来的；交易暂由常规打法代提。',

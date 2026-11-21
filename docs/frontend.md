@@ -128,7 +128,7 @@ Both are hidden from the top bar below 520 px of width.
 
 ### Saving
 
-After every action the store writes `{ config, state, log }` to `localStorage` under `three-kingdoms.save.v3`; each computer seat's opponent id is part of `config`. A saved game whose opponent this build cannot seat (a learned model no longer shipped, say) reopens with that seat at the nearest level at or below it, and a character with the default. Opponents start afresh on resuming: they have not seen the events before the save. On load, a save is offered for resuming only if:
+After every action the store writes `{ config, state, log }` to `localStorage` under `three-kingdoms.save.v3`; each computer seat's opponent id is part of `config`, and for a learned opponent the model it started with (`version`: the member the model was exported from). A saved game whose opponent this build cannot seat (a learned model no longer shipped, say) reopens with that seat at the nearest level at or below it, and a character with the default; one saved with another version of a shipped model plays the version shipped now, and the console says so. `test/opponents.test.ts` reopens a game saved mid-way against a learned opponent in a build without it and plays it to the end. Opponents start afresh on resuming: they have not seen the events before the save. On load, a save is offered for resuming only if:
 
 - its board and state format match;
 - every seat is a known faction with a known token, no token twice;

@@ -25,6 +25,8 @@ export interface Seat {
   ai: boolean;
   token: TokenId;
   opponent?: string;
+  /** For a learned opponent, the model it was started with (the member its model was exported from). */
+  version?: string;
 }
 
 export interface GameConfig {
@@ -168,12 +170,24 @@ export class GameStore {
   private nextId = 1;
 
   constructor(config: GameConfig, saved?: SavedGame) {
-    this.config = config;
-    this.engine = createEngine(threeKingdoms, config.mode === 'short' ? SHORT_GAME_RULES : {});
     const size = config.seats.length as 2 | 3 | 4;
+    // A new game records each learned seat's model; a resumed one keeps what it recorded. A seat whose model
+    // this build no longer carries plays the opponent of the nearest level at or below (see opponents.ts).
+    const chosen = config.seats.map((seat) => (seat.ai ? opponentFor(seat.opponent, size, config.mode) : null));
+    this.config = saved
+      ? config
+      : { ...config, seats: config.seats.map((seat, i) => (chosen[i]?.version ? { ...seat, version: chosen[i]?.version } : seat)) };
+    this.engine = createEngine(threeKingdoms, config.mode === 'short' ? SHORT_GAME_RULES : {});
     this.seats = new Seats(
       this.engine,
-      config.seats.filter((seat) => seat.ai).map((seat) => ({ id: seat.id, opponent: opponentFor(seat.opponent, size, config.mode) })),
+      config.seats.flatMap((seat, i) => {
+        const opponent = chosen[i];
+        if (!opponent) return [];
+        if (saved && seat.version && opponent.version !== seat.version) {
+          console.info(`${seat.id}: this game was saved with ${seat.version}; it now plays ${opponent.version ?? opponent.id}.`);
+        }
+        return [{ id: seat.id, opponent }];
+      }),
       (seat, opponent, reason) =>
         console.warn(`${seat} plays the standard computer player from here on: ${opponent.name.en} failed.`, reason),
       { maxAsks: config.maxAsks },

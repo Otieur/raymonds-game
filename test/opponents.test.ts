@@ -87,3 +87,38 @@ test('every shipped model loads and is the holder of its line', async () => {
     assert.equal(mlp.forward(new Float32Array(OBS_SIZE)).policy.length, ACTIONS);
   }
 });
+
+test('a game saved with a learned opponent the build lacks reopens at the nearest level and plays to the end', async () => {
+  const { Seats } = await import('../web/src/game/seats.ts');
+  const holder = lines.lines['main-2'].holder;
+  const shipped = { 'main-2': { holder, create: async () => memberAgent('rules') } };
+  const learned = opponentFor('main-2', 2, 'regular', lines, shipped);
+  assert.equal(learned.id, 'main-2');
+  assert.equal(learned.version, holder, 'a saved game records the model');
+  const engine = createEngine(threeKingdoms);
+  const ids: PlayerId[] = ['wei', 'shu'];
+  const random = (() => {
+    const h = { rng: seedFrom('saved-game') };
+    return () => nextFloat(h);
+  })();
+  const play = async (seats: InstanceType<typeof Seats>, state: ReturnType<typeof engine.newGame>, limit: number) => {
+    for (let i = 0; i < limit && state.winner === null; i++) {
+      const actor = engine.awaiting(state)[0];
+      const action = actor === 'wei' ? await seats.ask(state, actor, random) : memberAgent('rules').choose(engine, state, actor, random);
+      const result = engine.apply(state, action ?? { type: 'END_TURN', player: actor });
+      assert.ok(result.ok);
+      state = result.state;
+      seats.observe(result.events, state);
+    }
+    return state;
+  };
+  const before = new Seats(engine, [{ id: 'wei', opponent: learned }]);
+  const saved = JSON.parse(JSON.stringify(await play(before, engine.newGame({ players: ids, seed: 77 }), 300)));
+  // The build that reopens it carries no model: the seat plays the style line's holder instead.
+  const reopened = opponentFor('main-2', 2, 'regular', lines, {});
+  assert.equal(reopened.id, 'style-2');
+  const after = new Seats(engine, [{ id: 'wei', opponent: reopened }]);
+  const end = await play(after, saved, 40000);
+  assert.notEqual(end.winner, null, 'the reopened game finishes');
+  assert.deepEqual(after.fallen(), []);
+});

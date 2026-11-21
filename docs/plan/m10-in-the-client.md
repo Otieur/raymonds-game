@@ -207,4 +207,6 @@ First version, tasks 1 to 4, built on 20 November 2026 without the disk; the rec
 
 - Task 8, ahead of the final version: the strip ("Odds") behind its setting, off by default; its figures add up to 100% at every moment of recorded games. "What an opponent is doing" ("Plans") likewise, for the two playbooks offered. Both wait on the person's check.
 
+- Task 9, ahead of the final version: a saved game records each learned seat's model; one whose model the build no longer carries reopens at the nearest level and plays to the end (tested).
+
 Gate 4 holds through the worker; on the main thread a decision takes 3.3 ms at the median and up to 180 ms at worst. Tasks 5 and 5b, the person's checks, are open, and so is everything of the final version.
