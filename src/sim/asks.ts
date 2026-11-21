@@ -1,18 +1,21 @@
 /**
- * How often a computer seat may ask the same seat (M10's `maxAsks`): at most `maxAsks` offers to one
- * seat within a round, a round being as many turns as there are players still in the game. A repeat
- * of a refused ask counts, and so does an invitation or an offer at a debt; every offer does.
+ * How often a computer seat may make offers (M10's `maxAsks`): at most `maxAsks` offers in one turn
+ * (one 回合, as the client numbers them), counted across every seat it asks. Each offer counts once,
+ * whoever receives it: a repeat of a refused ask, an invitation, an offer at a rival's debt.
  *
- * The limit works through what a seat is shown rather than by overruling its answer: the engine view
- * it is given leaves the seats it has asked enough out of its trade partners and refuses an offer to
- * them. Every kind of agent takes its partners from `legalActions` and checks its offers with
+ * The author set this on 20 November 2026 to five a turn ("一回合最多五人次提交易"), replacing the plan's
+ * one offer to a seat in a round, which he found too few.
+ *
+ * The limit works through what a seat is shown rather than by overruling its answer: once a seat has
+ * made its offers for the turn, the engine view it is given lists no trade partners and refuses any
+ * offer. Every kind of agent takes its partners from `legalActions` and checks its offers with
  * `validate`, so each chooses something else of its own accord.
  */
 import type { Engine } from '../engine/engine.ts';
 import type { GameEvent, GameState, LegalAction, PlayerId } from '../types.ts';
 
-/** The client's setting: one offer to a seat in a round. */
-export const MAX_ASKS = 1;
+/** The client's setting: five offers a turn from one computer seat. */
+export const MAX_ASKS = 5;
 
 export interface AskLedger {
   asks: { from: PlayerId; to: PlayerId; turn: number }[];
@@ -29,17 +32,13 @@ export function noteAsks(ledger: AskLedger, events: GameEvent[], state: GameStat
   if (ledger.asks.length > 64) ledger.asks = ledger.asks.filter((ask) => ask.turn > oldest);
 }
 
-/** The seats `from` has already asked `maxAsks` times in the round up to and including this turn. */
+/** The seats `from` may not ask again this turn: every other seat once it has made `maxAsks` offers. */
 export function askedEnough(ledger: AskLedger, state: GameState, from: PlayerId, maxAsks = MAX_ASKS): PlayerId[] {
-  const round = state.players.filter((p) => !p.bankrupt).length;
-  const counts = new Map<PlayerId, number>();
-  for (const ask of ledger.asks) {
-    if (ask.from === from && ask.turn > state.turn.number - round) counts.set(ask.to, (counts.get(ask.to) ?? 0) + 1);
-  }
-  return [...counts].filter(([, n]) => n >= maxAsks).map(([to]) => to);
+  const made = ledger.asks.filter((ask) => ask.from === from && ask.turn === state.turn.number).length;
+  return made < maxAsks ? [] : state.players.filter((p) => p.id !== from && !p.bankrupt).map((p) => p.id);
 }
 
-/** The engine as a seat that may not ask `blocked` again this round sees it. */
+/** The engine as a seat that may not ask `blocked` again this turn sees it. */
 export function withoutAsking(engine: Engine, blocked: readonly PlayerId[]): Engine {
   if (blocked.length === 0) return engine;
   return {
@@ -52,7 +51,7 @@ export function withoutAsking(engine: Engine, blocked: readonly PlayerId[]): Eng
       }),
     validate: (state, action) =>
       action.type === 'PROPOSE_TRADE' && blocked.includes(action.to)
-        ? { code: 'INVALID_TRADE', message: `${action.player} has already asked ${action.to} this round.` }
+        ? { code: 'INVALID_TRADE', message: `${action.player} has made all its offers for this turn.` }
         : engine.validate(state, action),
   };
 }

@@ -647,3 +647,5 @@ Not done, and why:
 The drifting sparks behind the client stopped for good, with an error in the console, when the window had no height (a hidden pane); fixed with a guard.
 
 `npm run typecheck` passes and 286 TypeScript tests pass. Task 5a's check is met in the tests and in the client; `maxAsks` and the debt window wait on the person's check (task 5b) for how they feel at the table.
+
+**Changed the same night, at the author's word:** one offer to a seat in a round was too few ("一回合最多五人次提交易"). `maxAsks` now counts a computer seat's offers in one turn, to any seats, and is 5 by default. The test checks that a seat asking at every chance makes at most five offers in a turn, reaches five, and makes more without the limit.

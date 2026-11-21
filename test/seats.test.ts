@@ -4,6 +4,7 @@ import { chooseHeuristicAction, createAgentMemory, createEngine, threeKingdoms }
 import type { Action, Engine, GameEvent, GameState, PlayerId } from '../src/index.ts';
 import { nextFloat, seedFrom } from '../src/rng.ts';
 import { memberAgent } from '../src/sim/league.ts';
+import { MAX_ASKS } from '../src/sim/asks.ts';
 import { DEFAULT_OPPONENT } from '../src/sim/opponents.ts';
 import type { Opponent, OpponentAgent } from '../src/sim/opponents.ts';
 import { Seats } from '../web/src/game/seats.ts';
@@ -154,15 +155,18 @@ async function chattyGame(maxAsks: number): Promise<{ from: PlayerId; to: Player
   return asks;
 }
 
-test('with maxAsks 1, no seat receives two offers from one computer seat in a round', async () => {
-  const limited = (await chattyGame(1)).filter((a) => a.from === 'wei' && a.to === 'shu');
-  assert.ok(limited.length >= 5, `Wei asked Shu ${limited.length} times`);
-  for (let i = 1; i < limited.length; i++) {
-    assert.ok(limited[i].turn - limited[i - 1].turn >= limited[i].players, `asks on turns ${limited[i - 1].turn} and ${limited[i].turn}`);
-  }
-  // The limit is what holds it back: without one, the same seat asks again within the round.
-  const unlimited = (await chattyGame(Number.POSITIVE_INFINITY)).filter((a) => a.from === 'wei' && a.to === 'shu');
-  assert.ok(unlimited.some((a, i) => i > 0 && a.turn - unlimited[i - 1].turn < a.players), 'asks again within a round when unlimited');
+test('a computer seat makes at most five offers a turn by default, and more without the limit', async () => {
+  const perTurn = (asks: { from: PlayerId; turn: number }[]) => {
+    const counts = new Map<number, number>();
+    for (const ask of asks) if (ask.from === 'wei') counts.set(ask.turn, (counts.get(ask.turn) ?? 0) + 1);
+    return [...counts.values()];
+  };
+  const limited = perTurn(await chattyGame(MAX_ASKS));
+  assert.equal(MAX_ASKS, 5);
+  assert.ok(limited.length >= 3, `Wei made offers in ${limited.length} turns`);
+  assert.ok(Math.max(...limited) === 5, `at most five a turn, and the limit reached: ${limited.join(',')}`);
+  // The limit is what holds it back: without one, the same seat goes on asking within the turn.
+  assert.ok(Math.max(...perTurn(await chattyGame(Number.POSITIVE_INFINITY))) > 5, 'more than five a turn when unlimited');
 });
 
 test("an opponent's inputs are the same whether another seat is a person or a computer seat", async () => {

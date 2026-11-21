@@ -7,8 +7,8 @@
  * choice, and keeps playing it for the rest of the game; the failure is reported once. A game never
  * stops because a model failed.
  *
- * Two parts of playing the table live here too (M10, task 5a). A computer seat sends any one seat at
- * most `maxAsks` offers a round (see `src/sim/asks.ts`). And at a debt the debtor cannot cover, the
+ * Two parts of playing the table live here too (M10, task 5a). A computer seat makes at most
+ * `maxAsks` offers a turn (see `src/sim/asks.ts`). And at a debt the debtor cannot cover, the
  * other seats are asked in the order of play after the debtor, leaving out its creditor, whether they
  * would make it an offer, before the debtor acts (see `src/sim/window.ts`); the store asks a person
  * the same question.
@@ -38,7 +38,7 @@ interface SeatSlot {
 export type FallbackReport = (seat: PlayerId, opponent: Opponent, reason: unknown) => void;
 
 export interface SeatsOptions {
-  /** The most offers a computer seat sends one seat in a round; 1 unless set. */
+  /** The most offers a computer seat makes in one turn; 5 unless set. */
   maxAsks?: number;
 }
 

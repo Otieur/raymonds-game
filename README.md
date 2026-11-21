@@ -80,7 +80,7 @@ The goal is computer players that are strong, varied and pleasant to play agains
 | **M9** | **Trading: the learner makes its own offers** | **Moved forward to come before four players; foundation built** |
 | M7 | Every table size in the full game; one shared agent against specialists | Code for its first steps written |
 | M8 | League training, and learning when to change plan | To do |
-| M10 | The opponents in the client | First version in the game: an opponent for each computer seat, learned ones run in the background, one offer to a seat a round, and a chance for everyone, you included, to buy from a player who cannot pay; the two-player agent ships when the data disk is back |
+| M10 | The opponents in the client | First version in the game: an opponent for each computer seat, learned ones run in the background, at most five offers from a computer seat a turn, and a chance for everyone, you included, to buy from a player who cannot pay; the two-player agent ships when the data disk is back |
 
 **Where the two-player agent stands (G1).** Trained from the imitation network over 50 million decisions, three times from different random seeds:
 
@@ -231,7 +231,7 @@ npm run dev          # 然后打开 http://localhost:5173
 | **M9** | **交易：AI 自己提交易** | **已提前到四人局之前；地基已写好** |
 | M7 | 所有人数的完整对局；比较一个通用 AI 和各人数的专门 AI | 前几步的代码已写好 |
 | M8 | 联赛训练，学会什么时候换打法 | 未开始 |
-| M10 | 把对手放进游戏里 | 第一版已进游戏：每个电脑座位都能挑对手，神经网络对手在后台运行；电脑每轮最多向同一家提一次交易；有人还不起债时，包括你在内的其他人都有机会先出价买它的地；二人局 AI 等数据硬盘接回后装进去 |
+| M10 | 把对手放进游戏里 | 第一版已进游戏：每个电脑座位都能挑对手，神经网络对手在后台运行；每个电脑座位一回合最多提五次交易；有人还不起债时，包括你在内的其他人都有机会先出价买它的地；二人局 AI 等数据硬盘接回后装进去 |
 
 **二人局 AI（G1）的成绩。** 从模仿网络出发练了 5000 万步，换三组随机数各练了一遍：
 

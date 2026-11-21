@@ -30,7 +30,7 @@ export interface Seat {
 export interface GameConfig {
   seats: Seat[];
   mode: 'regular' | 'short';
-  /** The most offers a computer seat sends one seat in a round; 1 unless set. */
+  /** The most offers a computer seat makes in one turn; 5 unless set. */
   maxAsks?: number;
 }
 

@@ -70,7 +70,7 @@ One thing is a setting, because it is about patience and not about strength:
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `maxAsks`, for a computer seat | The most offers it sends one seat in one round, counting repeats of a refused ask. An invitation counts. | 1 |
+| `maxAsks`, for a computer seat | The most offers it makes in one turn, to any seats, counting repeats of a refused ask. An invitation counts. | 5 (the author's choice of 20 November 2026; the first value, one offer to a seat in a round, was too few) |
 
 **At a rival's debt.** The rules let any player offer for a debtor's property while the debt is open, and M3b's schools do. The store asks computer seats at that moment, as the simulator does, and a person is shown the same chance: while another seat's debt is open, the trade panel stays usable for offers to the debtor.
 
@@ -123,7 +123,7 @@ An opponent with an entry under the first question does not ship until the case 
 3. **The setup screen:** one choice for each computer seat, with the name and one line of description, in both languages. *Check:* at the 1512 by 945 window the desktop app opens in, the setup screen needs no scrolling with four seats.
 4. **A cloned model as a development opponent,** through `brain.ts`. *Check:* a full game in the dev server and in the installed app; the fallback fires when the weight module is removed.
 5. **The person's check** on the schools. Drop or retune the ones that fail it. *Check:* a filled record for every school offered, with nothing open under the first question.
-5a. **Playing the table in the client,** once M3b's schools exist: `maxAsks`; the debt window for computer seats and for the player; invitations shown as the offers they are. *Check:* with `maxAsks: 1` no seat receives two offers from one computer seat in a round; a test confirms that an agent's inputs are the same whether a seat is marked as a person or not; with a seat in a debt it cannot pay, a computer seat's offer to the debtor arrives before the debtor acts, and the player can send one.
+5a. **Playing the table in the client,** once M3b's schools exist: `maxAsks`; the debt window for computer seats and for the player; invitations shown as the offers they are. *Check:* no computer seat makes more than `maxAsks` offers in a turn (first written as: with `maxAsks: 1` no seat receives two offers from one computer seat in a round); a test confirms that an agent's inputs are the same whether a seat is marked as a person or not; with a seat in a debt it cannot pay, a computer seat's offer to the debtor arrives before the debtor acts, and the player can send one.
 5b. **The person's check on the schools of M3b.** *Check:* a filled record for each, with the five questions on table politics answered, and the count of invitations the person read as invitations.
 
 **Final version, after M9.**
@@ -176,7 +176,7 @@ npm run app:install                            # the desktop app, with the shipp
 - **The levels do not separate** (level 3 does not beat level 2 clearly). Merge them. Three clear levels are better than four blurred ones.
 - **Opponents that play the table feel like three against one.** By the author's decision they are not blunted: they go as far as wins. The remedy is in what is offered. Such opponents sit at the higher levels with an honest description, and the easier levels are filled from schools that do not play this layer.
 - **A person does not read an invitation as one.** Make the signal plainer before adding anything: raise `giftEdge` for the client so that an invitation is unmistakably generous. If that fails, the conventions are described in the game's help, as a bridge player learns a convention from a card. Still no channel for speech.
-- **Opponents that ask again are tiresome.** Keep `maxAsks` at 1 and lengthen the schools' `probeGap` for the client; the asking that wins among programs need not be the asking a person sits through.
+- **Opponents that ask again are tiresome.** Lower `maxAsks` (the author set 5 a turn) and lengthen the schools' `probeGap` for the client; the asking that wins among programs need not be the asking a person sits through.
 - **The characters cannot be told apart at the board.** Offer fewer. A character earns its place by being recognised in play, not by its descriptors.
 - **A worker will not start from `file://`.** Stay on the main thread; the wait before a computer player acts already hides the work.
 - **The app grows too large or slow to open.** Ship one learned agent for each size and no learned characters; the written schools cost nothing.
@@ -203,6 +203,6 @@ First version, tasks 1 to 4, built on 20 November 2026 without the disk; the rec
 - Task 3: the menu fits the 1512 by 945 window with four seats in both languages.
 - Task 4: checked with an untrained network of the real size, in the dev server and in the from-disk build in headless Chrome, where the worker started. G1's model is not shipped yet: it is on the disk.
 
-- Task 5a: `maxAsks` (1 by default), the debt window for computer seats and for a person, and offers shown in full; its three checks are met in `test/seats.test.ts`, and the window was played through in the client from a saved game.
+- Task 5a: `maxAsks` (five offers a turn, the author's setting), the debt window for computer seats and for a person, and offers shown in full; its three checks are met in `test/seats.test.ts`, and the window was played through in the client from a saved game.
 
 Gate 4 holds through the worker; on the main thread a decision takes 3.3 ms at the median and up to 180 ms at worst. Tasks 5 and 5b, the person's checks, are open, and so is everything of the final version.

@@ -26,7 +26,7 @@ export type Mode = 'regular' | 'short';
 
 /** What the client tells an agent beyond the engine it is handed. */
 export interface AskLimits {
-  /** The seats this one may not ask again this round; the engine it is handed already leaves them out. */
+  /** The seats this one may not ask again this turn; the engine it is handed already leaves them out. */
   blocked: readonly PlayerId[];
 }
 
