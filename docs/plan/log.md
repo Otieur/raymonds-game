@@ -682,4 +682,3 @@ The author went to sleep at about 00:40, asking for ten hours of work alone, wit
 
 - **00:35** T1 finished (10 million decisions; training checks 87.6% to 90.6% against the baseline, 76.9% to 80.5% on the suite, the same as G1 within the intervals); T2 started (30 million, half the learner's turns drafting its own offers).
 - **Client, while the runs go** (no change to the engine, the environment or any agent's decisions, since later queue steps load the code on disk): M10's two optional displays, both off by default. "Odds" shows each side's chance of winning by the valuation under the roster, in whole percentages that always add up to 100 (full game only). "Plans" shows beside a computer seat what its playbook rules say it is doing, in both languages; the Statesman's ladder is named by its last rule on, since a rule stays on for a few turns and a later one overrides it, which first showed "an even table" and "stopping the leader" side by side.
-
