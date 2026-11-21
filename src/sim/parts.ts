@@ -13,7 +13,7 @@ export const PARTS: Record<Part, (keyof Style)[]> = {
   bid: ['bidCap', 'bidCeiling', 'blockBonus', 'bidKeep', 'bidStep', 'driveUp', 'buildingBid'],
   build: ['buildTarget', 'buildBeyond', 'buildOrder', 'buildSpread', 'buildNear', 'mortgageToBuild', 'holdHouses', 'huntFailing'],
   cash: ['reserve', 'reserveBuilt', 'reserveThreat', 'redeemSpare', 'jailStay', 'jailStayBuilt'],
-  offer: ['proposeRate', 'offerLow', 'offerHigh', 'offerFloor', 'swaps', 'sellOffers', 'distressOffers', 'leaveCash', 'giveUpBelow',
+  offer: ['proposeRate', 'offerLow', 'offerHigh', 'offerFloor', 'swaps', 'sellOffers', 'distressOffers', 'passOffers', 'leaveCash', 'giveUpBelow',
     'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
     'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
     'courtAllies', 'giftEdge', 'allyAt', 'allyTurns'],

@@ -63,6 +63,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
       prefer: { passes: 2 },
       passStep: 0.5,
       distressOffers: true,
+      passOffers: true,
       neverSell: ['passes'],
       buildTarget: 3,
     },
@@ -93,6 +94,7 @@ const STYLES: Record<string, { family: Preset['family']; sizes?: (2 | 3 | 4)[]; 
       offerHigh: 4,
       offerFloor: 1,
       jailStay: 0.5,
+      redeemSpare: 0,
     },
   },
   slumlord: {

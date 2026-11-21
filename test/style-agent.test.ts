@@ -414,7 +414,7 @@ test('early asks: with earlyNeed, no ask when the holder of the third street has
 test('the table fields: every one is in the list, has a default, and leaves a stored style playing as before', () => {
   const stored = Object.fromEntries(Object.entries(BASELINE).filter(([key]) => !(TABLE_FIELDS as readonly string[]).includes(key)));
   assert.deepEqual(completeStyle(stored as never), BASELINE);
-  assert.equal(TABLE_FIELDS.length, 33);
+  assert.equal(TABLE_FIELDS.length, 34);
   assert.equal(readsTable(BASELINE), false);
 });
 
@@ -634,4 +634,21 @@ test('completeBy list: a seat that prices by value keeps today\'s price for the 
   const ask = seatAct(early, { ...style, earlyOffers: true }, createStyleMemory()) as Proposal;
   assert.equal(ask.type, 'PROPOSE_TRADE');
   assert.deepEqual(ask.receive.properties, ['diaochan']);
+});
+
+test('passOffers: asks a rival for its pass at offerLow to offerHigh times list, and only with the field', () => {
+  const state = four();
+  give(state, 'b', 'hulao-pass');
+  give(state, 'a', 'guandu-ford');
+  const pass = engine.board.squares.find((sq) => sq.id === 'hulao-pass') as { price: number };
+  const style = { passOffers: true, offerLow: 2, offerHigh: 3 };
+  const action = play(state, style) as Proposal;
+  assert.equal(action.type, 'PROPOSE_TRADE');
+  assert.equal(action.to, 'b');
+  assert.deepEqual(action.receive.properties, ['hulao-pass']);
+  assert.equal(action.give.cash, pass.price * 2, 'the random draw of 0 gives offerLow times list');
+  assert.notEqual(play(state, {})?.type, 'PROPOSE_TRADE');
+  // The Pass baron has it on; no other preset does.
+  assert.equal(PRESETS['pass-baron'].playbook.base.passOffers, true);
+  assert.deepEqual(Object.values(PRESETS).filter((preset) => preset.playbook.base.passOffers).map((preset) => preset.name), ['pass-baron']);
 });

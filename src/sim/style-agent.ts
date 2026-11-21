@@ -663,6 +663,25 @@ function proposeTrade(L: Lens, legal: LegalAction[], random: Random): Action | n
     }
   }
 
+  // Passes held by rivals, priced as a group's last street is.
+  if (style.passOffers) {
+    const spare = me.cash - reserve(L);
+    for (const target of L.properties) {
+      const holder = target.kind === 'transit' ? ownerOf(L, target.id) : null;
+      if (holder === null || holder === me.id || !partners.includes(holder) || state.properties[target.id].mortgaged) continue;
+      const cash = Math.round(target.price * (style.offerLow + random() * (style.offerHigh - style.offerLow)));
+      if (cash > spare) continue;
+      const action = send(L, {
+        type: 'PROPOSE_TRADE',
+        player: me.id,
+        to: holder,
+        give: { cash, properties: [], jailCards: 0 },
+        receive: { cash: 0, properties: [target.id], jailCards: 0 },
+      });
+      if (action) return action;
+    }
+  }
+
   if (style.courtAllies) {
     const invited = courtAlly(L, partners);
     if (invited) return invited;

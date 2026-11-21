@@ -108,6 +108,8 @@ export interface Style {
   sellOffers: boolean;
   /** Offers cash at or under list price to a rival who is short of cash. */
   distressOffers: boolean;
+  /** Asks rivals for their passes, offering `offerLow` to `offerHigh` times list, as for a group's last street. */
+  passOffers: boolean;
   /** At a table of three or four, no deal with the seat that leads by the valuation. */
   shunLeader: boolean;
   /** At a table of three or four, below this chance of winning it sells to the weakest rival. */
@@ -247,6 +249,7 @@ export const BASELINE: Style = {
   leaveCash: null,
   sellOffers: false,
   distressOffers: false,
+  passOffers: false,
   shunLeader: false,
   giveUpBelow: null,
   offerBy: 'list',
@@ -289,12 +292,12 @@ export const BASELINE: Style = {
   bySize: {},
 };
 
-/** The fields added for playing the table (M3b). */
+/** The fields added after the first styles were stored: for playing the table (M3b), and M2's last retuning. */
 export const TABLE_FIELDS = [
   'offerBy', 'completeBy', 'openShare', 'maxShare', 'raiseStep', 'probeGap', 'probeDrop', 'earlyOffers', 'earlyBefore', 'earlyNeed',
   'denyOffers', 'denyThreat', 'denyShare', 'denyRank', 'estateOffers', 'failBelow', 'rescue', 'debtOffers', 'debtSales',
   'courtAllies', 'giftEdge', 'allyAt', 'allyTurns', 'answerBy', 'acceptEdge', 'againstLeader', 'forWeak', 'reciprocity', 'huntFailing',
-  'goodwillBound', 'unreturned', 'coldMood', 'coldEdge',
+  'goodwillBound', 'unreturned', 'coldMood', 'coldEdge', 'passOffers',
 ] as const satisfies readonly (keyof Style)[];
 
 /** A style as it may have been stored before the table fields existed. */
