@@ -249,6 +249,11 @@ export class GameStore {
     this.seats.dispose();
   }
 
+  /** What a computer seat's opponent is doing, by the rules it had on at its last decision (see `intents.ts`). */
+  intentOf(id: PlayerId): { opponent: string; rules: string[] } | null {
+    return this.seats.intent(id);
+  }
+
   /** The computer seats whose opponent failed and that now play the standard computer player. */
   fallenBack(): PlayerId[] {
     return this.seats.fallen();

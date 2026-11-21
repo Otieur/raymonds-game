@@ -97,6 +97,17 @@ export class Seats {
     }
   }
 
+  /** A computer seat's opponent and the playbook rules it had on at its last decision; empty for others. */
+  intent(id: PlayerId): { opponent: string; rules: string[] } | null {
+    const slot = this.slots.get(id);
+    if (!slot || slot.fallen || !slot.agent?.rules) return null;
+    try {
+      return { opponent: slot.opponent.id, rules: slot.agent.rules().last };
+    } catch {
+      return null;
+    }
+  }
+
   /** The seats whose opponent failed and that now play the rule-based agent. */
   fallen(): PlayerId[] {
     return [...this.slots].filter(([, slot]) => slot.fallen).map(([id]) => id);

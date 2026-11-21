@@ -1,8 +1,11 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { HOTEL_LEVEL, threeKingdomsPresentation as look } from '../../../src/index.ts';
 import type { PlayerState, PropertySquare, SquareId } from '../../../src/index.ts';
+import { chancesNow } from '../game/ahead.ts';
 import { factionOf, isProperty } from '../game/assets.ts';
 import { describe } from '../game/describe.ts';
+import { intentWords } from '../game/intents.ts';
+import { useSetting } from '../game/settings.ts';
 import type { GameStore, Snapshot } from '../game/store.ts';
 import { useTongue } from '../i18n.tsx';
 import { Money, vars } from './ui.tsx';
@@ -49,6 +52,12 @@ export function Players({ store, snap, onSelect }: Props) {
   const { state } = snap;
   const properties = store.engine.board.squares.filter(isProperty);
   const rowRef = useReseating(snap.seating.join(' '));
+  const [strip] = useSetting('strip');
+  const [intent] = useSetting('intent');
+  // The valuation was fitted on full games; the strip is shown in them only, once the order of play is set.
+  const showStrip = strip && store.config.mode === 'regular' && state.turn.phase !== 'order' && state.winner === null;
+  const chances = useMemo(() => (showStrip ? chancesNow(store.engine, state) : null), [showStrip, store, state]);
+  const chanceOf = (id: string) => (chances ? chances[state.players.findIndex((p) => p.id === id)] : 0);
 
   return (
     <section className="panel roster">
@@ -73,6 +82,11 @@ export function Players({ store, snap, onSelect }: Props) {
                 <div className="player-name">
                   <span className="player-side">{tg.who(seat.id)}</span>
                   {seat.ai && <span className="tag">AI</span>}
+                  {intent && seat.ai && !player.bankrupt && (() => {
+                    const doing = store.intentOf(seat.id);
+                    const words = doing ? intentWords(doing.opponent, doing.rules, tg.lang) : '';
+                    return words ? <span className="tag tag-intent">{words}</span> : null;
+                  })()}
                   {thrown && (
                     <span className="tag tag-gold tag-throw">
                       {thrown[0]} + {thrown[1]} = {thrown[0] + thrown[1]}
@@ -113,6 +127,25 @@ export function Players({ store, snap, onSelect }: Props) {
           );
         })}
       </div>
+      {chances && (
+        <div className="ahead" aria-label={`${tg.t('aheadTitle')}: ${snap.seating.map((id) => `${tg.who(id)} ${chanceOf(id)}%`).join(', ')}`}>
+          <span className="ahead-title">{tg.t('aheadTitle')}</span>
+          <div className="ahead-bar" aria-hidden="true">
+            {snap.seating
+              .filter((id) => chanceOf(id) > 0)
+              .map((id) => (
+                <span
+                  key={id}
+                  className="ahead-part"
+                  style={{ ...vars({ '--c': factionOf(id).color }), flexGrow: chanceOf(id) }}
+                  title={`${tg.who(id)} ${chanceOf(id)}%`}
+                >
+                  {chanceOf(id) >= 9 ? `${tg.who(id)} ${chanceOf(id)}%` : ''}
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

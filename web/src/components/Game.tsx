@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { PlayerId, SquareId } from '../../../src/index.ts';
 import { factionOf, PORTRAITS } from '../game/assets.ts';
 import { useMusic } from '../game/music.ts';
+import { useSetting } from '../game/settings.ts';
 import type { GameStore, Snapshot } from '../game/store.ts';
 import { useTongue } from '../i18n.tsx';
 import { Board } from './Board.tsx';
@@ -68,6 +69,8 @@ export function Game({ store, onQuit }: { store: GameStore; onQuit: () => void }
   const [reviewing, setReviewing] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [musicOn, toggleMusic] = useMusic();
+  const [strip, toggleStrip] = useSetting('strip');
+  const [intent, toggleIntent] = useSetting('intent');
   const over = snap.state.winner !== null;
   const tokens = useMemo(() => Object.fromEntries(store.config.seats.map((seat) => [seat.id, seat.token])), [store]);
   const opening = snap.state.turn.phase === 'order';
@@ -105,6 +108,14 @@ export function Game({ store, onQuit }: { store: GameStore; onQuit: () => void }
             </button>
             <button type="button" className={`tool ${musicOn ? 'on' : ''}`} aria-pressed={musicOn} onClick={toggleMusic}>
               {t('music')}
+            </button>
+            {store.config.mode === 'regular' && (
+              <button type="button" className={`tool tool-option ${strip ? 'on' : ''}`} aria-pressed={strip} title={t('stripHint')} onClick={toggleStrip}>
+                {t('stripTool')}
+              </button>
+            )}
+            <button type="button" className={`tool tool-option ${intent ? 'on' : ''}`} aria-pressed={intent} title={t('intentHint')} onClick={toggleIntent}>
+              {t('intentTool')}
             </button>
             <button type="button" className="tool" onClick={() => tg.setLang(tg.lang === 'zh' ? 'en' : 'zh')}>
               {tg.lang === 'zh' ? 'EN' : '中文'}

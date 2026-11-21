@@ -38,6 +38,8 @@ export interface OpponentAgent {
   window?(engine: Engine, state: GameState, actor: PlayerId, random: () => number): Action | null | Promise<Action | null>;
   /** Releases what the agent holds, such as a worker, when its game is left or it is replaced. */
   dispose?(): void;
+  /** For a playbook: every rule that has come on in this game, and the rules on at its last decision. */
+  rules?(): { ever: string[]; last: string[] };
 }
 
 export interface Opponent {

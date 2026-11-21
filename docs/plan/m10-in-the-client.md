@@ -205,4 +205,6 @@ First version, tasks 1 to 4, built on 20 November 2026 without the disk; the rec
 
 - Task 5a: `maxAsks` (five offers a turn, the author's setting), the debt window for computer seats and for a person, and offers shown in full; its three checks are met in `test/seats.test.ts`, and the window was played through in the client from a saved game.
 
+- Task 8, ahead of the final version: the strip ("Odds") behind its setting, off by default; its figures add up to 100% at every moment of recorded games. "What an opponent is doing" ("Plans") likewise, for the two playbooks offered. Both wait on the person's check.
+
 Gate 4 holds through the worker; on the main thread a decision takes 3.3 ms at the median and up to 180 ms at worst. Tasks 5 and 5b, the person's checks, are open, and so is everything of the final version.

@@ -675,3 +675,11 @@ The disk was attached at about 20:50. Another project's runs (self-play and benc
 With the Concentrator judged by the direct measure, M2's gate 2 is met in full: 36 of 36. Every game finished. Win shares moved little: Pass baron 65.7%, 30.4%, 13.9% at two, three and four players (from 69.0%, 35.3%, 11.5%); All in 53.1%, 37.0%, 31.1% (from 56.0%, 38.6%, 31.3%).
 
 All in's change (`redeemSpare: 0`) is in its cash part, which Sky rush and the playbooks' "build out" rule borrow (the Opportunist among them). They now borrow All in's first form, kept as `all-in-first`, so they play exactly as measured; a test checks it. No run that night used either between the change and the fix: T1's opponents, the tables and the search draw on neither. `check-style.ts --gate presets-final.json` fails on the whole file, as it did before this round (some of its runs predate the measures of the last four bars); the bars are read run by run, as on 18 November.
+
+## 21 November, night, alone
+
+The author went to sleep at about 00:40, asking for ten hours of work alone, with branches and pushes made promptly. Work goes on `ai/night-2026-11-21`, and `main` follows it.
+
+- **00:35** T1 finished (10 million decisions; training checks 87.6% to 90.6% against the baseline, 76.9% to 80.5% on the suite, the same as G1 within the intervals); T2 started (30 million, half the learner's turns drafting its own offers).
+- **Client, while the runs go** (no change to the engine, the environment or any agent's decisions, since later queue steps load the code on disk): M10's two optional displays, both off by default. "Odds" shows each side's chance of winning by the valuation under the roster, in whole percentages that always add up to 100 (full game only). "Plans" shows beside a computer seat what its playbook rules say it is doing, in both languages; the Statesman's ladder is named by its last rule on, since a rule stays on for a few turns and a later one overrides it, which first showed "an even table" and "stopping the leader" side by side.
+
