@@ -77,7 +77,7 @@ The goal is computer players that are strong, varied and pleasant to play agains
 | M4 | The environment that lets a network play thousands of moves a second | Done |
 | M5 | A network that imitates the rule-based player, as the starting point | Bar 2 met; two bars open |
 | **M6** | **Reinforcement learning: two players (G1), then four, then three** | **G1 passed on 20 November 2026** |
-| **M9** | **Trading: the learner makes its own offers** | **Moved forward to come before four players; foundation built** |
+| **M9** | **Trading: the learner makes its own offers** | **Two-player training under way.** Drafting half of its own offers, the learner holds G1's level (91% against the baseline); the last stage, all offers its own, runs now |
 | M7 | Every table size in the full game; one shared agent against specialists | Code for its first steps written |
 | M8 | League training, and learning when to change plan | To do |
 | M10 | The opponents in the client | First version in the game: an opponent for each computer seat, learned ones run in the background, at most five offers from a computer seat a turn, and a chance for everyone, you included, to buy from a player who cannot pay; the two-player agent is in the game as 深思 |
@@ -229,7 +229,7 @@ npm run dev          # 然后打开 http://localhost:5173
 | M4 | 训练环境：让神经网络一秒下几千步 | 完成 |
 | M5 | 先让神经网络模仿规则打法，作为强化学习的起点 | 第 2 条门槛已过；还有 2 条没过 |
 | **M6** | **强化学习：先二人局（G1），再四人局，再三人局** | **G1 于 2026 年 11 月 20 日通过** |
-| **M9** | **交易：AI 自己提交易** | **已提前到四人局之前；地基已写好** |
+| **M9** | **交易：AI 自己提交易** | **二人局交易训练进行中。**一半的交易由 AI 自己起草时，它保持了 G1 的水平（对规则打法胜 91%）；最后一段，全部交易都自己提，正在跑 |
 | M7 | 所有人数的完整对局；比较一个通用 AI 和各人数的专门 AI | 前几步的代码已写好 |
 | M8 | 联赛训练，学会什么时候换打法 | 未开始 |
 | M10 | 把对手放进游戏里 | 第一版已进游戏：每个电脑座位都能挑对手，神经网络对手在后台运行；每个电脑座位一回合最多提五次交易；有人还不起债时，包括你在内的其他人都有机会先出价买它的地；二人局 AI「深思」已装进游戏 |
