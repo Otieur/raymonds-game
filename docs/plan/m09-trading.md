@@ -209,4 +209,21 @@ Part A, begun on 20 November at night ([log.md](log.md) under that date).
 
 G1 answers free streets badly (2 of 10, where the baseline answers all 10): it turns down offers that cost it nothing. Trading training (T1 to T3) started from it the same night.
 
+**T1 and T2** (tasks 11 and 12; `scripts/queue/m9-two-player.sh`, runs `trade-t1-2` and `trade-t2-2` from G1's holder, code at `60d1dd3`). Checks every 20 updates: 500 games as the one learner among baselines, seeds 2,500,000 to 2,500,499, then the suite.
+
+- **T1**, 10 million decisions with the school drafting every offer (22:04 to 00:35): 87.6% to 90.6% against the baseline, 75.7% to 80.5% on the suite, G1's level within the intervals. Task 11's check passes.
+- **T2**, 30 million decisions, half the learner's turns drafted by itself, the pull toward the cloned offers falling to zero by half the run (00:35 to 05:49, 230 updates):
+
+| Update | Against the baseline | Suite |
+| ---: | --- | --- |
+| 0 | 70.6% (66.6 to 74.6) | 71.0% |
+| 40 | 69.2% (65.2 to 73.2) | 75.7% |
+| 80 | 77.0% (73.3 to 80.6) | 64.5% |
+| 100 | 79.6% (76.0 to 83.1) | 66.9% |
+| 120 | 90.0% (87.4 to 92.6) | 72.2% |
+| 180 | 92.4% (90.1 to 94.7) | 72.2% |
+| 230 (last) | 91.3% (88.9 to 93.8) | 72.2% (65.0 to 78.4) |
+
+At update 0 the learner's own drafts cost it 20 points against T1's last check, where the school drafted for it; the share held near 70% while the pull lasted and climbed as it fell to zero (zero from update 116, 15.2 million decisions), reaching T1's and G1's level by update 120. Task 12's bar, an interval above an even share, held at every check. The suite fell to 64.5% at update 80 and came back to 72.2%, still under G1's 80.5%: passes (22 of 27 at update 40, 15 at 80, 19 at the end) and free streets (3 of 10) are the weak templates. Over the last ten updates the learner drafted 1.81 offers a game, 17% accepted (40% to 48% in the first updates), and its school 3.38 at 11%; 3.1% of training games were cut off. T3's first seed started from update 230 at 05:49.
+
 **Gate 7's remedy** (task 9; `scripts/queue/m9-suites.sh`, lane C, 21:05 to 03:15 on background policy): `found-4-b2t1p1c2, baseline, envoy+completeBy=list+goodwillBound=2+unreturned=1, false-friend`, 5,000 games on seeds 1,140,000 to 1,144,999, 99.6% finished. The remedied Envoy wins 23.7% (22.6 to 24.9); the Balancer in the same seat on the same seeds won 26.1%. Paired by seed (`compare-tables.ts`, 4,954 seeds where both games finished): **−2.4 points (−3.6 to −1.2)**, correlation 0.51, against −2.3 (−3.5 to −1.1) before the remedy. The remedy changes how the Envoy asks (asks a purchase 2.54 to 2.23) and not the result: the False friend's invitations are still accepted 30.0% of the time and it wins 21.5%. M3b had found that the Envoy loses by giving to whoever accepts its invitations more than by being farmed, and the remedy is aimed at the farming. Gate 7 stays not met at four players; the narrow pass with `giftEdge: 1` (−1.6, −3.3 to 0.2, as independent samples) is still the best reading. What to do next is the author's decision. Files: `tables/gate7-envoy-remedy-4.{md,json}`, `tables/gate7-remedy-paired-4.txt`.
